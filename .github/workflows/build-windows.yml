@@ -86,19 +86,50 @@ jobs:
           Dump "flutter build windows 报错(末尾 80 行)" "flutter-build.log"
           Dump "内核 / setup.dart 报错(末尾 80 行)" "setup-windows.log"
 
-      # 捆绑 VC++ 运行库:目标机没装会报「找不到 msvcp140.dll 无法继续执行代码」。拷进 Release 即自带。
-      - name: 捆绑 VC++ 运行库(修复目标机缺 msvcp140.dll)
+      # 捆绑 VC++ 运行库:Flutter Windows 应用硬依赖它,目标机没装会报
+      # 「找不到 MSVCP140.dll / VCRUNTIME140.dll / VCRUNTIME140_1.dll 无法继续执行代码」。
+      # 从 VS 的 VC++ Redist 目录(最权威)拷,System32 兜底,并【强制校验三件必需 dll 已进 Release】。
+      - name: 捆绑并校验 VC++ 运行库(根治 msvcp140.dll 缺失)
         if: always()
         shell: pwsh
         run: |
           $rel = "build/windows/x64/runner/Release"
-          if (Test-Path $rel) {
-            foreach ($dll in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','msvcp140_1.dll','msvcp140_2.dll')) {
-              $src = Join-Path $env:SystemRoot "System32/$dll"
-              if (Test-Path $src) { Copy-Item $src $rel -Force; Write-Host "已捆绑 $dll" }
-              else { Write-Host "::warning::未找到 $dll(非必需的可忽略)" }
+          if (-not (Test-Path $rel)) { Write-Host "::warning::Release 不存在,跳过(见 flutter build 报错)。"; exit 0 }
+          $need  = @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll')
+          $extra = @('msvcp140_1.dll','msvcp140_2.dll','concrt140.dll','vccorlib140.dll')
+          $sources = @()
+          # 来源1(权威):VS 安装里的 VC++ Redist\MSVC\<ver>\x64\Microsoft.VC*.CRT,用 vswhere 定位
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $vs = & $vswhere -latest -products * -property installationPath
+            if ($vs) {
+              $root = Join-Path $vs 'VC\Redist\MSVC'
+              if (Test-Path $root) {
+                Get-ChildItem $root -Directory | ForEach-Object {
+                  $crt = Join-Path $_.FullName 'x64'
+                  if (Test-Path $crt) {
+                    Get-ChildItem $crt -Directory -Filter 'Microsoft.VC*.CRT' -ErrorAction SilentlyContinue | ForEach-Object { $sources += $_.FullName }
+                  }
+                }
+              }
             }
-          } else { Write-Host "::warning::Release 不存在,跳过捆绑。" }
+          }
+          # 来源2(兜底):System32
+          $sources += (Join-Path $env:SystemRoot 'System32')
+          Write-Host "候选来源:"; $sources | ForEach-Object { Write-Host "  $_" }
+          foreach ($dll in ($need + $extra)) {
+            if (Test-Path (Join-Path $rel $dll)) { continue }
+            foreach ($src in $sources) {
+              $p = Join-Path $src $dll
+              if (Test-Path $p) { Copy-Item $p $rel -Force; Write-Host "已捆绑 $dll  <- $src"; break }
+            }
+          }
+          $missing = $need | Where-Object { -not (Test-Path (Join-Path $rel $_)) }
+          if ($missing) {
+            Write-Host "::error::必需 VC++ 运行库未能捆绑:$($missing -join ', ')(装机会打不开;把本步日志贴我)"
+            exit 1
+          }
+          Write-Host "OK - Release 内已确认含:$($need -join ', ')"
 
       - name: 诊断 · 列出产物目录
         if: always()
@@ -116,8 +147,8 @@ jobs:
         run: |
           $rel = "build/windows/x64/runner/Release"
           if ((Test-Path $rel) -and (Get-ChildItem $rel)) {
-            Compress-Archive -Path "$rel/*" -DestinationPath "FlClash-windows-x64-portable.zip" -Force
-            Get-Item "FlClash-windows-x64-portable.zip" | Select-Object Name, Length | Format-Table -AutoSize
+            Compress-Archive -Path "$rel/*" -DestinationPath "TianTiLink-windows-x64-portable.zip" -Force
+            Get-Item "TianTiLink-windows-x64-portable.zip" | Select-Object Name, Length | Format-Table -AutoSize
           } else {
             Write-Host "::warning::Release 为空,未生成便携 zip(见摘要页的 flutter build 报错)。"
           }
@@ -127,7 +158,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-windows-portable
-          path: FlClash-windows-x64-portable.zip
+          path: TianTiLink-windows-x64-portable.zip
           if-no-files-found: warn
           overwrite: true
 
