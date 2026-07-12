@@ -1,12 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "dev"
+    "project_number": "661561862241",
+    "project_id": "tiantilink",
+    "storage_bucket": "tiantilink.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:661561862241:android:76854f664590e621672220",
         "android_client_info": {
           "package_name": "com.follow.clash"
         }
@@ -14,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "0"
+          "current_key": "AIzaSyBM54KZH8KgQKzDQBCMKrJQYHZkAS9VxUs"
         }
       ],
       "services": {
@@ -25,26 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
-        "android_client_info": {
-          "package_name": "com.follow.clash.debug"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "0"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:661561862241:android:fb7c053b1473a744672220",
         "android_client_info": {
           "package_name": "com.follow.clash.dev"
         }
@@ -52,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "0"
+          "current_key": "AIzaSyBM54KZH8KgQKzDQBCMKrJQYHZkAS9VxUs"
         }
       ],
       "services": {
@@ -61,5 +43,6 @@
         }
       }
     }
-  ]
+  ],
+  "configuration_version": "1"
 }
