@@ -1,0 +1,56 @@
+# 云编译 Windows 桌面版 —— 照搬 FlClash 官方 build.yaml 的 windows(amd64)作业。
+# 版本刻意沿用你 fork 已验证能成功的那套(Flutter 3.41.9 stable / Go 1.24.0),
+# 与你的安卓构建一致,避免用更新的 master 版撞上老快照编不过。
+#
+# 放到你 fork 的 .github/workflows/ 下(和 build-android.yml 并存)。
+# 推一个 v* tag 会同时触发安卓+Windows;也可在 Actions 页手动 Run workflow 单独跑 Windows。
+# 产物在运行页 artifact-windows 里下载(解压得到 .exe 安装包)。
+name: build-windows
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout(含子模块)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.0'
+          cache-dependency-path: core/go.sum
+
+      # Windows 上 Go 内核/子模块路径较深,不开长路径会 checkout/编译报错。
+      - name: 开启 git 长路径(Windows 必须)
+        run: git config --global core.longpaths true
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.9
+          cache: true
+
+      - name: Flutter 依赖
+        run: |
+          flutter --version
+          flutter pub get
+
+      # 不是 flutter build,而是 FlClash 的编排脚本(先编 Go 内核,再用 flutter_distributor
+      # 打 Windows 安装包;GitHub 的 windows-2022 runner 自带 Inno Setup,无需额外安装)。
+      - name: 构建 Windows 安装包
+        run: dart setup.dart windows --env stable -v
+
+      - name: 上传产物(在这里下载 .exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-windows
+          path: ./dist
+          overwrite: true
