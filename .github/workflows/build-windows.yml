@@ -1,10 +1,10 @@
-# 云编译 Windows 桌面版 —— 照搬 FlClash 官方 build.yaml 的 windows(amd64)作业。
-# 版本刻意沿用你 fork 已验证能成功的那套(Flutter 3.41.9 stable / Go 1.24.0),
-# 与你的安卓构建一致,避免用更新的 master 版撞上老快照编不过。
+# 云编译 Windows 桌面版 —— 分步显式构建 + 自动把报错写到「运行摘要页」。
+# 版本对齐当前官方源码:Flutter 3.44.4 stable / Go 1.26.4(2026-07-13 核对 main)。
 #
-# 放到你 fork 的 .github/workflows/ 下(和 build-android.yml 并存)。
-# 推一个 v* tag 会同时触发安卓+Windows;也可在 Actions 页手动 Run workflow 单独跑 Windows。
-# 产物在运行页 artifact-windows 里下载(解压得到 .exe 安装包)。
+# 流程:1) dart setup.dart windows 编 Go 内核(core/Clash.Meta,CGO)+ 写 env.json(打包失败放行);
+#       2) 显式 flutter build windows --release 出完整 Release/;3) 捆绑 VC++ 运行库;4) 压便携 zip。
+# 两个 run 步骤的输出都 tee 到日志文件;一旦失败,自动把日志末尾写进 $GITHUB_STEP_SUMMARY
+# (运行页顶部就能看到),并把完整日志作为 windows-build-log 产物上传——不用再翻长日志。
 name: build-windows
 
 on:
@@ -24,10 +24,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.0'
+          go-version: '1.26.4'
           cache-dependency-path: core/go.sum
 
-      # Windows 上 Go 内核/子模块路径较深,不开长路径会 checkout/编译报错。
       - name: 开启 git 长路径(Windows 必须)
         run: git config --global core.longpaths true
 
@@ -35,7 +34,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.41.9
+          flutter-version: 3.44.4
           cache: true
 
       - name: Flutter 依赖
@@ -43,14 +42,112 @@ jobs:
           flutter --version
           flutter pub get
 
-      # 不是 flutter build,而是 FlClash 的编排脚本(先编 Go 内核,再用 flutter_distributor
-      # 打 Windows 安装包;GitHub 的 windows-2022 runner 自带 Inno Setup,无需额外安装)。
-      - name: 构建 Windows 安装包
-        run: dart setup.dart windows --env stable -v
+      # 第 1 段:官方脚本编 Go 内核 + 写 env.json。打包(Inno)可能失败,用 continue-on-error 放行;
+      # 全程输出 tee 到 setup-windows.log,失败也留证据。
+      - name: 编内核 + 生成 env.json(官方脚本;打包失败可忽略)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          dart setup.dart windows --env stable -v 2>&1 | Tee-Object -FilePath setup-windows.log
+          Write-Host "setup.dart 退出码:$LASTEXITCODE"
 
-      - name: 上传产物(在这里下载 .exe)
+      # 第 2 段:显式编译完整 Windows 应用。真编不过就当场红(exit code 传递),报错进 flutter-build.log。
+      - name: 编译完整 Windows 应用(flutter build windows --release)
+        id: fbuild
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          if (Test-Path env.json) {
+            Write-Host "用 env.json 编译"
+            flutter build windows --release --dart-define-from-file=env.json 2>&1 | Tee-Object -FilePath flutter-build.log
+          } else {
+            Write-Host "未见 env.json,直接编译"
+            flutter build windows --release 2>&1 | Tee-Object -FilePath flutter-build.log
+          }
+          Write-Host "flutter build 退出码:$LASTEXITCODE"
+          exit $LASTEXITCODE
+
+      # 失败时:把两个日志末尾写进【运行摘要页】(运行页顶部即可见,免翻长日志)。
+      - name: 失败时把报错写进运行摘要页
+        if: failure()
+        shell: pwsh
+        run: |
+          function Dump($title, $file) {
+            "## $title" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            if (Test-Path $file) {
+              '```text' | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+              Get-Content $file -Tail 80 | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+              '```'      | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            } else {
+              "(未生成 $file)" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            }
+          }
+          Dump "flutter build windows 报错(末尾 80 行)" "flutter-build.log"
+          Dump "内核 / setup.dart 报错(末尾 80 行)" "setup-windows.log"
+
+      # 捆绑 VC++ 运行库:目标机没装会报「找不到 msvcp140.dll 无法继续执行代码」。拷进 Release 即自带。
+      - name: 捆绑 VC++ 运行库(修复目标机缺 msvcp140.dll)
+        if: always()
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          if (Test-Path $rel) {
+            foreach ($dll in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','msvcp140_1.dll','msvcp140_2.dll')) {
+              $src = Join-Path $env:SystemRoot "System32/$dll"
+              if (Test-Path $src) { Copy-Item $src $rel -Force; Write-Host "已捆绑 $dll" }
+              else { Write-Host "::warning::未找到 $dll(非必需的可忽略)" }
+            }
+          } else { Write-Host "::warning::Release 不存在,跳过捆绑。" }
+
+      - name: 诊断 · 列出产物目录
+        if: always()
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          Write-Host "===== $rel ====="
+          if (Test-Path $rel) { Get-ChildItem $rel | Select-Object Name, Length | Format-Table -AutoSize } else { Write-Host "(Release 不存在)" }
+          Write-Host "===== dist/ ====="
+          if (Test-Path dist) { Get-ChildItem -Recurse dist | Select-Object FullName, Length | Format-Table -AutoSize } else { Write-Host "(dist 不存在)" }
+
+      - name: 打包便携版 zip
+        if: always()
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          if ((Test-Path $rel) -and (Get-ChildItem $rel)) {
+            Compress-Archive -Path "$rel/*" -DestinationPath "FlClash-windows-x64-portable.zip" -Force
+            Get-Item "FlClash-windows-x64-portable.zip" | Select-Object Name, Length | Format-Table -AutoSize
+          } else {
+            Write-Host "::warning::Release 为空,未生成便携 zip(见摘要页的 flutter build 报错)。"
+          }
+
+      - name: 上传便携版(解压即用)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-windows-portable
+          path: FlClash-windows-x64-portable.zip
+          if-no-files-found: warn
+          overwrite: true
+
+      - name: 上传安装包(dist,若有)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifact-windows
           path: ./dist
+          if-no-files-found: ignore
+          overwrite: true
+
+      # 完整构建日志(诊断用):不管成败都上传,方便贴给我定位。
+      - name: 上传构建日志(诊断)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: |
+            flutter-build.log
+            setup-windows.log
+          if-no-files-found: ignore
           overwrite: true
