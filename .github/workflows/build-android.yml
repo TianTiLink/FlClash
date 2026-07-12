@@ -1,0 +1,103 @@
+# 云编译安卓 APK —— 忠实照搬 FlClash 官方 .github/workflows/build.yaml 的 Android 构建流程
+# (Flutter 3.44.4 / Go 1.26.4 / NDK r28c / dart setup.dart android),只保留 Android 一条线。
+#
+# 版本说明:最初实测成功用的是 3.41.9/1.24.0(对齐 tgshopai/FlClash 那次 fork 的快照)。
+# 2026-07-12 核对官方 main:已升到 Flutter 3.44.4 / Go 1.26.4(NDK 仍 r28c),Dart SDK 约束 >=3.8.0。
+# 【从零 fork 当前官方 FlClash 必须用下面的新版本】——否则老 Flutter 不满足 Dart>=3.8.0,pub get 直接失败。
+#
+# 放到你 fork 的 FlClash 仓库的 .github/workflows/ 下,并【删掉 FlClash 自带的 build.yaml】
+# (否则两个工作流都会在 v* tag 上触发)。推一个如 v1.0.0 的 tag 即自动构建,
+# 产物在 Actions 运行页的 artifact-android 里下载。完整步骤见 client/BUILD-ANDROID.md。
+#
+# 版本号都对齐 FlClash 官方 CI(改动前务必确认与当前 FlClash 一致,它偶尔升版本)。
+name: build-android
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:      # 也允许在 Actions 页面手动点「Run workflow」
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      # checkout@v4 会自动把 .gitmodules 里的 git@github.com: 子模块地址改写成 HTTPS+token,
+      # 所以不需要手动 git config insteadOf。子模块(含 Go 内核 Clash.Meta、flutter_distributor)必须拉全。
+      - name: Checkout(含子模块)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Android 配置(Firebase 必需 + 可选正式签名)
+        env:
+          SERVICE_JSON: ${{ secrets.SERVICE_JSON }}
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # FlClash 的 android/app/build.gradle.kts 挂了 google-services + firebase-crashlytics 插件,
+          # 构建时会强制要求 android/app/google-services.json。二选一:
+          #   方案A(推荐):建一个免费 Firebase 项目,把 google-services.json base64 后存成 SERVICE_JSON secret;
+          #   方案B:在 build.gradle.kts 移除那两个 Firebase 插件(及 pubspec 里的 firebase_*),则可不填 SERVICE_JSON。
+          if [ -n "$SERVICE_JSON" ]; then
+            echo "$SERVICE_JSON" | base64 --decode > android/app/google-services.json
+            echo "已从 SERVICE_JSON secret 写入 google-services.json"
+          elif [ -f android/app/google-services.json ]; then
+            echo "::notice::未提供 SERVICE_JSON secret,改用仓库里已提交的 android/app/google-services.json(正常,无需处理)。"
+          else
+            echo "::warning::既无 SERVICE_JSON secret、仓库里也没有 android/app/google-services.json;若未移除 Firebase 插件,下一步会构建失败(见 BUILD-ANDROID.md)。"
+          fi
+          # keystore 可选:提供了就正式签名;没提供则 release 会回退到 debug 签名并给包名加 .dev 后缀,
+          # 产出的 APK 仍可正常【侧载安装】(只是不能上架 Play、且包名是 com.follow.clash.dev)。
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 --decode > android/app/keystore.jks
+            {
+              echo "keyAlias=$KEY_ALIAS"
+              echo "storePassword=$STORE_PASSWORD"
+              echo "keyPassword=$KEY_PASSWORD"
+            } >> android/local.properties
+            echo "使用正式 keystore 签名"
+          else
+            echo "未提供 keystore:将产出 debug 签名的 .dev APK(可侧载,不能上架 Play)"
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+          cache: true
+
+      - name: Setup NDK(安卓侧 Go/mihomo 内核由 Gradle+NDK 编译,必需)
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28c
+          add-to-path: true
+          link-to-sdk: true
+
+      - name: Flutter 依赖
+        run: |
+          flutter --version
+          flutter pub get
+
+      # 注意:不是 `flutter build apk`,而是 FlClash 的编排脚本(它会先编 Go 内核、再用
+      # 仓库内自带的 flutter_distributor 打包)。--env stable 对应正式发布 tag。
+      - name: 构建 APK(所有 ABI,split-per-abi)
+        run: dart setup.dart android --env stable -v
+
+      - name: 上传产物(在这里下载 APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-android
+          path: ./dist
+          overwrite: true
+
+# 想同时出 Windows/macOS/Linux:照 FlClash 官方 build.yaml 的 matrix 加对应 job 即可
+# (它们各自的工具链步骤不同,本文件只验证并保留了 Android 这条)。
