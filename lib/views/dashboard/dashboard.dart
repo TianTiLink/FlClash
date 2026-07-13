@@ -259,33 +259,40 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         floatingActionButton: const StartButton(),
         body: Align(
           alignment: Alignment.topCenter,
-          child: SingleChildScrollView(
+            child: SingleChildScrollView(
             padding: const EdgeInsets.all(16).copyWith(bottom: 88),
-            child: isEdit
-                ? SystemBackBlock(
-                    child: CommonPopScope(
-                      child: SuperGrid(
-                        key: key,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const DashboardNetworkCard(),
+                const SizedBox(height: 16),
+                isEdit
+                    ? SystemBackBlock(
+                        child: CommonPopScope(
+                          child: SuperGrid(
+                            key: key,
+                            crossAxisCount: columns,
+                            crossAxisSpacing: spacing,
+                            mainAxisSpacing: spacing,
+                            children: children,
+                            onUpdate: () {
+                              _handleSave();
+                            },
+                          ),
+                          onPop: (context) {
+                            _handleUpdateIsEdit();
+                            return false;
+                          },
+                        ),
+                      )
+                    : Grid(
                         crossAxisCount: columns,
                         crossAxisSpacing: spacing,
                         mainAxisSpacing: spacing,
                         children: children,
-                        onUpdate: () {
-                          _handleSave();
-                        },
                       ),
-                      onPop: (context) {
-                        _handleUpdateIsEdit();
-                        return false;
-                      },
-                    ),
-                  )
-                : Grid(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: spacing,
-                    mainAxisSpacing: spacing,
-                    children: children,
-                  ),
+              ],
+            ),
           ),
         ),
       ),
