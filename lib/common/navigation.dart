@@ -12,6 +12,7 @@ class Navigation {
     bool hasProxies = false,
   }) {
     return [
+      // 保留:仪表盘(首页/连接)
       NavigationItem(
         keep: false,
         icon: const Icon(Icons.space_dashboard),
@@ -19,6 +20,7 @@ class Navigation {
         builder: (_) =>
             const DashboardView(key: GlobalObjectKey(PageLabel.dashboard)),
       ),
+      // 保留:节点(有订阅时显示,供选节点)
       NavigationItem(
         icon: const Icon(Icons.article),
         label: PageLabel.proxies,
@@ -28,6 +30,7 @@ class Navigation {
             ? [NavigationItemMode.mobile, NavigationItemMode.desktop]
             : [],
       ),
+      // ↓↓↓ 用户用不上的,全部隐藏(modes: []) ↓↓↓
       NavigationItem(
         icon: const Icon(Icons.folder),
         label: PageLabel.profiles,
@@ -41,7 +44,7 @@ class Navigation {
         builder: (_) =>
             const RequestsView(key: GlobalObjectKey(PageLabel.requests)),
         description: 'requestsDesc',
-        modes: [NavigationItemMode.desktop, NavigationItemMode.more],
+        modes: [],
       ),
       NavigationItem(
         icon: const Icon(Icons.ballot),
@@ -49,7 +52,7 @@ class Navigation {
         builder: (_) =>
             const ConnectionsView(key: GlobalObjectKey(PageLabel.connections)),
         description: 'connectionsDesc',
-        modes: [NavigationItemMode.desktop, NavigationItemMode.more],
+        modes: [],
       ),
       NavigationItem(
         icon: const Icon(Icons.storage),
@@ -57,22 +60,30 @@ class Navigation {
         description: 'resourcesDesc',
         builder: (_) =>
             const ResourcesView(key: GlobalObjectKey(PageLabel.resources)),
-        modes: [NavigationItemMode.more],
+        modes: [],
       ),
       NavigationItem(
         icon: const Icon(Icons.adb),
         label: PageLabel.logs,
         builder: (_) => const LogsView(key: GlobalObjectKey(PageLabel.logs)),
         description: 'logsDesc',
-        modes: openLogs
-            ? [NavigationItemMode.desktop, NavigationItemMode.more]
-            : [],
+        modes: [],
       ),
+      // ↑↑↑ 以上全部隐藏 ↑↑↑
+      // 保留:工具(设置/主题/语言/关于 的入口,建议留着)
       NavigationItem(
         icon: const Icon(Icons.construction),
         label: PageLabel.tools,
         builder: (_) => const ToolsView(key: GlobalObjectKey(PageLabel.tools)),
         modes: [NavigationItemMode.desktop, NavigationItemMode.mobile],
+      ),
+      // 保留:我的(账户/流量/套餐/充值/工单/代理中心)
+      NavigationItem(
+        icon: const Icon(Icons.person),
+        label: PageLabel.account,
+        builder: (_) =>
+            const AccountPage(key: GlobalObjectKey(PageLabel.account)),
+        modes: [NavigationItemMode.mobile, NavigationItemMode.desktop],
       ),
     ];
   }
