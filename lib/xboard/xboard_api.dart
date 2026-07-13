@@ -75,6 +75,64 @@ class XboardApi {
     return XboardLoginResult(authData, token);
   }
 
+  /// 注册并自动登录。email_code 仅当面板开启「邮箱验证」时必填;invite_code 仅当面板要求邀请码时必填。
+  /// 成功返回 auth_data+token(与登录同);失败抛 XboardApiException(带后端提示语)。
+  /// 端点:POST /api/v1/passport/auth/register  body {email,password,invite_code?,email_code?}
+  Future<XboardLoginResult> register(
+    String email,
+    String password, {
+    String? inviteCode,
+    String? emailCode,
+  }) async {
+    final body = <String, dynamic>{'email': email, 'password': password};
+    if (inviteCode != null && inviteCode.isNotEmpty) body['invite_code'] = inviteCode;
+    if (emailCode != null && emailCode.isNotEmpty) body['email_code'] = emailCode;
+    final resp = await http
+        .post(
+          _u('/api/v1/passport/auth/register'),
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(timeout);
+    final data = _unwrap(resp, badAuthMsg: '注册失败');
+    final authData = data['auth_data'] as String?;
+    final token = data['token'] as String?;
+    if (authData == null || token == null) {
+      throw XboardApiException('注册响应缺少 auth_data/token');
+    }
+    return XboardLoginResult(authData, token);
+  }
+
+  /// 发送邮箱验证码(面板开启「邮箱验证」时用)。端点:POST /api/v1/passport/comm/sendEmailVerify {email}。
+  Future<void> sendEmailVerify(String email) async {
+    final resp = await http
+        .post(
+          _u('/api/v1/passport/comm/sendEmailVerify'),
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(timeout);
+    if (resp.statusCode == 429) {
+      throw XboardApiException('发送过于频繁,请稍后再试');
+    }
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      throw XboardApiException('发送验证码失败(检查面板地址)');
+    }
+    // 成功 data:true;失败给 message。
+    if (body is Map && (body['data'] == true || body['data'] == 1)) return;
+    final msg = (body is Map ? body['message'] : null) ?? '发送验证码失败';
+    throw XboardApiException(msg.toString());
+  }
+
   Future<XboardSubscribe> getSubscribe(String authData) async {
     final resp = await http.get(
       _u('/api/v1/user/getSubscribe'),
