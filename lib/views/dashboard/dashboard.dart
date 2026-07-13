@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'widgets/start_button.dart';
+import 'package:fl_clash/xboard/dashboard_network_card.dart';
 
 typedef _IsEditWidgetBuilder = Widget Function(bool isEdit);
 
