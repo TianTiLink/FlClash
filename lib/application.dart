@@ -135,9 +135,6 @@ class ApplicationState extends ConsumerState<Application> {
   Widget build(context) {
     return Consumer(
       builder: (_, ref, child) {
-        final locale = ref.watch(
-          appSettingProvider.select((state) => state.locale),
-        );
         final themeProps = ref.watch(themeSettingProvider);
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -159,7 +156,7 @@ class ApplicationState extends ConsumerState<Application> {
           },
           scrollBehavior: BaseScrollBehavior(),
           title: appName,
-          locale: utils.getLocaleForString(locale),
+          locale: utils.getLocaleForString('zh_CN'),
           supportedLocales: AppLocalizations.delegate.supportedLocales,
           themeMode: themeProps.themeMode,
           theme: ThemeData(
