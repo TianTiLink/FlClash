@@ -9,8 +9,10 @@
 // import 路径按你的品牌包名改(fl_clash → 你的 name)。
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'reseller_api.dart';
 import 'xboard_api.dart';
@@ -28,6 +30,7 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _summary;
+  String? _inviteLink; // 推广链接(异步获取,拿不到不影响主功能)
 
   ResellerApi get api {
     final auth = ref.read(xboardAuthProvider);
@@ -53,6 +56,7 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
         _summary = s;
         _loading = false;
       });
+      _loadInvite(); // 概览渲染后再异步取推广链接
     } on XboardApiException catch (e) {
       setState(() {
         _error = e.message;
@@ -63,6 +67,27 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
         _error = '网络错误:$e';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadInvite() async {
+    final auth = ref.read(xboardAuthProvider);
+    final token = auth.authData;
+    if (token == null) return;
+    try {
+      final code = await XboardApi(auth.panelUrl).fetchInviteCode(token);
+      final base = auth.panelUrl.replaceAll(RegExp(r'/+$'), '');
+      if (mounted) setState(() => _inviteLink = '$base/#/register?code=$code');
+    } catch (_) {
+      // 邀请码获取失败:静默,不影响下线/收益/提现。
+    }
+  }
+
+  void _copy(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('已复制推广链接')));
     }
   }
 
@@ -134,6 +159,8 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        _promoCard(),
+        const SizedBox(height: 16),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -158,15 +185,98 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
                 ] else ...[
                   _kv('直属下线', '${s['direct_count'] ?? 0} 人'),
                   _kv('累计返流量', _gb(s['total_traffic_rebate_bytes']), big: true),
-                  const SizedBox(height: 8),
-                  Text('普通用户的直属下线充值时,按比例返可用流量给你。想改成返现金+多级?联系客服升级为代理。',
-                      style: Theme.of(context).textTheme.bodySmall),
                 ],
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  // 推广卡片:邀请链接 + 复制 + 二维码 + 按身份区分的返利提示。
+  Widget _promoCard() {
+    final theme = Theme.of(context);
+    final link = _inviteLink;
+    final tip = isAgent
+        ? '你是【代理】:好友通过你的链接注册后,他每次充值,你都按层级比例拿【现金佣金(USDT)】,支持多级返佣,余额满额可提现。层级越深、下线越多,赚得越多。'
+        : '好友通过你的链接注册后,他充值时按比例返【可用流量】给你(仅直属一级)。想改成拿【现金佣金】+ 多级返佣?联系客服升级为代理。';
+    final tipColor = isAgent ? Colors.amber : theme.colorScheme.primary;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.card_giftcard, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text('我的推广', style: theme.textTheme.titleMedium),
+            ]),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: tipColor.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: tipColor.withOpacity(0.35)),
+              ),
+              child: Text(tip, style: theme.textTheme.bodySmall),
+            ),
+            const SizedBox(height: 14),
+            if (link == null)
+              const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text('正在生成推广链接…')))
+            else ...[
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: SelectableText(link,
+                    style: const TextStyle(fontSize: 12.5)),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _copy(link),
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('复制推广链接'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: QrImageView(
+                    data: link,
+                    version: QrVersions.auto,
+                    size: 168,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text('好友扫码或用链接注册,即成为你的下线',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.hintColor)),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
