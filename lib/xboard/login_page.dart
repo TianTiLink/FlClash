@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart'; // FlClash 已依赖;用于打�
 
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
+import 'register_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -156,7 +157,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed: () => _openPanel('/#/register'),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterPage()),
+                        ),
                         child: const Text('注册账号'),
                       ),
                       TextButton(
