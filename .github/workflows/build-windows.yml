@@ -153,6 +153,73 @@ jobs:
             Write-Host "::warning::Release 为空,未生成便携 zip(见摘要页的 flutter build 报错)。"
           }
 
+      # 打正式安装包:此刻 Release 已含 VC++ 运行库(上一步已校验),用 Inno Setup(ISCC)直接打包,
+      # 所以安装包必然自带运行库,装机不再缺 dll。装到 Program Files\<应用名>,建开始菜单+桌面快捷方式。
+      # 用行数组拼 .iss(避免 here-string 在缩进 YAML 里的坑);应用名/exe 名从 Release 里自动探测。
+      - name: 打正式安装包(Inno Setup;自带 VC++,装到 Program Files)
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $rel = "build/windows/x64/runner/Release"
+          if (-not ((Test-Path $rel) -and (Get-ChildItem $rel))) {
+            Write-Host "::warning::Release 为空,跳过安装包(见 flutter build 报错)。"; exit 0
+          }
+          # 从 windows/CMakeLists.txt 读 BINARY_NAME 拿"正牌"应用 exe(Release 里可能还有内核/服务 exe,
+          # 直接取第一个 exe 可能选错 → 快捷方式目标/图标指错)。读不到再退化为第一个 exe。
+          $app = $null
+          if (Test-Path windows/CMakeLists.txt) {
+            $m = [regex]::Match((Get-Content windows/CMakeLists.txt -Raw), 'set\(\s*BINARY_NAME\s+"([^"]+)"')
+            if ($m.Success) { $app = $m.Groups[1].Value }
+          }
+          if ($app -and (Test-Path (Join-Path $rel "$app.exe"))) {
+            $exe = "$app.exe"
+          } else {
+            $exe = (Get-ChildItem $rel -Filter *.exe | Select-Object -First 1).Name
+            $app = [System.IO.Path]::GetFileNameWithoutExtension($exe)
+          }
+          if (-not $exe) { Write-Host "::warning::Release 里没有 exe,跳过安装包。"; exit 0 }
+          Write-Host "应用 exe = $exe (BINARY_NAME=$app)"
+          $relWin = (Resolve-Path $rel).Path
+          $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "${env:ProgramFiles}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $found = Get-ChildItem "C:\Program Files*" -Filter ISCC.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $iscc = $found.FullName }
+          }
+          if (-not $iscc) { Write-Host "::warning::未找到 Inno Setup(ISCC.exe),跳过安装包;便携版仍可用。"; exit 0 }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $iss = @(
+            '[Setup]',
+            "AppName=$app",
+            'AppVersion=1.0.0',
+            "AppPublisher=$app",
+            "DefaultDirName={autopf}\$app",
+            "DefaultGroupName=$app",
+            "UninstallDisplayIcon={app}\$exe",
+            'OutputDir=dist',
+            "OutputBaseFilename=$app-windows-x64-setup",
+            'Compression=lzma2',
+            'SolidCompression=yes',
+            'ArchitecturesAllowed=x64',
+            'ArchitecturesInstallIn64BitMode=x64',
+            'WizardStyle=modern',
+            '',
+            '[Files]',
+            "Source: `"$relWin\*`"; DestDir: `"{app}`"; Flags: recursesubdirs createallsubdirs ignoreversion",
+            '',
+            '[Icons]',
+            "Name: `"{group}\$app`"; Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; IconFilename: `"{app}\$exe`"",
+            "Name: `"{autodesktop}\$app`"; Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; IconFilename: `"{app}\$exe`"",
+            '',
+            '[Run]',
+            "Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; Description: `"Run $app`"; Flags: nowait postinstall skipifsilent"
+          )
+          Set-Content -Path installer.iss -Value $iss -Encoding UTF8
+          Write-Host "ISCC: $iscc   应用名: $app   exe: $exe"
+          & $iscc installer.iss
+          if ($LASTEXITCODE -ne 0) { Write-Host "::warning::ISCC 打包失败(exit $LASTEXITCODE);便携版仍可用。"; exit 0 }
+          Get-ChildItem dist -Filter "*-windows-x64-setup.exe" | Select-Object Name, Length | Format-Table -AutoSize
+
       - name: 上传便携版(解压即用)
         if: always()
         uses: actions/upload-artifact@v4
@@ -162,13 +229,15 @@ jobs:
           if-no-files-found: warn
           overwrite: true
 
-      - name: 上传安装包(dist,若有)
+      # 只上传我用 Inno 打的安装包(*-windows-x64-setup.exe,自带 VC++);
+      # 官方 flutter_distributor 那个缺 dll 的 *-amd64-setup.exe 不上传,免得再拿错。
+      - name: 上传正式安装包(Inno,自带 VC++)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-windows
-          path: ./dist
-          if-no-files-found: ignore
+          name: artifact-windows-installer
+          path: dist/*-windows-x64-setup.exe
+          if-no-files-found: warn
           overwrite: true
 
       # 完整构建日志(诊断用):不管成败都上传,方便贴给我定位。
