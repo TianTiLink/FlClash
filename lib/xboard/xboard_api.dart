@@ -96,6 +96,40 @@ class XboardApi {
     );
   }
 
+  /// 取当前用户的邀请码(推广码)。没有则自动生成一个再取。返回邀请码字符串。
+  /// 邀请链接由调用方拼:"<面板>/#/register?code=<邀请码>"。
+  /// 端点对照 Xboard 原生:GET /api/v1/user/invite/fetch(data.codes[].code)、
+  ///           POST /api/v1/user/invite/save(生成一个,返回体不解析)。
+  Future<String> fetchInviteCode(String authData) async {
+    final headers = {'Authorization': authData, 'Accept': 'application/json'};
+    String? pick(Map<String, dynamic> data) {
+      final codes = data['codes'];
+      if (codes is List && codes.isNotEmpty) {
+        final first = codes.first;
+        final c = first is Map ? first['code']?.toString() : null;
+        if (c != null && c.isNotEmpty) return c;
+      }
+      return null;
+    }
+
+    var resp = await http
+        .get(_u('/api/v1/user/invite/fetch'), headers: headers)
+        .timeout(timeout);
+    var code = pick(_unwrap(resp, badAuthMsg: '登录已过期,请重新登录'));
+    if (code != null) return code;
+
+    // 还没有邀请码 → 先生成一个(返回可能是 true,不走 _unwrap),再取一次。
+    await http
+        .post(_u('/api/v1/user/invite/save'), headers: headers)
+        .timeout(timeout);
+    resp = await http
+        .get(_u('/api/v1/user/invite/fetch'), headers: headers)
+        .timeout(timeout);
+    code = pick(_unwrap(resp, badAuthMsg: '登录已过期,请重新登录'));
+    if (code != null) return code;
+    throw XboardApiException('未能获取邀请码');
+  }
+
   /// 给订阅地址补上 ?flag=meta,强制 Xboard 输出 mihomo/Clash.Meta 格式,
   /// 不受客户端 User-Agent 影响。
   static String toMihomoUrl(String subscribeUrl) {
