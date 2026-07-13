@@ -1,10 +1,12 @@
-# 云编译 macOS 桌面版 —— 照搬 FlClash 官方 build.yaml 的 macos 作业。
-# macOS 只能在 Mac 上编译(苹果工具链),你的 Windows 电脑编不了,所以 macOS 只能走
-# GitHub Actions 的 mac runner(云端)。版本沿用你 fork 已验证的 Flutter 3.41.9 / Go 1.24.0。
+# 云编译 macOS 桌面版 —— 分步显式构建 + 失败写「运行摘要页」(和 build-windows.yml 同一套思路)。
+# macOS 只能在 Mac 上编(苹果工具链),你的 Windows 电脑编不了,所以只能走 GitHub 的 mac runner。
+# 版本对齐当前官方源码:Flutter 3.44.4 stable / Go 1.26.4(2026-07-13 核对 main)。
 #
-# 放到你 fork 的 .github/workflows/ 下。推 v* tag 或手动 Run workflow 即构建。
-# 出两个产物:artifact-macos-arm64(Apple 芯片 M 系)、artifact-macos-amd64(Intel 芯片),
-# 各含一个 .dmg。用户按自己 Mac 的芯片选对应的下。
+# 为什么这么写:直接 `dart setup.dart macos` 会在最后 flutter_distributor 打 .dmg 那步崩(和 Windows 的
+# Inno 打包同病),一崩整件事带塌、退出码 1。改成:① setup.dart 只编内核 + 写 env.json(打包失败放行);
+# ② 显式 `flutter build macos --release` 出完整的 .app;③ 用 ditto 把 .app 压成 zip 上传(保留可执行权限)。
+# 未签名/未公证:用户下载解压后需【右键 → 打开】绕过 Gatekeeper(或 xattr -dr com.apple.quarantine)。
+# 产物:artifact-macos-arm64 / artifact-macos-amd64(各含一个 .app 的 zip)。
 name: build-macos
 
 on:
@@ -19,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest   # Apple 芯片(arm64)
+          - os: macos-latest    # Apple 芯片(arm64,M 系)
             arch: arm64
-          - os: macos-13        # Intel 芯片(amd64)
+          - os: macos-15-intel  # Intel 芯片(amd64);macos-13 已停用,换现役 Intel 镜像
             arch: amd64
     steps:
       - name: Checkout(含子模块)
@@ -32,14 +34,14 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.0'
+          go-version: '1.26.4'
           cache-dependency-path: core/go.sum
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.41.9
+          flutter-version: 3.44.4
           cache: true
 
       - name: Flutter 依赖
@@ -47,14 +49,84 @@ jobs:
           flutter --version
           flutter pub get
 
-      # FlClash 编排脚本:先编 Go 内核,再用 flutter_distributor 打 macOS .dmg。
-      # mac runner 自带 Xcode / CocoaPods,无需额外安装。
-      - name: 构建 macOS 安装包(.dmg)
-        run: dart setup.dart macos --env stable -v
+      # 第 1 段:官方脚本编 Go 内核 + 写 env.json。最后打 .dmg 可能崩,用 continue-on-error 放行。
+      - name: 编内核 + 生成 env.json(官方脚本;打包失败可忽略)
+        continue-on-error: true
+        run: |
+          set +e
+          dart setup.dart macos --env stable -v 2>&1 | tee setup-macos.log
+          echo "setup.dart 退出码:${PIPESTATUS[0]}"
 
-      - name: 上传产物(在这里下载 .dmg)
+      # 第 2 段:显式编译完整 macOS 应用。真编不过就当场红(pipefail 传递退出码),报错进 flutter-build.log。
+      - name: 编译完整 macOS 应用(flutter build macos --release)
+        run: |
+          set -o pipefail
+          if [ -f env.json ]; then
+            echo "用 env.json 编译"
+            flutter build macos --release --dart-define-from-file=env.json 2>&1 | tee flutter-build.log
+          else
+            echo "未见 env.json,直接编译"
+            flutter build macos --release 2>&1 | tee flutter-build.log
+          fi
+
+      # 失败时:把两个日志末尾写进【运行摘要页】(运行页顶部即可见,免翻长日志)。
+      - name: 失败时把报错写进运行摘要页
+        if: failure()
+        run: |
+          dump() {
+            echo "## $1" >> "$GITHUB_STEP_SUMMARY"
+            if [ -f "$2" ]; then
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              tail -n 80 "$2" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "(未生成 $2)" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+          dump "flutter build macos 报错(末尾 80 行)" flutter-build.log
+          dump "内核 / setup.dart 报错(末尾 80 行)" setup-macos.log
+
+      # 诊断 + 把 .app 用 ditto 压成 zip(ditto 保留符号链接/可执行权限,普通 zip 会破坏 .app)。
+      - name: 诊断 · 打包 .app 为 zip
+        if: always()
+        run: |
+          rel="build/macos/Build/Products/Release"
+          echo "===== $rel ====="; ls -la "$rel" 2>/dev/null || echo "(Release 不存在)"
+          app=$(ls -d "$rel"/*.app 2>/dev/null | head -n1)
+          if [ -n "$app" ]; then
+            echo "找到 app:$app"
+            ditto -c -k --sequesterRsrc --keepParent "$app" "TianTiLink-macos-${{ matrix.arch }}.zip"
+            ls -la "TianTiLink-macos-${{ matrix.arch }}.zip"
+          else
+            echo "::warning::未找到 .app,未打包(见摘要页的 flutter build 报错)。"
+          fi
+
+      - name: 上传 .app(zip,解压右键打开)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifact-macos-${{ matrix.arch }}
+          path: TianTiLink-macos-${{ matrix.arch }}.zip
+          if-no-files-found: warn
+          overwrite: true
+
+      # 安装包(若 setup.dart 那步侥幸打出了 dist/*.dmg;没有就静默跳过)。
+      - name: 上传 dmg(dist,若有)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-macos-${{ matrix.arch }}-dmg
           path: ./dist
+          if-no-files-found: ignore
+          overwrite: true
+
+      - name: 上传构建日志(诊断)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build-log-${{ matrix.arch }}
+          path: |
+            flutter-build.log
+            setup-macos.log
+          if-no-files-found: ignore
           overwrite: true
