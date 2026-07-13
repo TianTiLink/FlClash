@@ -130,6 +130,45 @@ class XboardAuth extends Notifier<XboardAuthState> {
     return mihomoUrl;
   }
 
+  /// 注册并自动登录。与 login 一样持久化凭据、尝试拉订阅;新号一般还没套餐→返回 null,
+  /// 由调用方引导去充值。emailCode/inviteCode 见面板配置(不需要就留空)。
+  Future<String?> register({
+    required String panelUrl,
+    required String email,
+    required String password,
+    String? inviteCode,
+    String? emailCode,
+  }) async {
+    final api = XboardApi(panelUrl);
+    final res = await api.register(email, password,
+        inviteCode: inviteCode, emailCode: emailCode);
+
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kPanelUrl, panelUrl);
+    await sp.setString(_kEmail, email);
+    await _secureStorage.write(key: _kAuth, value: res.authData);
+
+    String? mihomoUrl;
+    String? subscribeUrl;
+    try {
+      final sub = await api.getSubscribe(res.authData);
+      subscribeUrl = sub.subscribeUrl;
+      mihomoUrl = XboardApi.toMihomoUrl(sub.subscribeUrl);
+      await sp.setString(_kSub, subscribeUrl);
+    } on XboardApiException {
+      await sp.remove(_kSub);
+    }
+
+    state = state.copyWith(
+      loggedIn: true,
+      panelUrl: panelUrl,
+      email: email,
+      authData: res.authData,
+      subscribeUrl: subscribeUrl,
+    );
+    return mihomoUrl;
+  }
+
   /// 重新拉取订阅地址(套餐变更/续费后)。返回最新 mihomo 订阅 URL,失败返回 null。
   Future<String?> refreshSubscribe() async {
     final auth = state.authData;
