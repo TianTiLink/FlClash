@@ -54,22 +54,6 @@ class AboutView extends StatelessWidget {
           },
           trailing: const Icon(Icons.launch),
         ),
-        ListItem(
-          title: Text(appLocalizations.project),
-          onTap: () {
-            globalState.openUrl('https://github.com/$repository');
-          },
-          trailing: const Icon(Icons.launch),
-        ),
-        ListItem(
-          title: Text(appLocalizations.core),
-          onTap: () {
-            globalState.openUrl(
-              'https://github.com/chen08209/Clash.Meta/tree/FlClash',
-            );
-          },
-          trailing: const Icon(Icons.launch),
-        ),
       ],
     );
   }
@@ -156,11 +140,7 @@ class AboutView extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 24),
-            Text(
-              appLocalizations.desc,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            
           ],
         ),
       ),
