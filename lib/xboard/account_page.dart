@@ -13,7 +13,7 @@ import 'xboard_auth.dart';
 import 'xboard_sync.dart';
 import 'web_page.dart';
 import 'agent_center_page.dart';
-import 'settings_page.dart';
+import 'package:fl_clash/views/theme.dart'; // 主题设置整页(FlClash 自带)
 
 /// 品牌配色(深靛蓝 + 琥珀金),与官网一致。
 const Color _kIndigo = Color(0xFF2B2F77);
@@ -145,9 +145,9 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
-                    _tile(theme, Icons.settings_outlined, _kIndigo, '设置',
+                    _tile(theme, Icons.palette_outlined, _kAmber, '主题',
                         () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const SettingsPage()))),
+                            builder: (_) => const ThemeView()))),
                     _divider(),
                     _tile(
                       theme,
