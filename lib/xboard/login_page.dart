@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart'; // FlClash 已依赖;用于打�
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
 import 'register_page.dart';
+import 'guest_chat_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -187,6 +188,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const GuestChatPage())),
+                      icon: const Icon(Icons.support_agent, size: 18),
+                      label: const Text('联系客服'),
+                    ),
+                  ),
+                ],
                 ],
               ),
             ),
