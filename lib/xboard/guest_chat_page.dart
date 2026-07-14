@@ -6,8 +6,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import 'xboard_auth.dart'; // kDefaultPanelUrl
+import 'xboard_upload.dart';
 
 const Color _kIndigo = Color(0xFF2B2F77);
 
@@ -131,6 +133,38 @@ class _GuestChatPageState extends State<GuestChatPage> {
       if (mounted) setState(() => _sending = false);
     }
   }
+    Future<void> _pickAndSendImage() async {
+    if (_sending || _guestId == null) return;
+    final XFile? x = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (x == null) return;
+    setState(() => _sending = true);
+    try {
+      final url = await xboardUploadImage(
+        panelBase: _base,
+        endpoint: '/api/v1/reseller/guest/upload/image',
+        filePath: x.path,
+      );
+      await http
+          .post(
+            Uri.parse('$_base/api/v1/reseller/guest/send'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'guest_id': _guestId, 'message': '[img]$url'}),
+          )
+          .timeout(const Duration(seconds: 15));
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('发图失败:$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -214,10 +248,8 @@ class _GuestChatPageState extends State<GuestChatPage> {
                     fontSize: 11,
                     color: isStaff ? theme.hintColor : Colors.white70)),
             const SizedBox(height: 3),
-            Text(text,
-                style: TextStyle(
-                    fontSize: 14,
-                    color: isStaff ? theme.colorScheme.onSurface : Colors.white)),
+            xboardMessageContent(text,
+                textColor: isStaff ? theme.colorScheme.onSurface : Colors.white),
           ],
         ),
       ),
@@ -231,6 +263,11 @@ class _GuestChatPageState extends State<GuestChatPage> {
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         child: Row(
           children: [
+            IconButton(
+              tooltip: '发送图片',
+              onPressed: _sending ? null : _pickAndSendImage,
+              icon: const Icon(Icons.image_outlined),
+            ),
             Expanded(
               child: TextField(
                 controller: _input,
