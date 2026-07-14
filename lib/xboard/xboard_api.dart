@@ -157,7 +157,7 @@ class XboardApi {
   /// 取当前用户的邀请码(推广码)。没有则自动生成一个再取。返回邀请码字符串。
   /// 邀请链接由调用方拼:"<面板>/#/register?code=<邀请码>"。
   /// 端点对照 Xboard 原生:GET /api/v1/user/invite/fetch(data.codes[].code)、
-  ///           POST /api/v1/user/invite/save(生成一个,返回体不解析)。
+  ///           GET  /api/v1/user/invite/save(生成一个;⚠ 必须 GET,用 POST 会 405 且不创建)。
   Future<String> fetchInviteCode(String authData) async {
     final headers = {'Authorization': authData, 'Accept': 'application/json'};
     String? pick(Map<String, dynamic> data) {
@@ -176,10 +176,12 @@ class XboardApi {
     var code = pick(_unwrap(resp, badAuthMsg: '登录已过期,请重新登录'));
     if (code != null) return code;
 
-    // 还没有邀请码 → 先生成一个(返回可能是 true,不走 _unwrap),再取一次。
-    await http
-        .post(_u('/api/v1/user/invite/save'), headers: headers)
+    // 还没有邀请码 → 生成一个。⚠ Xboard 的 invite/save 是 GET 路由(UserRoute.php),
+    // 用 POST 会 405、邀请码根本不创建,导致下面 refetch 仍为空、永远卡在「正在生成推广链接」。必须 GET。
+    final saveResp = await http
+        .get(_u('/api/v1/user/invite/save'), headers: headers)
         .timeout(timeout);
+    _expectTrue(saveResp, failMsg: '生成邀请码失败'); // 生成上限等失败会抛后端提示
     resp = await http
         .get(_u('/api/v1/user/invite/fetch'), headers: headers)
         .timeout(timeout);
