@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest    # Apple 芯片(arm64,M 系)
+          - os: macos-26         # Apple 芯片(arm64),自带 Xcode 26(connectivity_plus 7.2.0 需要)
             arch: arm64
-          - os: macos-15-intel  # Intel 芯片(amd64);macos-13 已停用,换现役 Intel 镜像
+          - os: macos-26-intel   # Intel 芯片(amd64),macOS 26 Intel 镜像,同样带 Xcode 26
             arch: amd64
     steps:
       - name: Checkout(含子模块)
