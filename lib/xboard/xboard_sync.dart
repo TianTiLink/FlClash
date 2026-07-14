@@ -34,13 +34,31 @@ bool _sameSubscription(String a, String b) {
   if (ua.scheme != ub.scheme || ua.host != ub.host || ua.path != ub.path) {
     return false;
   }
-  final qa = Map<String, String>.from(ua.queryParameters)..remove('flag');
-  final qb = Map<String, String>.from(ub.queryParameters)..remove('flag');
+  final qa = Map<String, String>.from(ua.queryParameters)
+    ..remove('flag')
+    ..remove('_');
+  final qb = Map<String, String>.from(ub.queryParameters)
+    ..remove('flag')
+    ..remove('_');
   if (qa.length != qb.length) return false;
   for (final entry in qa.entries) {
     if (qb[entry.key] != entry.value) return false;
   }
   return true;
+}
+
+/// 给下载 URL 加一个每次都不同的 cache-buster(`_=时间戳`),绕开任何 CDN/反代对订阅
+/// 响应的缓存,确保「刷新订阅」强制重下拿到面板最新内容,而不是中间层的旧副本。
+/// _sameSubscription 连同 flag 一起忽略 `_`,所以每次换 buster 不会破坏去重、也不会堆重复 profile。
+String _withNoCache(String url) {
+  try {
+    final uri = Uri.parse(url);
+    final qp = Map<String, String>.from(uri.queryParameters)
+      ..['_'] = DateTime.now().millisecondsSinceEpoch.toString();
+    return uri.replace(queryParameters: qp).toString();
+  } catch (_) {
+    return url;
+  }
 }
 
 /// 导入(或复用)Xboard 订阅并切到它。
@@ -64,9 +82,20 @@ Future<void> importXboardSubscription(String subscribeUrl) async {
   }
 
   if (existing != null) {
-    // 已存在:切为当前并应用(FlClash 自带的定时任务会按 autoUpdate 刷新内容)。
-    c.read(currentProfileIdProvider.notifier).value = existing.id;
-    c.read(setupActionProvider.notifier).applyProfileDebounce(force: true);
+    // 已存在:强制从「最新订阅 URL(+ 每次不同的 no-cache 参数)」重下、校验通过后覆盖
+    // <id>.yaml,再切当前 + 立即应用。三个关键点(都踩过坑):
+    //   1) 用刚 refreshSubscribe() 拿到的最新 url 覆盖 existing.url(面板轮换 token 时旧 url 会失效),
+    //      再加 `_=时间戳` 绕开 CDN/反代对订阅的缓存,确保拿到面板最新节点。
+    //   2) 【不再 try/catch 吞异常】。updateProfile→Profile.update() 真正走网络重下,saveFile 里先
+    //      validateConfig 再覆盖 <id>.yaml,失败会 throw 且旧 yaml 还没被覆盖。以前 catch(_){} 把异常
+    //      吞掉、继续用旧 yaml 应用还提示"已刷新" = 用户看到的"刷新了还是旧节点/旧缓存"。现在让它抛给
+    //      上层,account_page 的 catch 会如实提示"刷新失败",不再假装成功。
+    //   3) 用 await applyProfile(force:true) 立即重解析进 mihomo 并刷新节点分组;不走
+    //      applyProfileDebounce(拖 600ms 且可能被同 tag 取消),节点列表当场更新。
+    final fresh = existing.copyWith(url: _withNoCache(url));
+    await c.read(profilesActionProvider.notifier).updateProfile(fresh);
+    c.read(currentProfileIdProvider.notifier).value = fresh.id;
+    await c.read(setupActionProvider.notifier).applyProfile(force: true);
     return;
   }
 
