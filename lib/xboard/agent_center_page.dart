@@ -31,6 +31,8 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
   String? _error;
   Map<String, dynamic>? _summary;
   String? _inviteLink; // 推广链接(异步获取,拿不到不影响主功能)
+  bool _inviteLoading = true; // 邀请码首次加载中(初始 true,避免闪现错误态)
+  String? _inviteError; // 邀请码获取失败原因(null=无错误)
 
   ResellerApi get api {
     final auth = ref.read(xboardAuthProvider);
@@ -73,13 +75,44 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
   Future<void> _loadInvite() async {
     final auth = ref.read(xboardAuthProvider);
     final token = auth.authData;
-    if (token == null) return;
+    if (token == null) {
+      if (mounted) {
+        setState(() {
+          _inviteLoading = false;
+          _inviteError = '未登录';
+        });
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _inviteLoading = true;
+        _inviteError = null;
+      });
+    }
     try {
       final code = await XboardApi(auth.panelUrl).fetchInviteCode(token);
       final base = auth.panelUrl.replaceAll(RegExp(r'/+$'), '');
-      if (mounted) setState(() => _inviteLink = '$base/#/register?code=$code');
-    } catch (_) {
-      // 邀请码获取失败:静默,不影响下线/收益/提现。
+      if (mounted) {
+        setState(() {
+          _inviteLink = '$base/#/register?code=$code';
+          _inviteLoading = false;
+        });
+      }
+    } on XboardApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _inviteError = e.message;
+          _inviteLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _inviteError = '生成推广链接失败:$e';
+          _inviteLoading = false;
+        });
+      }
     }
   }
 
@@ -225,11 +258,45 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
               child: Text(tip, style: theme.textTheme.bodySmall),
             ),
             const SizedBox(height: 14),
-            if (link == null)
+            if (link == null && _inviteLoading)
               const Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('正在生成推广链接…')))
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 10),
+                      Text('正在生成推广链接…'),
+                    ],
+                  ),
+                ),
+              )
+            else if (link == null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.link_off, color: Colors.redAccent),
+                      const SizedBox(height: 8),
+                      Text(_inviteError ?? '暂时无法生成推广链接',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _inviteLoading ? null : _loadInvite,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('重试'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else ...[
               Container(
                 width: double.infinity,
