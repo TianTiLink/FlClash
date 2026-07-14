@@ -239,6 +239,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     bool isOutboundMode(DashboardWidget item) =>
         item == DashboardWidget.outboundMode ||
         item == DashboardWidget.outboundModeV2;
+        item == DashboardWidget.tunButton ||
+        item == DashboardWidget.systemProxyButton;
     final children = [
       ...dashboardState.dashboardWidgets
           .where((item) => !isOutboundMode(item))
