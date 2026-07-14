@@ -375,6 +375,7 @@ enum PageLabel {
   resources,
   connections,
   account,
+  service,
 }
 
 enum RuleAction {
