@@ -188,6 +188,114 @@ class XboardApi {
     throw XboardApiException('未能获取邀请码');
   }
 
+  // ============ 订单 / 套餐 / 工单 / 支付(全部原生,替代会崩的 webview)============
+
+  /// 我的订单列表。GET /api/v1/user/order/fetch(data 为数组)。金额字段单位=分。
+  Future<List<Map<String, dynamic>>> fetchOrders(String authData) =>
+      _getList('/api/v1/user/order/fetch', authData);
+
+  /// 可购套餐列表。GET /api/v1/user/plan/fetch(data 为数组)。价格字段单位=分。
+  Future<List<Map<String, dynamic>>> fetchPlans(String authData) =>
+      _getList('/api/v1/user/plan/fetch', authData);
+
+  /// 工单列表。GET /api/v1/user/ticket/fetch(不带参数,data 为数组)。
+  Future<List<Map<String, dynamic>>> fetchTickets(String authData) =>
+      _getList('/api/v1/user/ticket/fetch', authData);
+
+  /// 单个工单详情(含对话)。GET /api/v1/user/ticket/fetch?id=<id>(data 为对象,含 message 数组)。
+  Future<Map<String, dynamic>> fetchTicketDetail(
+      String authData, int id) async {
+    final resp = await http.get(
+      _u('/api/v1/user/ticket/fetch').replace(queryParameters: {'id': '$id'}),
+      headers: {'Authorization': authData, 'Accept': 'application/json'},
+    ).timeout(timeout);
+    return _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
+  }
+
+  /// 新建工单。POST /api/v1/user/ticket/save {subject,level(0|1|2),message}。
+  Future<void> createTicket(String authData,
+      {required String subject, required String message, int level = 1}) async {
+    final resp = await http
+        .post(_u('/api/v1/user/ticket/save'),
+            headers: _jsonAuth(authData),
+            body: jsonEncode(
+                {'subject': subject, 'level': level, 'message': message}))
+        .timeout(timeout);
+    _expectTrue(resp, failMsg: '工单创建失败');
+  }
+
+  /// 回复工单。POST /api/v1/user/ticket/reply {id,message}。已关闭/需等待客服回复会报错。
+  Future<void> replyTicket(String authData, int id, String message) async {
+    final resp = await http
+        .post(_u('/api/v1/user/ticket/reply'),
+            headers: _jsonAuth(authData),
+            body: jsonEncode({'id': id, 'message': message}))
+        .timeout(timeout);
+    _expectTrue(resp, failMsg: '回复失败');
+  }
+
+  /// 关闭工单。POST /api/v1/user/ticket/close {id}。
+  Future<void> closeTicket(String authData, int id) async {
+    final resp = await http
+        .post(_u('/api/v1/user/ticket/close'),
+            headers: _jsonAuth(authData), body: jsonEncode({'id': id}))
+        .timeout(timeout);
+    _expectTrue(resp, failMsg: '关闭工单失败');
+  }
+
+  /// 下单。POST /api/v1/user/order/save {plan_id,period}。period 传价格键,如 'month_price'。
+  /// 返回 trade_no(data 为字符串)。若已有未支付订单会抛错。
+  Future<String> createOrder(String authData,
+      {required int planId, required String period}) async {
+    final resp = await http
+        .post(_u('/api/v1/user/order/save'),
+            headers: _jsonAuth(authData),
+            body: jsonEncode({'plan_id': planId, 'period': period}))
+        .timeout(timeout);
+    return _unwrapScalar(resp, badAuthMsg: '登录已过期,请重新登录').toString();
+  }
+
+  /// 支付方式列表。GET /api/v1/user/order/getPaymentMethod(data 为数组:{id,name,payment,...})。
+  Future<List<Map<String, dynamic>>> getPaymentMethods(String authData) =>
+      _getList('/api/v1/user/order/getPaymentMethod', authData);
+
+  /// 结账。POST /api/v1/user/order/checkout {trade_no,method}。
+  /// 返回裸 {type,data}(不带 envelope):type=1 外部支付URL(浏览器打开);
+  /// type=0 二维码串(原生渲染);type=-1 免费订单已支付(data=true)。
+  Future<({int type, String data})> checkout(
+      String authData, String tradeNo, int method) async {
+    final resp = await http
+        .post(_u('/api/v1/user/order/checkout'),
+            headers: _jsonAuth(authData),
+            body: jsonEncode({'trade_no': tradeNo, 'method': method}))
+        .timeout(timeout);
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw XboardApiException('登录已过期,请重新登录');
+    }
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      throw XboardApiException('结账响应异常');
+    }
+    if (body is Map && body.containsKey('type')) {
+      return (type: _int(body['type']), data: (body['data'] ?? '').toString());
+    }
+    throw XboardApiException(
+        (body is Map ? body['message'] : null)?.toString() ?? '结账失败');
+  }
+
+  /// 轮询订单状态。GET /api/v1/user/order/check?trade_no=(data 为整数)。
+  /// 0 待支付 / 1 开通中 / 2 已取消 / 3 已完成 / 4 已折抵。
+  Future<int> checkOrderStatus(String authData, String tradeNo) async {
+    final resp = await http.get(
+      _u('/api/v1/user/order/check')
+          .replace(queryParameters: {'trade_no': tradeNo}),
+      headers: {'Authorization': authData, 'Accept': 'application/json'},
+    ).timeout(timeout);
+    return _int(_unwrapScalar(resp, badAuthMsg: '登录已过期,请重新登录'));
+  }
+
   /// 给订阅地址补上 ?flag=meta,强制 Xboard 输出 mihomo/Clash.Meta 格式,
   /// 不受客户端 User-Agent 影响。
   static String toMihomoUrl(String subscribeUrl) {
@@ -223,5 +331,82 @@ class XboardApi {
     }
     final d = body['data'];
     return d is Map<String, dynamic> ? d : Map<String, dynamic>.from(d as Map);
+  }
+
+  Map<String, String> _jsonAuth(String authData) => {
+        'Authorization': authData,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+
+  Future<List<Map<String, dynamic>>> _getList(
+      String path, String authData) async {
+    final resp = await http.get(
+      _u(path),
+      headers: {'Authorization': authData, 'Accept': 'application/json'},
+    ).timeout(timeout);
+    return _unwrapList(resp, badAuthMsg: '登录已过期,请重新登录');
+  }
+
+  /// data 为「数组」时解包(订单/套餐/工单列表/支付方式)。现有 _unwrap 只认 Map,会崩。
+  List<Map<String, dynamic>> _unwrapList(http.Response resp,
+      {required String badAuthMsg}) {
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw XboardApiException(badAuthMsg);
+    }
+    if (resp.statusCode >= 500) {
+      throw XboardApiException('服务器错误(${resp.statusCode})');
+    }
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      throw XboardApiException('响应不是合法 JSON(检查面板地址是否正确)');
+    }
+    if (body is! Map || body['data'] is! List) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+    }
+    return (body['data'] as List)
+        .map((e) =>
+            e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  /// data 为「标量」时解包(下单返回 trade_no 字符串、查单返回状态整数)。
+  dynamic _unwrapScalar(http.Response resp, {required String badAuthMsg}) {
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw XboardApiException(badAuthMsg);
+    }
+    if (resp.statusCode >= 500) {
+      throw XboardApiException('服务器错误(${resp.statusCode})');
+    }
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      throw XboardApiException('响应不是合法 JSON(检查面板地址是否正确)');
+    }
+    if (body is! Map || !body.containsKey('data')) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+    }
+    return body['data'];
+  }
+
+  /// 期望 data==true 的写操作(工单 save/reply/close)。失败抛后端 message。
+  void _expectTrue(http.Response resp, {required String failMsg}) {
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw XboardApiException('登录已过期,请重新登录');
+    }
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      throw XboardApiException(failMsg);
+    }
+    if (body is Map && (body['data'] == true || body['data'] == 1)) return;
+    throw XboardApiException(
+        (body is Map ? body['message'] : null)?.toString() ?? failMsg);
   }
 }
