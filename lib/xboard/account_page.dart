@@ -244,10 +244,6 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
-                    _tile(theme, Icons.support_agent_outlined, _kAmber, '工单 / 客服',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const TicketsPage()))),
-                    _divider(),
                     _tile(theme, Icons.groups_outlined, _kIndigo, '代理中心 / 分销',
                         () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const AgentCenterPage()))),
