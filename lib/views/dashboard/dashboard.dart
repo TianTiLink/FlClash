@@ -235,8 +235,13 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final dashboardState = ref.watch(dashboardStateProvider);
     final columns = max(4 * ((dashboardState.contentWidth / 280).ceil()), 8);
     final spacing = 14.mAp;
+        // 写死隐藏「出站模式」两张卡(模式切换已挪到代理页底部的 智能/全局 开关)。
+    bool isOutboundMode(DashboardWidget item) =>
+        item == DashboardWidget.outboundMode ||
+        item == DashboardWidget.outboundModeV2;
     final children = [
       ...dashboardState.dashboardWidgets
+          .where((item) => !isOutboundMode(item))
           .where(
             (item) => item.platforms.contains(SupportPlatform.currentPlatform),
           )
@@ -244,6 +249,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     ];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _addedWidgetsNotifier.value = DashboardWidget.values
+          .where((item) => !isOutboundMode(item))
           .where(
             (item) =>
                 !children.contains(item.widget) &&
