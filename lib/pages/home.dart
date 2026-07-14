@@ -39,7 +39,7 @@ class HomePage extends StatelessWidget {
                       .map(
                         (e) => NavigationDestination(
                           icon: e.icon,
-                          label: e.label == PageLabel.account ? '我的' : Intl.message(e.label.name),
+                          label: e.label == PageLabel.account ? '我的' : e.label == PageLabel.service ? '客服' : Intl.message(e.label.name),
                         ),
                       )
                       .toList(),
