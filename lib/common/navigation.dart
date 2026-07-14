@@ -75,7 +75,7 @@ class Navigation {
         icon: const Icon(Icons.construction),
         label: PageLabel.tools,
         builder: (_) => const ToolsView(key: GlobalObjectKey(PageLabel.tools)),
-        modes: [NavigationItemMode.desktop, NavigationItemMode.mobile],
+        modes: [],
       ),
       // 保留:我的(账户/流量/套餐/充值/工单/代理中心)
       NavigationItem(
