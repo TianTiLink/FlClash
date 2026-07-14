@@ -6,7 +6,7 @@
 //   回复   POST /api/v1/user/ticket/reply {id,message}
 //   关闭   POST /api/v1/user/ticket/close {id}
 // message.is_me=true 是本人发的,false 是客服回复;时间为 unix 秒。
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -228,17 +228,61 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
   bool _sending = false;
   List<Map<String, dynamic>> _messages = const [];
   final _input = TextEditingController();
+  final _scroll = ScrollController();
+  Timer? _poll; // 每 3 秒静默拉新消息 = 近实时聊天
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _silentLoad());
   }
 
   @override
   void dispose() {
+    _poll?.cancel();
     _input.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  // 静默刷新:不显示全屏 loading,只在消息有变化时更新并滚到底。
+  Future<void> _silentLoad() async {
+    if (!mounted) return;
+    final a = _auth();
+    if (a == null) return;
+    try {
+      final t = await XboardApi(a.url).fetchTicketDetail(a.token, widget.id);
+      if (!mounted) return;
+      final msg = t['message'];
+      final next = msg is List
+          ? msg
+              .map((e) => e is Map<String, dynamic>
+                  ? e
+                  : Map<String, dynamic>.from(e as Map))
+              .toList()
+          : const <Map<String, dynamic>>[];
+      final closed = ((t['status'] as num?)?.toInt() ?? 0) == 1;
+      final changed = next.length != _messages.length;
+      if (changed || closed != _closed) {
+        setState(() {
+          _messages = next;
+          _closed = closed;
+        });
+        if (changed) _scrollToBottom();
+      }
+      if (closed) _poll?.cancel();
+    } catch (_) {
+      // 轮询失败静默忽略,下次再试
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
   }
 
   ({String url, String token})? _auth() {
@@ -276,6 +320,7 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
         _closed = ((t['status'] as num?)?.toInt() ?? 0) == 1;
         _loading = false;
       });
+      _scrollToBottom();
     } on XboardApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -376,6 +421,7 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
+        controller: _scroll,
         padding: const EdgeInsets.all(16),
         itemCount: _messages.length,
         itemBuilder: (_, i) => _bubble(_messages[i]),
