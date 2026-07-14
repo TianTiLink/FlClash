@@ -4,6 +4,7 @@ import 'package:fl_clash/manager/app_manager.dart';
 import 'package:fl_clash/models/common.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/xboard/xboard_unread.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,13 +33,16 @@ class HomePage extends StatelessWidget {
               final isMobile = state.viewMode == ViewMode.mobile;
               final navigationItems = state.navigationItems;
               final currentIndex = state.currentIndex;
+              final unread = ref.watch(xboardUnreadProvider);
               final bottomNavigationBar = NavigationBarTheme(
                 data: _NavigationBarDefaultsM3(context),
                 child: NavigationBar(
                   destinations: navigationItems
                       .map(
                         (e) => NavigationDestination(
-                          icon: e.icon,
+                          icon: (e.label == PageLabel.service && unread > 0)
+                              ? Badge(label: Text('$unread'), child: e.icon)
+                              : e.icon,
                           label: e.label == PageLabel.account ? '我的' : e.label == PageLabel.service ? '客服' : Intl.message(e.label.name),
                         ),
                       )
