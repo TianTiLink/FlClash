@@ -1,8 +1,8 @@
 // 账户页「我的」—— 账户名/套餐/流量/有效期 + 充值/我的订单/工单客服/代理中心/
 // 官网/刷新订阅/退出登录。重新排版美化(深靛蓝 + 琥珀金,明暗自适应)。
 //
-// 客服 = 面板工单系统(/#/ticket 提交+查看,和后台对接),不再用 Tawk.to。
-// 订单/工单/充值/官网 都通过 web_page.dart 的 openWeb(移动内嵌 WebView,桌面外部浏览器)。
+// 充值/我的订单/工单 都是【原生页面】(plans_page/orders_page/tickets_page,直接调 Xboard API),
+// 不再用 webview——flutter_inappwebview 在 Windows 上会卡死。只有「官方网站」用系统浏览器打开。
 // 既能作为独立页面被 push,也能作为底部导航「我的」tab 直接嵌入(自带 Scaffold)。
 
 import 'package:flutter/material.dart';
@@ -11,8 +11,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
-import 'web_page.dart';
+import 'web_page.dart'; // 只用 openExternal(官网)
 import 'agent_center_page.dart';
+import 'orders_page.dart';
+import 'tickets_page.dart';
+import 'plans_page.dart';
 import 'package:fl_clash/views/theme.dart'; // 主题设置整页(FlClash 自带)
 import 'package:fl_clash/views/about.dart'; // 关于页(FlClash 自带,含开源许可)
 
@@ -99,9 +102,6 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   String _panelBase() =>
       ref.read(xboardAuthProvider).panelUrl.replaceAll(RegExp(r'/+$'), '');
 
-  void _openPanel(String route, String title) =>
-      openWeb(context, url: '${_panelBase()}$route', title: title);
-
   String _gb(int bytes) => (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2);
 
   String _expire(int? unix) {
@@ -127,15 +127,18 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                 children: [
                   _sectionCard(theme, [
                     _tile(theme, Icons.add_card_outlined, _kAmber, '充值 / 购买套餐',
-                        () => _openPanel('/#/plan', '充值')),
+                        () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const PlansPage()))),
                     _divider(),
                     _tile(theme, Icons.receipt_long_outlined, _kIndigo, '我的订单',
-                        () => _openPanel('/#/order', '我的订单')),
+                        () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const OrdersPage()))),
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
                     _tile(theme, Icons.support_agent_outlined, _kAmber, '工单 / 客服',
-                        () => _openPanel('/#/ticket', '工单 / 客服')),
+                        () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const TicketsPage()))),
                     _divider(),
                     _tile(theme, Icons.groups_outlined, _kIndigo, '代理中心 / 分销',
                         () => Navigator.of(context).push(MaterialPageRoute(
