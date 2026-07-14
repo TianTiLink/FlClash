@@ -1,25 +1,31 @@
-// 节点页底部常驻栏:「规则 / 全局」模式切换 + 「连接 / 断开」按钮。
+// 节点页底部常驻栏:「智能 / 全局」模式切换 +「服务模式(TUN)」开关 +「连接 / 断开」按钮。
 //
-// 放在节点列表下方,用户选好节点后可直接连接,不用再跑去仪表盘。
-// 全局模式会把所有流量强制走当前选中节点(绕开规则里 DIRECT 默认组的坑);
-// 规则模式则国内直连、国外走节点。
+// 智能(规则):国内直连、国外走节点(推荐);全局:所有流量都走当前选中节点。
+// 服务模式(虚拟网卡/TUN):接管所有应用的流量,无视应用自身是否支持代理。
 //
-// 用到的 FlClash provider 全部来自 providers barrel,无需新增任何依赖:
-//   isStartProvider                         -> bool 当前是否已连接(= 内核在跑)
-//   commonActionProvider.updateStart()      -> 切换启动/停止(自读当前状态取反)
-//   patchClashConfigProvider.mode           -> 当前出站模式 Mode{rule,global,direct}
-//   setupActionProvider.changeMode(Mode)    -> 切模式(global 会同时把当前组切到 GLOBAL)
+// provider 全来自 providers barrel,无需新增依赖:
+//   isStartProvider / commonActionProvider.updateStart()
+//   patchClashConfigProvider.mode / setupActionProvider.changeMode(Mode)
+//   patchClashConfigProvider.tun.enable(服务模式开关)
 //
-// 注入方式见文件末尾注释(改 lib/views/proxies/proxies.dart 一处 body)。
+// 注入方式见文件末尾(改 lib/views/proxies/proxies.dart 一处 body;若已注入过就无需再动)。
 
 import 'package:fl_clash/enum/enum.dart'; // Mode { rule, global, direct }
-import 'package:fl_clash/providers/providers.dart'; // isStart/common/setup/patchClashConfig
+import 'package:fl_clash/providers/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const Color _kIndigo = Color(0xFF2B2F77);
-const Color _kGreen = Color(0xFF2E7D53); // 未连接:绿色「连接」
-const Color _kRed = Color(0xFFB23A48); // 已连接:红色「断开」
+const Color _kGreen = Color(0xFF2E7D53);
+const Color _kRed = Color(0xFFB23A48);
+
+// 鼠标悬停提示文案(按你给的图片)。
+const String _kSmartTip =
+    '根据规则判断是否要经过节点,例如访问谷歌、Youtube 等中国境外资源会经过节点,'
+    '而访问百度、新浪等中国境内资源则不经过。推荐使用该模式。';
+const String _kGlobalTip =
+    '所有网络请求都会经过节点,例如访问百度、新浪等中国境内网站也将经过节点,'
+    '会受境内无落地节点的网速影响。该模式建议仅当访问未包含进规则的网络请求导致没经过节点时启用。';
 
 class ProxiesConnectBar extends ConsumerWidget {
   const ProxiesConnectBar({super.key});
@@ -29,6 +35,8 @@ class ProxiesConnectBar extends ConsumerWidget {
     final theme = Theme.of(context);
     final isStart = ref.watch(isStartProvider);
     final mode = ref.watch(patchClashConfigProvider.select((s) => s.mode));
+    final tunEnable =
+        ref.watch(patchClashConfigProvider.select((s) => s.tun.enable));
 
     return SafeArea(
       top: false,
@@ -60,22 +68,26 @@ class ProxiesConnectBar extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // 规则 / 全局 分段切换
+            // 智能 / 全局 分段切换(鼠标悬停显示模式说明)
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                color:
+                    theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  _seg(context, '规则', mode == Mode.rule,
+                  _seg(context, '智能', _kSmartTip, mode == Mode.rule,
                       () => ref.read(setupActionProvider.notifier).changeMode(Mode.rule)),
-                  _seg(context, '全局', mode == Mode.global,
+                  _seg(context, '全局', _kGlobalTip, mode == Mode.global,
                       () => ref.read(setupActionProvider.notifier).changeMode(Mode.global)),
                 ],
               ),
             ),
+            const SizedBox(height: 10),
+            // 服务模式(虚拟网卡 / TUN)
+            _serviceModeRow(context, ref, tunEnable),
             const SizedBox(height: 10),
             // 连接 / 断开
             SizedBox(
@@ -88,7 +100,8 @@ class ProxiesConnectBar extends ConsumerWidget {
                     isStart ? Icons.stop_rounded : Icons.play_arrow_rounded),
                 label: Text(
                   isStart ? '断开' : '连接',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style:
+                      const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isStart ? _kRed : _kGreen,
@@ -105,26 +118,68 @@ class ProxiesConnectBar extends ConsumerWidget {
     );
   }
 
-  Widget _seg(
-      BuildContext context, String label, bool active, VoidCallback onTap) {
+  Widget _serviceModeRow(BuildContext context, WidgetRef ref, bool enable) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('服务模式',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                Text('支持所有应用,无视应用是否有代理功能',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.hintColor)),
+              ],
+            ),
+          ),
+          Switch(
+            value: enable,
+            activeColor: _kIndigo,
+            onChanged: (value) {
+              ref
+                  .read(patchClashConfigProvider.notifier)
+                  .update((state) => state.copyWith.tun(enable: value));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _seg(BuildContext context, String label, String tip, bool active,
+      VoidCallback onTap) {
     final theme = Theme.of(context);
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? _kIndigo : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: active ? Colors.white : theme.hintColor,
-              fontWeight: FontWeight.w600,
+      child: Tooltip(
+        message: tip,
+        waitDuration: const Duration(milliseconds: 300),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active ? _kIndigo : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: active ? Colors.white : theme.hintColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -132,25 +187,3 @@ class ProxiesConnectBar extends ConsumerWidget {
     );
   }
 }
-
-// ───────────────────────────────────────────────────────────────────────────
-// 注入(改 FlClash 原文件 lib/views/proxies/proxies.dart,仅一处):
-//
-// 1) 顶部 import 区加一行:
-//      import 'package:fl_clash/xboard/proxies_connect_bar.dart';
-//
-// 2) 把 CommonScaffold 的  body: switch (proxiesType) { ... }  换成:
-//      body: Column(
-//        children: [
-//          Expanded(
-//            child: switch (proxiesType) {
-//              ProxiesType.tab => ProxiesTabView(key: _proxiesTabKey),
-//              ProxiesType.list => const ProxiesListView(),
-//            },
-//          ),
-//          const ProxiesConnectBar(),
-//        ],
-//      ),
-//
-//   注意:节点列表那段必须包在 Expanded 里,否则列表高度无界会报错。
-// ───────────────────────────────────────────────────────────────────────────
