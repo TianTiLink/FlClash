@@ -322,7 +322,7 @@ class GlobalState {
       window?.hide();
     }
     await _handleFailedPreference();
-    await _handlerDisclaimer();
+    // await _handlerDisclaimer(); // TianTiLink: 关闭启动免责声明弹窗
     await _showCrashlyticsTip();
     await container.read(coreActionProvider.notifier).connectCore();
     await container.read(coreActionProvider.notifier).initCore();
