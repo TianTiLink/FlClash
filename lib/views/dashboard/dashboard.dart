@@ -238,9 +238,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         // 写死隐藏「出站模式」两张卡(模式切换已挪到代理页底部的 智能/全局 开关)。
     bool isOutboundMode(DashboardWidget item) =>
         item == DashboardWidget.outboundMode ||
-        item == DashboardWidget.outboundModeV2;
+        item == DashboardWidget.outboundModeV2 ||
         item == DashboardWidget.tunButton ||
-        item == DashboardWidget.systemProxyButton;
+        item == DashboardWidget.systemProxyButton ||
+        item == DashboardWidget.vpnButton;
     final children = [
       ...dashboardState.dashboardWidgets
           .where((item) => !isOutboundMode(item))
