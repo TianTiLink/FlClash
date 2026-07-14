@@ -9,9 +9,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:image_picker/image_picker.dart';
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
+import 'xboard_upload.dart';
 
 const Color _kIndigo = Color(0xFF2B2F77);
 const Color _kAmber = Color(0xFFE9B949);
@@ -360,7 +361,32 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
       if (mounted) setState(() => _sending = false);
     }
   }
-
+  Future<void> _pickAndSendImage() async {
+    if (_sending) return;
+    final a = _auth();
+    if (a == null) return;
+    final XFile? x = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (x == null) return;
+    setState(() => _sending = true);
+    try {
+      final url = await xboardUploadImage(
+        panelBase: a.url,
+        endpoint: '/api/v1/reseller/upload/image',
+        filePath: x.path,
+        authData: a.token,
+      );
+      await XboardApi(a.url).replyTicket(a.token, widget.id, '[img]$url');
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('发图失败:$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
   Future<void> _close() async {
     final a = _auth();
     if (a == null) return;
@@ -455,10 +481,8 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                     fontSize: 11,
                     color: isMe ? Colors.white70 : theme.hintColor)),
             const SizedBox(height: 3),
-            Text(text,
-                style: TextStyle(
-                    fontSize: 14,
-                    color: isMe ? Colors.white : theme.colorScheme.onSurface)),
+            xboardMessageContent(text,
+                textColor: isMe ? Colors.white : theme.colorScheme.onSurface),
           ],
         ),
       ),
@@ -481,6 +505,11 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         child: Row(
           children: [
+            IconButton(
+              tooltip: '发送图片',
+              onPressed: _sending ? null : _pickAndSendImage,
+              icon: const Icon(Icons.image_outlined),
+            ),
             Expanded(
               child: TextField(
                 controller: _input,
