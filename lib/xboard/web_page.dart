@@ -1,20 +1,24 @@
-// 只保留「用系统浏览器打开外部链接」。
-//
-// 原来的内嵌 WebView(webview_flutter / flutter_inappwebview)已删除:
-//   flutter_inappwebview 的 Windows 版是早期预览,会阻塞平台线程 → 点开卡死。
-//   充值/订单/工单已改为原生页面(orders_page / tickets_page / plans_page)。
-//   仅「官方网站」和「支付跳转(易支付收银台)」用系统浏览器打开——支付网关本就
-//   拒绝内嵌 webview,必须外部浏览器。
-//
-// 依赖:url_launcher(FlClash 已自带)。pubspec 里 webview_flutter / flutter_inappwebview
-//   都可以删掉了(全项目只有本文件用过它们)。
-
+// 只保留「用系统浏览器打开外部链接」(官网、支付收银台)。
 import 'package:url_launcher/url_launcher.dart';
 
-/// 用系统浏览器打开(官网、支付收银台)。
-Future<void> openExternal(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+/// 用系统浏览器打开。返回是否成功。
+/// ⚠ 修复支付「点了没反应」:不再用 canLaunchUrl 前置判断——安卓 11+ 没声明 <queries>
+///   时 canLaunchUrl 对 https 返回 false,老代码于是啥也不干、也不报错(收银台不弹)。
+///   launchUrl 直接走 startActivity,不受该限制,能正常打开浏览器。
+Future<bool> openExternal(String url) async {
+  final Uri uri;
+  try {
+    uri = Uri.parse(url);
+  } catch (_) {
+    return false;
   }
+  for (final mode in const [
+    LaunchMode.externalApplication,
+    LaunchMode.platformDefault,
+  ]) {
+    try {
+      if (await launchUrl(uri, mode: mode)) return true;
+    } catch (_) {}
+  }
+  return false;
 }
