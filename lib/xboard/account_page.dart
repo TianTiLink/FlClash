@@ -78,7 +78,10 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     setState(() => _refreshing = true);
     try {
       final url = await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
-      if (url != null) await importXboardSubscription(url);
+      if (url == null) throw '未登录或获取订阅地址失败';
+      // importXboardSubscription 现在会在重下/校验失败时抛异常(不再吞),
+      // 能走到下面的成功提示 = 真正重下最新节点并重新应用成功了。
+      await importXboardSubscription(url);
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context)
