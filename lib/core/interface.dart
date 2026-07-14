@@ -326,7 +326,7 @@ abstract class CoreHandlerInterface with CoreInterface {
     return await _invoke<String>(
           method: ActionMethod.asyncTestDelay,
           data: json.encode(delayParams),
-          timeout: const Duration(seconds: 6),
+          timeout: const Duration(seconds: 12),
         ) ??
         json.encode(Delay(name: proxyName, value: -1, url: url));
   }
