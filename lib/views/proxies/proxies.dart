@@ -29,6 +29,15 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   List<Widget> _buildActions(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return [
+      // 延迟测试:从悬浮按钮改到顶栏标题右侧。
+      if (_isTab)
+        IconButton(
+          tooltip: appLocalizations.delayTest,
+          onPressed: () async {
+            await _proxiesTabKey.currentState?.delayTestCurrentGroup();
+          },
+          icon: const Icon(Icons.network_ping),
+        ),
       if (_isTab)
         IconButton(
           onPressed: () {
@@ -83,16 +92,6 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     ];
   }
 
-  Widget? _buildFAB() {
-    return _isTab
-        ? DelayTestButton(
-            onClick: () async {
-              await _proxiesTabKey.currentState?.delayTestCurrentGroup();
-            },
-          )
-        : null;
-  }
-
   void _onSearch(String value) {
     ref.read(queryProvider(QueryTag.proxies).notifier).value = value;
   }
@@ -143,7 +142,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       key: _scaffoldKey,
       isLoading: isLoading,
       resizeToAvoidBottomInset: false,
-      floatingActionButton: _buildFAB(),
+      floatingActionButton: null, // 延迟测试已移到顶栏,去掉悬浮按钮
       actions: _buildActions(context),
       title: context.appLocalizations.proxies,
       searchState: AppBarSearchState(onSearch: _onSearch),
@@ -158,7 +157,6 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
           const ProxiesConnectBar(),
         ],
       ),
-      
     );
   }
 }
