@@ -113,16 +113,16 @@ class _PlansPageState extends ConsumerState<PlansPage> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('确认购买'),
         content: Text('$planName · $periodLabel\n金额:¥${(priceCents / 100).toStringAsFixed(2)}'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
           FilledButton(
               style: FilledButton.styleFrom(backgroundColor: _kIndigo),
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('去支付')),
         ],
       ),
@@ -203,12 +203,12 @@ class _PlansPageState extends ConsumerState<PlansPage> {
   Future<int?> _pickMethod(List<Map<String, dynamic>> methods) {
     return showDialog<int>(
       context: context,
-      builder: (_) => SimpleDialog(
+        builder: (ctx) => SimpleDialog(
         title: const Text('选择支付方式'),
         children: [
           for (final m in methods)
             SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, _toInt(m['id'])),
+              onPressed: () => Navigator.pop(ctx, _toInt(m['id'])),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Text(m['name']?.toString() ?? '支付'),
