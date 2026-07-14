@@ -136,7 +136,7 @@ class ProxiesConnectBar extends ConsumerWidget {
                 Text('服务模式',
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600)),
-                Text('支持所有应用,无视应用是否有代理功能',
+                Text('TUN模式支持所有应用,无视应用是否有代理功能',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.hintColor)),
               ],
