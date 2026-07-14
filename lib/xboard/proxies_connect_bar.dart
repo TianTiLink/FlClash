@@ -80,8 +80,24 @@ class ProxiesConnectBar extends ConsumerWidget {
                 children: [
                   _seg(context, '智能', _kSmartTip, mode == Mode.rule,
                       () => ref.read(setupActionProvider.notifier).changeMode(Mode.rule)),
-                  _seg(context, '全局', _kGlobalTip, mode == Mode.global,
-                      () => ref.read(setupActionProvider.notifier).changeMode(Mode.global)),
+                  _seg(context, '全局', _kGlobalTip, mode == Mode.global, () {
+                    // 全局跟随你选中的节点:把 mihomo 的 GLOBAL 组指向你的主节点组,
+                    // 这样 GLOBAL → 你的组 → 你当前选的节点(以后换节点也自动跟随)。
+                    final others = ref
+                        .read(groupsProvider)
+                        .where((g) => g.name != GroupName.GLOBAL.name)
+                        .toList();
+                    if (others.isNotEmpty) {
+                      final primary = others.first.name;
+                      ref
+                          .read(profilesActionProvider.notifier)
+                          .updateCurrentSelectedMap(GroupName.GLOBAL.name, primary);
+                      ref
+                          .read(proxiesActionProvider.notifier)
+                          .changeProxyDebounce(GroupName.GLOBAL.name, primary);
+                    }
+                    ref.read(setupActionProvider.notifier).changeMode(Mode.global);
+                  }),
                 ],
               ),
             ),
