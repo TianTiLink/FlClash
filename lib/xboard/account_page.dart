@@ -14,6 +14,7 @@ import 'xboard_sync.dart';
 import 'web_page.dart';
 import 'agent_center_page.dart';
 import 'package:fl_clash/views/theme.dart'; // 主题设置整页(FlClash 自带)
+import 'package:fl_clash/views/about.dart'; // 关于页(FlClash 自带,含开源许可)
 
 /// 品牌配色(深靛蓝 + 琥珀金),与官网一致。
 const Color _kIndigo = Color(0xFF2B2F77);
@@ -141,13 +142,17 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                             builder: (_) => const AgentCenterPage()))),
                     _divider(),
                     _tile(theme, Icons.public_outlined, _kIndigo, '官方网站',
-                        () => openWeb(context, url: _panelBase(), title: '官方网站')),
+                        () => openExternal(_panelBase())),
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
                     _tile(theme, Icons.palette_outlined, _kAmber, '主题',
                         () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const ThemeView()))),
+                    _divider(),
+                    _tile(theme, Icons.info_outline, _kIndigo, '关于',
+                        () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const AboutView()))),
                     _divider(),
                     _tile(
                       theme,
