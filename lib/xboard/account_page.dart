@@ -6,6 +6,7 @@
 // 既能作为独立页面被 push,也能作为底部导航「我的」tab 直接嵌入(自带 Scaffold)。
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'xboard_api.dart';
@@ -37,10 +38,112 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   bool _loading = true;
   bool _refreshing = false; // 防止连点「刷新订阅」在 FlClash 里堆出重复 profile
 
+  // 推广链接(首页展示,无二维码)
+  String? _inviteLink;
+  bool _inviteLoading = true;
+  String? _inviteError;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadInvite();
+  }
+
+  Future<void> _loadInvite() async {
+    final auth = ref.read(xboardAuthProvider);
+    final token = auth.authData;
+    if (token == null) {
+      if (mounted) setState(() { _inviteLoading = false; _inviteError = '未登录'; });
+      return;
+    }
+    if (mounted) setState(() { _inviteLoading = true; _inviteError = null; });
+    try {
+      final code = await XboardApi(auth.panelUrl).fetchInviteCode(token);
+      final base = auth.panelUrl.replaceAll(RegExp(r'/+$'), '');
+      if (mounted) setState(() { _inviteLink = '$base/#/register?code=$code'; _inviteLoading = false; });
+    } on XboardApiException catch (e) {
+      if (mounted) setState(() { _inviteError = e.message; _inviteLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _inviteError = '生成推广链接失败:$e'; _inviteLoading = false; });
+    }
+  }
+
+  void _copyInvite(String link) {
+    Clipboard.setData(ClipboardData(text: link));
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('已复制推广链接')));
+    }
+  }
+
+  Widget _promoHomeCard(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kAmber.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kAmber.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.card_giftcard, color: _kAmber, size: 20),
+            const SizedBox(width: 8),
+            const Text('邀请好友返利',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AgentCenterPage())),
+              child: const Text('收益明细'),
+            ),
+          ]),
+          const SizedBox(height: 4),
+          if (_inviteLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 10),
+                Text('正在生成推广链接…'),
+              ]),
+            )
+          else if (_inviteLink == null)
+            Row(children: [
+              Expanded(
+                child: Text(_inviteError ?? '暂时无法生成推广链接',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+              ),
+              TextButton(onPressed: _loadInvite, child: const Text('重试')),
+            ])
+          else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: SelectableText(_inviteLink!, style: const TextStyle(fontSize: 12.5)),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: _kIndigo),
+                onPressed: () => _copyInvite(_inviteLink!),
+                icon: const Icon(Icons.copy, size: 18),
+                label: const Text('复制推广链接'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -128,6 +231,8 @@ class _AccountPageState extends ConsumerState<AccountPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(
                 children: [
+                  _promoHomeCard(theme),
+                  const SizedBox(height: 14),
                   _sectionCard(theme, [
                     _tile(theme, Icons.add_card_outlined, _kAmber, '充值 / 购买套餐',
                         () => Navigator.of(context).push(MaterialPageRoute(
