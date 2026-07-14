@@ -9,6 +9,8 @@ import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_clash/xboard/proxies_connect_bar.dart';
+import 'package:fl_clash/xboard/xboard_auth.dart';
+import 'package:fl_clash/xboard/xboard_sync.dart';
 
 import 'setting.dart';
 import 'tab.dart';
@@ -25,10 +27,41 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   final GlobalKey<ProxiesTabViewState> _proxiesTabKey = GlobalKey();
   bool _hasProviders = false;
   bool _isTab = false;
+  bool _refreshingSub = false;
+
+  // 刷新订阅:从面板重拉最新节点并重新应用(复用账户页同款逻辑)。
+  Future<void> _refreshSubscription() async {
+    if (_refreshingSub) return;
+    setState(() => _refreshingSub = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final url =
+          await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
+      if (url == null) throw '未登录或获取订阅地址失败';
+      await importXboardSubscription(url);
+      messenger.showSnackBar(const SnackBar(content: Text('订阅已刷新')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('刷新失败:$e')));
+    } finally {
+      if (mounted) setState(() => _refreshingSub = false);
+    }
+  }
 
   List<Widget> _buildActions(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return [
+      // 刷新订阅:从面板重拉最新节点。
+      IconButton(
+        tooltip: '刷新订阅',
+        onPressed: _refreshingSub ? null : _refreshSubscription,
+        icon: _refreshingSub
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.sync),
+      ),
       // 延迟测试:从悬浮按钮改到顶栏标题右侧。
       if (_isTab)
         IconButton(
@@ -142,7 +175,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       key: _scaffoldKey,
       isLoading: isLoading,
       resizeToAvoidBottomInset: false,
-      floatingActionButton: null, // 延迟测试已移到顶栏,去掉悬浮按钮
+      floatingActionButton: null,
       actions: _buildActions(context),
       title: context.appLocalizations.proxies,
       searchState: AppBarSearchState(onSearch: _onSearch),
