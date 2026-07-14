@@ -2,6 +2,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/views/views.dart';
 import 'package:fl_clash/xboard/account_page.dart';
+import 'package:fl_clash/xboard/tickets_page.dart';
 import 'package:flutter/material.dart';
 
 class Navigation {
@@ -76,6 +77,13 @@ class Navigation {
         label: PageLabel.tools,
         builder: (_) => const ToolsView(key: GlobalObjectKey(PageLabel.tools)),
         modes: [],
+      ),
+      NavigationItem(
+        icon: const Icon(Icons.support_agent),
+        label: PageLabel.service,
+        builder: (_) =>
+            const TicketsPage(key: GlobalObjectKey(PageLabel.service)),
+        modes: [NavigationItemMode.mobile, NavigationItemMode.desktop],
       ),
       // 保留:我的(账户/流量/套餐/充值/工单/代理中心)
       NavigationItem(
