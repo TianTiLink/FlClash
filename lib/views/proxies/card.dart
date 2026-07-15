@@ -79,7 +79,7 @@ class ProxyCard extends StatelessWidget {
           proxy.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.bodyMedium,
+          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
       );
     } else {
@@ -89,7 +89,7 @@ class ProxyCard extends StatelessWidget {
           proxy.name,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.bodyMedium,
+          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
       );
     }
@@ -160,22 +160,25 @@ class ProxyCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Flexible(
-                          flex: 1,
-                          child: TooltipText(
-                            text: Text(
-                              proxy.type,
-                              style: context.textTheme.bodySmall?.copyWith(
-                                overflow: TextOverflow.ellipsis,
-                                color: context
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color
-                                    ?.opacity80,
-                              ),
-                            ),
-                          ),
-                        ),
+                        
+                        //Flexible(
+                        //  flex: 1,
+                        //  child: TooltipText(
+                        //    text: Text(
+                        //      proxy.type,
+                        //      style: context.textTheme.bodySmall?.copyWith(
+                        //        overflow: TextOverflow.ellipsis,
+                        //        color: context
+                        //            .textTheme
+                        //           .bodySmall
+                        //            ?.color
+                        //            ?.opacity80,
+                        //      ),
+                        //    ),
+                        //  ),
+                        //),
+                        //delayText,
+                        const Spacer(),
                         delayText,
                       ],
                     ),
