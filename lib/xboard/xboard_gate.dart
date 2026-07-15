@@ -14,6 +14,7 @@ import 'xboard_auth.dart';
 import 'login_page.dart';
 import 'app_popup.dart';
 import 'notice_watcher.dart';
+import 'notice_announcement.dart';
 
 class XboardGate extends ConsumerStatefulWidget {
   final Widget child;
@@ -51,18 +52,22 @@ class _XboardGateState extends ConsumerState<XboardGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 从后台切回前台:查一次新通知。
+    // 从后台切回前台:查一次插件新通知 + 弹一次后台公告最新一条(每次打开都弹)。
     if (state == AppLifecycleState.resumed && mounted) {
       maybeShowNewNotices(context, ref);
+      maybeShowLatestAnnouncement(context, ref);
     }
   }
 
-  // 通知弹窗:登录后首帧查一次 + 每 4 分钟查一次。
+  // 通知弹窗:登录后首帧查一次 + 每 4 分钟查一次插件通知;后台公告只在首帧弹(不进 4 分钟轮询,免打扰)。
   void _startNoticeWatch() {
     if (_noticeStarted) return;
     _noticeStarted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) maybeShowNewNotices(context, ref);
+      if (mounted) {
+        maybeShowNewNotices(context, ref);
+        maybeShowLatestAnnouncement(context, ref); // 每次打开 App:后台公告有内容就弹最新一条
+      }
     });
     _noticeTimer = Timer.periodic(const Duration(minutes: 4), (_) {
       if (mounted) maybeShowNewNotices(context, ref);
