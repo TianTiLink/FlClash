@@ -37,9 +37,9 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     try {
       final url =
           await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
-      if (url == null) throw '未登录或获取订阅地址失败';
+      if (url == null) throw '未登录或获取节点失败';
       await importXboardSubscription(url);
-      messenger.showSnackBar(const SnackBar(content: Text('订阅已刷新')));
+      messenger.showSnackBar(const SnackBar(content: Text('节点已刷新')));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('刷新失败:$e')));
     } finally {
@@ -52,7 +52,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     return [
       // 刷新订阅:从面板重拉最新节点。
       IconButton(
-        tooltip: '刷新订阅',
+        tooltip: '刷新节点',
         onPressed: _refreshingSub ? null : _refreshSubscription,
         icon: _refreshingSub
             ? const SizedBox(
