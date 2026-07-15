@@ -133,6 +133,24 @@ class XboardApi {
     throw XboardApiException(msg.toString());
   }
 
+  /// 注册页据此决定是否显示「邮箱验证码」输入框:读后台通用配置的 is_email_verify。
+  /// 端点:GET /api/v1/guest/comm/config(免登录)。返回 true=后台开了邮箱验证→显示验证码框。
+  /// 拉取失败时保守返回 true(宁可多显示,也不要「后台要求验证却无处输入」把注册卡死)。
+  Future<bool> needEmailVerify() async {
+    try {
+      final resp = await http.get(
+        _u('/api/v1/guest/comm/config'),
+        headers: const {'Accept': 'application/json'},
+      ).timeout(timeout);
+      final body = jsonDecode(utf8.decode(resp.bodyBytes));
+      final data = body is Map ? body['data'] : null;
+      final v = data is Map ? data['is_email_verify'] : null;
+      return v == 1 || v == true || v == '1';
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<XboardSubscribe> getSubscribe(String authData) async {
     final resp = await http.get(
       _u('/api/v1/user/getSubscribe'),

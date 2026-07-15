@@ -30,6 +30,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   int _cooldown = 0;
   Timer? _timer;
   String? _error;
+  // 是否需要邮箱验证码框:null=还在读后台配置(先不显示,避免闪现),
+  // true=后台开了邮箱验证→显示;false=后台关了→隐藏。
+  bool? _needCode;
+
+  @override
+  void initState() {
+    super.initState();
+    // 读后台通用配置(is_email_verify),决定要不要显示验证码框,而不是写死永远显示。
+    XboardApi(kDefaultPanelUrl).needEmailVerify().then((need) {
+      if (mounted) setState(() => _needCode = need);
+    });
+  }
 
   @override
   void dispose() {
@@ -166,33 +178,37 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     validator: (v) =>
                         (v == null || v.isEmpty) ? '请再次输入密码' : null,
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _code,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: '邮箱验证码(如已开启)',
-                            prefixIcon: Icon(Icons.verified_outlined),
-                            border: OutlineInputBorder(),
+                  // 仅当后台开启「邮箱验证」时才显示验证码框(_needCode==true);
+                  // 后台关闭、或配置还没读到时不显示,不再写死永远显示。
+                  if (_needCode == true) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _code,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: '邮箱验证码',
+                              prefixIcon: Icon(Icons.verified_outlined),
+                              border: OutlineInputBorder(),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        height: 56,
-                        child: OutlinedButton(
-                          onPressed:
-                              (_sending || _cooldown > 0) ? null : _sendCode,
-                          child: Text(_cooldown > 0
-                              ? '${_cooldown}s'
-                              : (_sending ? '发送中' : '发送验证码')),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 56,
+                          child: OutlinedButton(
+                            onPressed:
+                                (_sending || _cooldown > 0) ? null : _sendCode,
+                            child: Text(_cooldown > 0
+                                ? '${_cooldown}s'
+                                : (_sending ? '发送中' : '发送验证码')),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   TextFormField(
                     controller: _invite,
