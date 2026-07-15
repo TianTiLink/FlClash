@@ -89,9 +89,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // TODO: 换成你的品牌 Logo
-                  Icon(Icons.vpn_key_rounded,
-                      size: 56, color: theme.colorScheme.primary),
+                  // 天梯品牌 Logo(资源放 assets/images/,pubspec 已声明该目录,自动打包)
+                  Image.asset('assets/images/tt_logo.png',
+                      width: 72, height: 72),
                   const SizedBox(height: 12),
                   Text('登录',
                       textAlign: TextAlign.center,

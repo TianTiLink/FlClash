@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 天梯品牌图标:前景=极光阶梯(tt_ic_fg),背景=深空渐变(tt_ic_bg)。新资源名避开 FlClash 原有 ic_launcher_foreground 冲突。 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <background android:drawable="@drawable/tt_ic_bg"/>
+    <foreground android:drawable="@drawable/tt_ic_fg"/>
+    <monochrome android:drawable="@drawable/tt_ic_fg"/>
 </adaptive-icon>
