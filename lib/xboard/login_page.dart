@@ -48,7 +48,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
     try {
       final mihomoUrl = await ref.read(xboardAuthProvider.notifier).login(
-            panelUrl: kDefaultPanelUrl,
+            panelUrl: ttActiveBase,
             email: _emailCtrl.text.trim(),
             password: _passCtrl.text,
           );
@@ -67,7 +67,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _openPanel(String path) async {
-    var base = kDefaultPanelUrl.replaceAll(RegExp(r'/+$'), '');
+    var base = ttActiveBase.replaceAll(RegExp(r'/+$'), '');
     final uri = Uri.parse('$base$path');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

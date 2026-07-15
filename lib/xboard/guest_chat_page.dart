@@ -8,7 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
-import 'xboard_auth.dart'; // kDefaultPanelUrl
+import 'xboard_auth.dart'; // ttActiveBase(failover 后的生效通信地址)
 import 'xboard_upload.dart';
 
 const Color _kIndigo = Color(0xFF2B2F77);
@@ -33,7 +33,7 @@ class _GuestChatPageState extends State<GuestChatPage> {
   final _scroll = ScrollController();
   Timer? _poll;
 
-  String get _base => kDefaultPanelUrl.replaceAll(RegExp(r'/+$'), '');
+  String get _base => ttActiveBase.replaceAll(RegExp(r'/+$'), '');
 
   @override
   void initState() {

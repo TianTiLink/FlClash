@@ -38,7 +38,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   void initState() {
     super.initState();
     // 读后台通用配置(is_email_verify),决定要不要显示验证码框,而不是写死永远显示。
-    XboardApi(kDefaultPanelUrl).needEmailVerify().then((need) {
+    XboardApi(ttActiveBase).needEmailVerify().then((need) {
       if (mounted) setState(() => _needCode = need);
     });
   }
@@ -65,7 +65,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _error = null;
     });
     try {
-      await XboardApi(kDefaultPanelUrl).sendEmailVerify(email);
+      await XboardApi(ttActiveBase).sendEmailVerify(email);
       _startCooldown();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -103,7 +103,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     });
     try {
       final mihomoUrl = await ref.read(xboardAuthProvider.notifier).register(
-            panelUrl: kDefaultPanelUrl,
+            panelUrl: ttActiveBase,
             email: _email.text.trim(),
             password: _pass.text,
             inviteCode: _invite.text.trim(),

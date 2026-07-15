@@ -12,8 +12,80 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'reseller_api.dart';
 import 'xboard_auth.dart';
+import 'xboard_endpoint.dart';
 
 bool _shownOnce = false;
+bool _versionShownOnce = false;
+
+/// 版本检查弹窗 —— 编译版本和后台 tt_appconfig.versions 不一致时弹「建议更新」。
+/// 默认非强制(可点「稍后再说」继续用);后台勾了强制更新且配了下载地址才真正阻断。
+/// 下载地址来自后台按平台配置的 downloads,点「前往更新」用系统浏览器打开。
+Future<void> maybeShowVersionUpdate(
+    BuildContext context, WidgetRef ref, TtEndpointResult r) async {
+  if (_versionShownOnce) return;
+  if (!r.hasUpdate) return;
+  _versionShownOnce = true;
+  if (!context.mounted) return;
+
+  final latest = (r.latestVersion ?? '').trim();
+  final url = (r.downloadUrl ?? '').trim();
+  final note = r.updateNote.isNotEmpty
+      ? r.updateNote
+      : '发现新版本,建议更新到最新版以获得更稳定的连接。';
+  // 只有「开了强制更新」且「确实配了下载地址」才阻断,避免配置疏漏把用户卡死。
+  final bool force = r.updateForce && url.isNotEmpty;
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: !force,
+    builder: (ctx) => PopScope(
+      canPop: !force,
+      child: AlertDialog(
+        title: Text('发现新版本${latest.isEmpty ? '' : ' v$latest'}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(note),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('当前版本:v$kClientVersion',
+                    style:
+                        const TextStyle(color: Colors.grey, fontSize: 12)),
+              ),
+              if (force)
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text('请更新到最新版本后再继续使用。',
+                      style: TextStyle(color: Colors.redAccent)),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          if (!force)
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('稍后再说')),
+          if (url.isNotEmpty)
+            FilledButton(
+              onPressed: () async {
+                final uri = Uri.tryParse(url);
+                // 只允许 http/https,拦截可疑协议。
+                if (uri != null &&
+                    (uri.scheme == 'http' || uri.scheme == 'https')) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+                if (!force && ctx.mounted) Navigator.of(ctx).pop();
+              },
+              child: const Text('前往更新'),
+            ),
+        ],
+      ),
+    ),
+  );
+}
 
 /// 拉取并(按需)展示启动弹窗。[once]=true 时每次 App 运行只弹一次。
 Future<void> maybeShowResellerPopup(BuildContext context, WidgetRef ref, {bool once = true}) async {

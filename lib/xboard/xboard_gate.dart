@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'xboard_auth.dart';
+import 'xboard_endpoint.dart';
 import 'login_page.dart';
 import 'app_popup.dart';
 import 'notice_watcher.dart';
@@ -28,6 +29,7 @@ class _XboardGateState extends ConsumerState<XboardGate>
     with WidgetsBindingObserver {
   bool _popupTried = false;
   bool _noticeStarted = false;
+  bool _endpointTried = false;
   Timer? _noticeTimer;
 
   @override
@@ -40,7 +42,29 @@ class _XboardGateState extends ConsumerState<XboardGate>
       if (!st.restored) {
         ref.read(xboardAuthProvider.notifier).restore();
       }
+      // 后台 failover 探测通信地址 + 版本检查(异步,不阻塞会话恢复/UI)。
+      _resolveEndpointOnce();
     });
+  }
+
+  // 启动只跑一次:逐个探测通信地址,探通后让会话切到该地址(防封 failover),
+  // 再比对后台版本号,不一致就弹「建议更新」(非强制)。全程失败静默,等同现状。
+  Future<void> _resolveEndpointOnce() async {
+    if (_endpointTried) return;
+    _endpointTried = true;
+    TtEndpointResult r;
+    try {
+      r = await resolveEndpoint();
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    if (r.online) {
+      await ref.read(xboardAuthProvider.notifier).adoptBase(r.activeBase);
+    }
+    if (mounted && r.hasUpdate) {
+      await maybeShowVersionUpdate(context, ref, r);
+    }
   }
 
   @override

@@ -25,9 +25,14 @@ import 'xboard_api.dart';
 
 const _secureStorage = FlutterSecureStorage();
 
-/// 你的面板地址。登录页已隐藏"面板地址"输入框,用户只填邮箱密码,登录直接用这个地址。
+/// 你的面板地址(硬编码兜底,也是默认参数用的常量)。登录页已隐藏地址输入框。
 /// 换域名时改这里、重编即可。
 const String kDefaultPanelUrl = 'https://tiantilink.com';
+
+/// 当前生效的通信地址(可变):启动时 resolveEndpoint() 探测候选 API 地址后写入这里,
+/// 逐个探测用第一个能通的(防封 failover)。所有运行时 API 调用读这个,不读上面的 const。
+/// 探测失败/域名没解析时保持默认 = 现有行为,安全降级。
+String ttActiveBase = kDefaultPanelUrl;
 
 const _kPanelUrl = 'xb_panel_url';
 const _kEmail = 'xb_email';
@@ -84,7 +89,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     state = XboardAuthState(
       restored: true,
       loggedIn: auth != null,
-      panelUrl: sp.getString(_kPanelUrl) ?? kDefaultPanelUrl,
+      panelUrl: sp.getString(_kPanelUrl) ?? ttActiveBase,
       email: sp.getString(_kEmail) ?? '',
       authData: auth,
       subscribeUrl: sp.getString(_kSub),
@@ -178,6 +183,17 @@ class XboardAuth extends Notifier<XboardAuthState> {
     await sp.setString(_kSub, sub.subscribeUrl);
     state = state.copyWith(subscribeUrl: sub.subscribeUrl);
     return XboardApi.toMihomoUrl(sub.subscribeUrl);
+  }
+
+  /// failover 探测到可用通信地址后,让当前会话也切过去(持久化)。
+  /// 这样已登录用户后续的接口(刷新订阅等,走 state.panelUrl)也用探通的地址,
+  /// 而不是死守登录时那个可能已被墙的域名。地址没变就直接跳过。
+  Future<void> adoptBase(String base) async {
+    final b = base.replaceAll(RegExp(r'/+$'), '');
+    if (b.isEmpty || b == state.panelUrl) return;
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kPanelUrl, b);
+    state = state.copyWith(panelUrl: b);
   }
 
   Future<void> logout() async {
