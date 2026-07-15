@@ -646,6 +646,7 @@ class _NewTicketSheetState extends ConsumerState<_NewTicketSheet> {
             child: FilledButton(
               style: FilledButton.styleFrom(
                   backgroundColor: _kIndigo,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14)),
               onPressed: _submitting ? null : _submit,
               child: _submitting
