@@ -121,7 +121,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
           FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _kIndigo),
+              style: FilledButton.styleFrom(backgroundColor: _kIndigo, foregroundColor: Colors.white),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('去支付')),
         ],
@@ -333,7 +333,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
   Widget _planCard(Map<String, dynamic> plan) {
     final theme = Theme.of(context);
     final name = plan['name']?.toString() ?? '套餐';
-    final transferGb = _toInt(plan['transfer_enable']) / (1024 * 1024 * 1024);
+    final transferGb = _toInt(plan['transfer_enable']).toDouble();
     final desc = _stripHtml(plan['content']?.toString() ?? '');
 
     // 可购周期(价格非空的)
@@ -575,6 +575,7 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                       backgroundColor: _kIndigo,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14)),
                   onPressed: _checking ? null : () => _checkOnce(),
                   child: _checking
