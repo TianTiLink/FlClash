@@ -256,14 +256,29 @@ class DelayDataSource extends _$DelayDataSource with AutoDisposeNotifierMixin {
   }
 
   void setDelay(Delay delay) {
-    if (state[delay.url]?[delay.name] != delay.value) {
+    // 克隆节点(名字含 " · ")在真实延迟上叠加一个稳定的 5-100ms 伪随机偏移,
+    // 避免同一台真机的多个克隆显示完全相同的延迟而穿帮;真实节点(不含 " · ")延迟原样不动。
+    final int? adjusted = _cloneAdjustDelay(delay.name, delay.value);
+    if (state[delay.url]?[delay.name] != adjusted) {
       final DelayMap newDelayMap = Map.from(state);
       if (newDelayMap[delay.url] == null) {
         newDelayMap[delay.url] = {};
       }
-      newDelayMap[delay.url]![delay.name] = delay.value;
+      newDelayMap[delay.url]![delay.name] = adjusted;
       value = newDelayMap;
     }
+  }
+
+  // 偏移用名字哈希算,故每个克隆的偏移【固定】(不同克隆各不相同、同一克隆每次一致,像真实路由差异)。
+  // 超时/无效(null 或 <=0)不动,仍显示超时。
+  int? _cloneAdjustDelay(String name, int? value) {
+    if (value == null || value <= 0) return value;
+    if (!name.contains(' · ')) return value;
+    int h = 0;
+    for (final unit in name.codeUnits) {
+      h = (h * 31 + unit) & 0x7fffffff;
+    }
+    return value + 5 + (h % 96); // +5 ~ +100 ms
   }
 }
 
