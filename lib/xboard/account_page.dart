@@ -134,7 +134,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: _kIndigo),
+                style: FilledButton.styleFrom(backgroundColor: _kIndigo, foregroundColor: Colors.white),
                 onPressed: () => _copyInvite(_inviteLink!),
                 icon: const Icon(Icons.copy, size: 18),
                 label: const Text('复制推广链接'),
@@ -181,14 +181,14 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     setState(() => _refreshing = true);
     try {
       final url = await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
-      if (url == null) throw '未登录或获取订阅地址失败';
+      if (url == null) throw '未登录或获取节点失败';
       // importXboardSubscription 现在会在重下/校验失败时抛异常(不再吞),
       // 能走到下面的成功提示 = 真正重下最新节点并重新应用成功了。
       await importXboardSubscription(url);
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('订阅已刷新')));
+            .showSnackBar(const SnackBar(content: Text('节点已刷新')));
       }
     } catch (e) {
       if (mounted) {
@@ -265,7 +265,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                       theme,
                       _refreshing ? Icons.hourglass_empty : Icons.sync_outlined,
                       _kIndigo,
-                      _refreshing ? '刷新中…' : '刷新订阅',
+                      _refreshing ? '刷新中…' : '刷新节点',
                       _refreshing ? null : _refreshSubscription,
                     ),
                   ]),
