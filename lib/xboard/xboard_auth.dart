@@ -25,9 +25,10 @@ import 'xboard_api.dart';
 
 const _secureStorage = FlutterSecureStorage();
 
-/// 你的面板地址(硬编码兜底,也是默认参数用的常量)。登录页已隐藏地址输入框。
-/// 换域名时改这里、重编即可。
-const String kDefaultPanelUrl = 'https://tiantilink.com';
+/// 客户端默认通信地址(硬编码兜底,也是默认参数用的常量)。登录页已隐藏地址输入框。
+/// 用 API 专用域名(和官网/导航分开:官网被举报封了不连累 App 登录/订阅)。
+/// 换域名时改这里、重编即可。前提:该域名有有效 HTTPS 证书且反代到面板。
+const String kDefaultPanelUrl = 'https://14fas434ojf54a.xyz';
 
 /// 当前生效的通信地址(可变):启动时 resolveEndpoint() 探测候选 API 地址后写入这里,
 /// 逐个探测用第一个能通的(防封 failover)。所有运行时 API 调用读这个,不读上面的 const。

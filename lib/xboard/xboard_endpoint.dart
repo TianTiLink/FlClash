@@ -24,9 +24,9 @@ const String _kActiveBaseCache = 'tt_active_base';
 
 /// 兜底候选(硬编码,防止本地缓存也没有时无处可探)。
 const List<String> _kSeedApiHosts = <String>[
-  'https://tiantilink.com',
-  'https://14fas434ojf54a.xyz',
-  'https://jais2d5n6as1ddf.xyz',
+  'https://14fas434ojf54a.xyz',  // API 主(客户端通信)
+  'https://jais2d5n6as1ddf.xyz', // API 备
+  'https://tiantilink.com',      // 最后兜底:两个 .xyz 都不通时,新装用户仍能引导上线
 ];
 
 class TtEndpointResult {
