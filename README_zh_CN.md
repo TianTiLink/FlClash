@@ -15,7 +15,7 @@
 ## 📥 下载
 
 - 🌐 **官网直下(推荐)**:**https://tiantilink.com** — Android / Windows / macOS 一键下载
-- 📱 **iOS**:前往[官网](https://tiantilink.com)**一键导入订阅**(免费客户端,加到主屏即用)
+- 📱 **iOS**:前往 [tiantiweb.xyz/dl/app.html](https://tiantiweb.xyz/dl/app.html) **一键导入订阅**(免费客户端,加到主屏即用)
 - 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 
 ## 🤝 推广赚钱
@@ -24,11 +24,17 @@
 
 ## 💻 预览
 
-桌面端:
-<p align="center"><img alt="desktop" src="snapshots/desktop.gif"></p>
+**桌面端**
 
-移动端:
-<p align="center"><img alt="mobile" src="snapshots/mobile.gif"></p>
+<p align="center">
+  <img alt="dashboard" src="snapshots/preview-dashboard.jpg" width="32%"/>
+  <img alt="tickets" src="snapshots/preview-tickets.jpg" width="32%"/>
+  <img alt="proxies" src="snapshots/preview-proxies.jpg" width="32%"/>
+</p>
+
+**移动端**
+
+<p align="center"><img alt="mobile" src="snapshots/preview-mobile.jpg" width="30%"/></p>
 
 ## ✨ 特性
 
@@ -37,18 +43,6 @@
 - 💻 自适应多屏,多彩主题,Material You 设计
 - ☁️ 支持 WebDAV 同步数据
 - ✨ 一键导入订阅,深色模式
-
-## 🛠 构建
-
-1. 更新子模块
-   ```bash
-   git submodule update --init --recursive
-   ```
-2. 安装 `Flutter` 与 `Golang` 环境
-3. 运行构建脚本:
-   - android:`dart setup.dart android`(需 Android SDK + NDK,设置 `ANDROID_NDK` 环境变量)
-   - windows:`dart setup.dart windows`(需 GCC、Inno Setup)
-   - macOS:`dart setup.dart macos`
 
 ## ⭐ Star
 
