@@ -1,8 +1,8 @@
 script_template: inno_setup.iss
 app_id: 728B3532-C74B-4870-9068-BE70FE12A3E6
 app_name: TianTiLink
-publisher: chen08209
-publisher_url: https://github.com/chen08209/FlClash
+publisher: TianTiLink
+publisher_url: https://tiantilink.com
 display_name: TianTiLink
 executable_name: TianTiLink.exe
 output_base_file_name: TianTiLink.exe
