@@ -188,6 +188,9 @@ jobs:
           }
           if (-not $iscc) { Write-Host "::warning::未找到 Inno Setup(ISCC.exe),跳过安装包;便携版仍可用。"; exit 0 }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
+          # 安装器 setup.exe 的图标:用仓库里的品牌图标 app_icon.ico;缺失则退回 Inno 默认灰图标。
+          $iconPath = Join-Path (Get-Location).Path 'windows\runner\resources\app_icon.ico'
+          $iconLine = if (Test-Path $iconPath) { "SetupIconFile=$iconPath" } else { Write-Host "::warning::未找到 app_icon.ico,安装器用默认图标"; '' }
           $iss = @(
             '[Setup]',
             "AppName=$app",
@@ -196,6 +199,7 @@ jobs:
             "DefaultDirName={autopf}\$app",
             "DefaultGroupName=$app",
             "UninstallDisplayIcon={app}\$exe",
+            $iconLine,
             'OutputDir=dist',
             "OutputBaseFilename=$app-windows-x64-setup",
             'Compression=lzma2',
