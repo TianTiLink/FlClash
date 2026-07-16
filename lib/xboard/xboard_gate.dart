@@ -1,11 +1,11 @@
 // 登录门控 —— 未登录显示 LoginPage,已登录显示 FlClash 主界面。
-// 已登录时首帧弹一次启动公告(Reseller 插件后台可配)。
+// 公告/通知只在「登录后冷启动首帧」弹一次:最小化后再切回前台不重弹,
+// 只有关闭软件重新启动才会再弹(用户要求)。因此这里不监听 App 生命周期、
+// 也不做定时轮询,避免切前台/后台反复弹窗。
 // 代理中心已收进底部「我的」tab 里的按钮,这里不再放悬浮拉手。
 //
 // 接入(改 lib/application.dart 一处,若已接过则无需再改):
 //   把 MaterialApp 的  home: child!   改成   home: XboardGate(child: child!),
-
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,17 +25,14 @@ class XboardGate extends ConsumerStatefulWidget {
   ConsumerState<XboardGate> createState() => _XboardGateState();
 }
 
-class _XboardGateState extends ConsumerState<XboardGate>
-    with WidgetsBindingObserver {
+class _XboardGateState extends ConsumerState<XboardGate> {
   bool _popupTried = false;
   bool _noticeStarted = false;
   bool _endpointTried = false;
-  Timer? _noticeTimer;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     // 启动时恢复会话(只跑一次)。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final st = ref.read(xboardAuthProvider);
@@ -67,35 +64,16 @@ class _XboardGateState extends ConsumerState<XboardGate>
     }
   }
 
-  @override
-  void dispose() {
-    _noticeTimer?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 从后台切回前台:只查插件新通知(有新才弹)。后台公告不在这里弹——
-    // 公告只在冷启动首帧弹一次(见 _startNoticeWatch),最小化/切回不重弹,
-    // 关闭软件重新启动才会再弹。
-    if (state == AppLifecycleState.resumed && mounted) {
-      maybeShowNewNotices(context, ref);
-    }
-  }
-
-  // 通知弹窗:登录后首帧查一次 + 每 4 分钟查一次插件通知;后台公告只在首帧弹(不进 4 分钟轮询,免打扰)。
+  // 通知 + 公告:只在登录后冷启动首帧各查一次(两者内部都有「本次进程只弹一次」去重)。
+  // 不接 didChangeAppLifecycleState、不做定时轮询 —— 最小化切回前台不重弹,关闭重启才会再弹。
   void _startNoticeWatch() {
     if (_noticeStarted) return;
     _noticeStarted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        maybeShowNewNotices(context, ref);
-        maybeShowLatestAnnouncement(context, ref); // 冷启动首帧:公告有内容就弹最新一条(每次启动仅一次)
+        maybeShowNewNotices(context, ref); // 插件新通知:有比"看过的"更新的才弹,每进程一次
+        maybeShowLatestAnnouncement(context, ref); // 原生公告:有内容就弹最新一条,每进程一次
       }
-    });
-    _noticeTimer = Timer.periodic(const Duration(minutes: 4), (_) {
-      if (mounted) maybeShowNewNotices(context, ref);
     });
   }
 

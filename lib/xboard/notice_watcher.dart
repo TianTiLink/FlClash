@@ -1,6 +1,8 @@
 // 通知弹窗 —— 拉 Reseller 通知(发给我的 + 全体广播),有比"上次弹过的 id"更新的就弹最新那条。
-// 由 XboardGate 触发:登录后首帧 + 每 ~4 分钟 + 从后台切回前台各查一次。
-// 已弹过的记在 secure storage,不重复弹;游客(未登录)不查。
+// 由 XboardGate 只在「登录后冷启动首帧」触发一次;最小化切回前台/后台轮询都不再触发,
+// 关闭软件重新启动才会再查再弹(用户要求)。
+// 已弹过的记在 secure storage 不跨启动重弹;另有 _shownThisLaunch 保证本次进程至多弹一次。
+// 游客(未登录)不查。
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ import 'xboard_auth.dart';
 const _storage = FlutterSecureStorage();
 const _kSeenKey = 'xboard_notice_popup_id';
 bool _showing = false; // 防重入:多个触发点同时进来只弹一个
+bool _shownThisLaunch = false; // 本次进程已弹过:再触发一律不弹,重启应用才复位
 
 int _toInt(dynamic v) {
   if (v is int) return v;
@@ -22,7 +25,7 @@ int _toInt(dynamic v) {
 }
 
 Future<void> maybeShowNewNotices(BuildContext context, WidgetRef ref) async {
-  if (_showing) return;
+  if (_showing || _shownThisLaunch) return;
   final auth = ref.read(xboardAuthProvider);
   final token = auth.authData;
   if (auth.panelUrl.isEmpty || token == null || token.isEmpty) return;
@@ -63,6 +66,7 @@ Future<void> maybeShowNewNotices(BuildContext context, WidgetRef ref) async {
   final content = (newest['content']?.toString() ?? '').trim();
 
   _showing = true;
+  _shownThisLaunch = true; // 本次进程弹过一次就不再弹,重启应用才复位
   try {
     await showDialog<void>(
       context: context,
