@@ -185,7 +185,9 @@ class Windows {
       commandPtr,
       argumentsPtr,
       nullptr,
-      1,
+      // SW_HIDE:隐藏提权后弹出的 cmd 黑窗(sc/schtasks 命令照常在后台执行)。
+      // 系统 UAC 授权框走安全桌面、是独立弹窗,不受此参数影响,仍会正常出现。
+      0,
     );
 
     calloc.free(commandPtr);

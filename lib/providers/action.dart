@@ -17,6 +17,25 @@ import 'package:url_launcher/url_launcher.dart';
 
 part 'generated/action.g.dart';
 
+/// Windows 开 TUN 前的友好确认:仅当确实需要提权(helper 服务没装/没在跑)时,
+/// 开 TUN 前弹一次说明框(系统随后会弹一次 UAC 授权;那个 cmd 黑窗已隐藏)。
+/// 返回 true=继续或无需确认,false=用户取消(调用方据此不开 TUN)。服务装好后
+/// 设为开机自启,以后开关 TUN 不再触发提权,也就不会再弹此确认。
+Future<bool> _confirmTunElevationIfNeeded() async {
+  if (!system.isWindows) return true;
+  if (await system.checkIsAdmin()) return true;
+  final confirmed = await globalState.showMessage(
+    title: 'TUN 模式',
+    message: const TextSpan(
+      text: '开启 TUN 模式需要安装一个网络服务,系统会弹出一次管理员授权窗口。'
+          '授权后即可接管全局流量,之后再开关 TUN 不会重复提示。是否继续?',
+    ),
+    confirmText: '继续',
+    cancelText: '取消',
+  );
+  return confirmed == true;
+}
+
 @Riverpod(keepAlive: true)
 class CommonAction extends _$CommonAction {
   @override
@@ -350,6 +369,15 @@ class SetupAction extends _$SetupAction {
   Future<Result<bool>> _requestAdmin(bool enableTun) async {
     final realTunEnable = ref.read(realTunEnableProvider);
     if (enableTun != realTunEnable && realTunEnable == false) {
+      if (!(await _confirmTunElevationIfNeeded())) {
+        // 用户取消:把 TUN 开关也退回关闭,保持"开关显示"与"实际状态"一致
+        // (否则开关停在"开"但 TUN 实际没开;也避免后续刷新/应用再弹一次确认)。
+        ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith.tun(enable: false));
+        ref.read(realTunEnableProvider.notifier).value = false;
+        return Result.success(false);
+      }
       final code = await system.authorizeCore();
       switch (code) {
         case AuthorizeCode.success:
@@ -515,6 +543,15 @@ class CoreAction extends _$CoreAction {
   Future<Result<bool>> requestAdmin(bool enableTun) async {
     final realTunEnable = ref.read(realTunEnableProvider);
     if (enableTun != realTunEnable && realTunEnable == false) {
+      if (!(await _confirmTunElevationIfNeeded())) {
+        // 用户取消:把 TUN 开关也退回关闭,保持"开关显示"与"实际状态"一致
+        // (否则开关停在"开"但 TUN 实际没开;也避免后续刷新/应用再弹一次确认)。
+        ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith.tun(enable: false));
+        ref.read(realTunEnableProvider.notifier).value = false;
+        return Result.success(false);
+      }
       final code = await system.authorizeCore();
       switch (code) {
         case AuthorizeCode.success:

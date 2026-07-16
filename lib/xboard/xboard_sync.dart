@@ -14,7 +14,8 @@ import 'package:fl_clash/state.dart'; // globalState
 import 'package:fl_clash/models/profile.dart'; // Profile
 import 'package:fl_clash/providers/action.dart'; // profilesActionProvider, setupActionProvider
 import 'package:fl_clash/providers/database.dart'; // profilesProvider
-import 'package:fl_clash/providers/config.dart'; // currentProfileIdProvider
+import 'package:fl_clash/providers/config.dart'; // currentProfileIdProvider, patchClashConfigProvider
+import 'package:fl_clash/enum/enum.dart'; // Mode
 
 import 'xboard_api.dart';
 
@@ -61,6 +62,18 @@ String _withNoCache(String url) {
   }
 }
 
+/// 刷新/导入订阅成功后:若当前处于「直连」模式,自动切回「智能」模式。
+/// 根因:currentGroupsState 在直连模式下恒返回空列表,所以哪怕新节点已加载进内核,
+/// 用户仍会看到「刷新成功但左侧没有节点」——续费重新购买后最典型(过期期间手动切了
+/// 直连,续费刷新后节点仍不显示)。这里等价于自动按下空态里的「切回智能模式」按钮,
+/// 切回后刚加载好的节点立即显示。用户已选择此行为(刷新即自动切智能)。
+void _ensureVisibleMode() {
+  final c = globalState.container;
+  if (c.read(patchClashConfigProvider).mode == Mode.direct) {
+    c.read(setupActionProvider.notifier).changeMode(Mode.rule);
+  }
+}
+
 /// 导入(或复用)Xboard 订阅并切到它。
 /// [subscribeUrl] 传 XboardAuth.login/refreshSubscribe 返回的 mihomo URL(已含 ?flag=meta),
 /// 或原始 subscribe_url(本函数会自动补 flag=meta)。
@@ -96,6 +109,7 @@ Future<void> importXboardSubscription(String subscribeUrl) async {
     await c.read(profilesActionProvider.notifier).updateProfile(fresh);
     c.read(currentProfileIdProvider.notifier).value = fresh.id;
     await c.read(setupActionProvider.notifier).applyProfile(force: true);
+    _ensureVisibleMode();
     return;
   }
 
@@ -110,4 +124,5 @@ Future<void> importXboardSubscription(String subscribeUrl) async {
       break;
     }
   }
+  _ensureVisibleMode();
 }
