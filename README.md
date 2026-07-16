@@ -16,7 +16,8 @@ A fast & secure multi-platform VPN / proxy client — one-tap connect, ClashMeta
 
 ## 📥 下载 Download
 
-- 🌐 官网直下:**https://tiantilink.com**
+- 🌐 **官网直下(推荐)**:**https://tiantilink.com** — Android / Windows / macOS 一键下载
+- 📱 **iOS**:前往[官网](https://tiantilink.com)**一键导入订阅**(免费客户端,加到主屏即用)
 - 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 
 ## 🤝 推广赚钱
@@ -33,7 +34,7 @@ Mobile:
 
 ## ✨ 特性 Features
 
-- ✈️ 多平台:Android / Windows / macOS / Linux
+- ✈️ 多平台:Android / iOS / Windows / macOS(iOS 一键导入订阅)
 - 🚀 基于 ClashMeta 内核,低延迟、稳定不掉线、安全加密、无广告
 - 💻 自适应多屏,多彩主题,Material You 设计
 - ☁️ 支持 WebDAV 同步数据
@@ -49,7 +50,6 @@ Mobile:
 3. 运行构建脚本 / Build:
    - android:`dart setup.dart android`(需 Android SDK + NDK,设置 `ANDROID_NDK`)
    - windows:`dart setup.dart windows`(需 GCC、Inno Setup)
-   - linux:`dart setup.dart linux`(依赖由脚本自动安装)
    - macOS:`dart setup.dart macos`
 
 ## ⭐ Star
