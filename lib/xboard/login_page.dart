@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart'; // FlClash 已依赖;用于打开注册/充值页
 
 import 'xboard_auth.dart';
+import 'xboard_endpoint.dart';
 import 'xboard_sync.dart';
 import 'register_page.dart';
 import 'guest_chat_page.dart';
@@ -67,7 +68,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _openPanel(String path) async {
-    var base = ttActiveBase.replaceAll(RegExp(r'/+$'), '');
+    // 忘记密码 / 去充值 用官网落地主地址,不用会变的通信地址(ttActiveBase)。
+    final base = await officialSiteBase();
     final uri = Uri.parse('$base$path');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
