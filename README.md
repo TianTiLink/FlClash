@@ -43,8 +43,6 @@ A fast & secure multi-platform VPN / proxy client — one-tap connect, ClashMeta
 - ✈️ 多平台:Android / iOS / Windows / macOS(iOS 一键导入订阅)
 - 🚀 基于 ClashMeta 内核,低延迟、稳定不掉线、安全加密、无广告
 - 💻 自适应多屏,多彩主题,Material You 设计
-- ☁️ 支持 WebDAV 同步数据
-- ✨ 一键导入订阅,深色模式
 
 ## ⭐ Star
 
