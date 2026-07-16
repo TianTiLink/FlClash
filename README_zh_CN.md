@@ -1,139 +1,65 @@
-<div>
+<div align="center">
+
+<img src="assets/images/tt_logo.png" width="120" alt="TianTiLink 天梯"/>
+
+# TianTiLink 天梯
 
 [**English**](README.md)
 
+[![License](https://img.shields.io/github/license/TianTiLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-tiantilink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://tiantilink.com)
+
+**高速 VPN · 梯子 · 代理加速器 · 一键科学上网,低延迟稳定不掉线、安全加密、无广告。**
+
 </div>
 
-## FlClash
+## 📥 下载
 
-[![Downloads](https://img.shields.io/github/downloads/chen08209/FlClash/total?style=flat-square&logo=github)](https://github.com/chen08209/FlClash/releases/)[![Last Version](https://img.shields.io/github/release/chen08209/FlClash/all.svg?style=flat-square)](https://github.com/chen08209/FlClash/releases/)[![License](https://img.shields.io/github/license/chen08209/FlClash?style=flat-square)](LICENSE)
+- 🌐 官网直下:**https://tiantilink.com**
+- 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 
-[![Channel](https://img.shields.io/badge/Telegram-Channel-blue?style=flat-square&logo=telegram)](https://t.me/FlClash)
+## 🤝 推广赚钱
 
-基于ClashMeta的多平台代理客户端，简单易用，开源无广告。
+把 TianTiLink 分享给好友,他们注册购买后,你按**后台代理提成比例**拿提成——自己用得爽、顺便还能赚。想做代理 / 拿更高比例,联系 Telegram [@DBglobal1](https://t.me/DBglobal1)。
 
-on Desktop:
-<p style="text-align: center;">
-    <img alt="desktop" src="snapshots/desktop.gif">
-</p>
+## 💻 预览
 
-on Mobile:
-<p style="text-align: center;">
-    <img alt="mobile" src="snapshots/mobile.gif">
-</p>
+桌面端:
+<p align="center"><img alt="desktop" src="snapshots/desktop.gif"></p>
 
-## Features
+移动端:
+<p align="center"><img alt="mobile" src="snapshots/mobile.gif"></p>
 
-✈️ 多平台: Android, Windows, macOS and Linux
+## ✨ 特性
 
-💻 自适应多个屏幕尺寸,多种颜色主题可供选择
+- ✈️ 多平台:Android / Windows / macOS / Linux
+- 🚀 基于 ClashMeta 内核,低延迟、稳定不掉线、安全加密、无广告
+- 💻 自适应多屏,多彩主题,Material You 设计
+- ☁️ 支持 WebDAV 同步数据
+- ✨ 一键导入订阅,深色模式
 
-💡 基本 Material You 设计, 类[Surfboard](https://github.com/getsurfboard/surfboard)用户界面
+## 🛠 构建
 
-☁️ 支持通过WebDAV同步数据
-
-✨ 支持一键导入订阅, 深色模式
-
-## Use
-
-### Linux
-
-⚠️ 使用前请确保安装以下依赖
-
-   ```bash
-    sudo apt-get install libayatana-appindicator3-dev
-    sudo apt-get install libkeybinder-3.0-dev
-   ```
-
-### Android
-
-支持下列操作
-
-   ```bash
-    com.follow.clash.action.START
-    
-    com.follow.clash.action.STOP
-    
-    com.follow.clash.action.TOGGLE
-   ```
-
-## Download
-
-<a href="https://chen08209.github.io/FlClash-fdroid-repo/repo?fingerprint=789D6D32668712EF7672F9E58DEEB15FBD6DCEEC5AE7A4371EA72F2AAE8A12FD"><img alt="Get it on F-Droid" src="snapshots/get-it-on-fdroid.svg" width="200px"/></a> <a href="https://github.com/chen08209/FlClash/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
-
-### Homebrew
-
-```bash
-brew tap chen08209/tap
-brew install --cask flclash
-```
-
-## Build
-
-1. 更新 submodules
+1. 更新子模块
    ```bash
    git submodule update --init --recursive
    ```
+2. 安装 `Flutter` 与 `Golang` 环境
+3. 运行构建脚本:
+   - android:`dart setup.dart android`(需 Android SDK + NDK,设置 `ANDROID_NDK` 环境变量)
+   - windows:`dart setup.dart windows`(需 GCC、Inno Setup)
+   - linux:`dart setup.dart linux`(依赖由 setup 脚本自动安装)
+   - macOS:`dart setup.dart macos`
 
-2. 安装 `Flutter` 以及 `Golang` 环境
+## ⭐ Star
 
-3. 构建应用
+觉得好用,点页面顶部的星标(⭐)支持一下。
 
-    - android
-
-        1. 安装  `Android SDK` ,  `Android NDK`
-
-        2. 设置 `ANDROID_NDK` 环境变量
-
-        3. 运行构建脚本
-
-           ```bash
-           dart setup.dart android
-           ```
-
-    - windows
-
-        1. 你需要一个windows客户端
-
-        2. 安装 `GCC`，`Inno Setup`
-
-        3. 运行构建脚本
-
-           ```bash
-           dart setup.dart windows
-           ```
-
-    - linux
-
-        1. 你需要一个linux客户端
-
-        2. 依赖会由 setup 脚本自动安装，也可以手动安装：
-           ```bash
-           sudo apt-get install -y libayatana-appindicator3-dev libkeybinder-3.0-dev
-           ```
-
-        3. 运行构建脚本
-
-           ```bash
-           dart setup.dart linux
-           ```
-
-    - macOS
-
-        1. 你需要一个macOS客户端
-
-        2. 运行构建脚本
-
-           ```bash
-           dart setup.dart macos
-           ```
-
-## Star
-
-支持开发者的最简单方式是点击页面顶部的星标（⭐）。
-
-<p style="text-align: center;">
-    <a href="https://api.star-history.com/svg?repos=chen08209/FlClash&Date">
-        <img alt="start" width=50% src="https://api.star-history.com/svg?repos=chen08209/FlClash&Date"/>
+<p align="center">
+    <a href="https://api.star-history.com/svg?repos=TianTiLink/FlClash&Date">
+        <img alt="star" width=60% src="https://api.star-history.com/svg?repos=TianTiLink/FlClash&Date"/>
     </a>
 </p>
+
+---
+
+<sub>本项目基于开源项目 [FlClash](https://github.com/chen08209/FlClash)(ClashMeta GUI 客户端)二次开发,遵循 [GPL-3.0](LICENSE) 协议开源。</sub>

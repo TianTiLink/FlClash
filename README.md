@@ -1,139 +1,67 @@
-<div>
+<div align="center">
+
+<img src="assets/images/tt_logo.png" width="120" alt="TianTiLink 天梯"/>
+
+# TianTiLink 天梯
 
 [**简体中文**](README_zh_CN.md)
 
+[![License](https://img.shields.io/github/license/TianTiLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/Website-tiantilink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://tiantilink.com)
+
+**高速 VPN · 梯子 · 代理加速器 · 一键科学上网**
+
+A fast & secure multi-platform VPN / proxy client — one-tap connect, ClashMeta-based, low latency, ad-free.
+
 </div>
 
-## FlClash
+## 📥 下载 Download
 
-[![Downloads](https://img.shields.io/github/downloads/chen08209/FlClash/total?style=flat-square&logo=github)](https://github.com/chen08209/FlClash/releases/)[![Last Version](https://img.shields.io/github/release/chen08209/FlClash/all.svg?style=flat-square)](https://github.com/chen08209/FlClash/releases/)[![License](https://img.shields.io/github/license/chen08209/FlClash?style=flat-square)](LICENSE)
+- 🌐 官网直下:**https://tiantilink.com**
+- 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 
-[![Channel](https://img.shields.io/badge/Telegram-Channel-blue?style=flat-square&logo=telegram)](https://t.me/FlClash)
+## 🤝 推广赚钱
 
-A multi-platform proxy client based on ClashMeta, simple and easy to use, open-source and ad-free.
+把 TianTiLink 分享给好友,他们注册购买后,你按**后台代理提成比例**拿提成——自己用得爽、顺便还能赚。想做代理 / 拿更高比例,联系 Telegram [@DBglobal1](https://t.me/DBglobal1)。
 
-on Desktop:
-<p style="text-align: center;">
-    <img alt="desktop" src="snapshots/desktop.gif">
-</p>
+## 💻 预览 Preview
 
-on Mobile:
-<p style="text-align: center;">
-    <img alt="mobile" src="snapshots/mobile.gif">
-</p>
+Desktop:
+<p align="center"><img alt="desktop" src="snapshots/desktop.gif"></p>
 
-## Features
+Mobile:
+<p align="center"><img alt="mobile" src="snapshots/mobile.gif"></p>
 
-✈️ Multi-platform: Android, Windows, macOS and Linux
+## ✨ 特性 Features
 
-💻 Adaptive multiple screen sizes, Multiple color themes available
+- ✈️ 多平台:Android / Windows / macOS / Linux
+- 🚀 基于 ClashMeta 内核,低延迟、稳定不掉线、安全加密、无广告
+- 💻 自适应多屏,多彩主题,Material You 设计
+- ☁️ 支持 WebDAV 同步数据
+- ✨ 一键导入订阅,深色模式
 
-💡 Based on Material You Design, [Surfboard](https://github.com/getsurfboard/surfboard)-like UI
+## 🛠 构建 Build
 
-☁️ Supports data sync via WebDAV
-
-✨ Support subscription link, Dark mode
-
-## Use
-
-### Linux
-
-⚠️ Make sure to install the following dependencies before using them
-
-   ```bash
-    sudo apt-get install libayatana-appindicator3-dev
-    sudo apt-get install libkeybinder-3.0-dev
-   ```
-
-### Android
-
-Support the following actions
-
-   ```bash
-    com.follow.clash.action.START
-    
-    com.follow.clash.action.STOP
-    
-    com.follow.clash.action.TOGGLE
-   ```
-
-## Download
-
-<a href="https://chen08209.github.io/FlClash-fdroid-repo/repo?fingerprint=789D6D32668712EF7672F9E58DEEB15FBD6DCEEC5AE7A4371EA72F2AAE8A12FD"><img alt="Get it on F-Droid" src="snapshots/get-it-on-fdroid.svg" width="200px"/></a> <a href="https://github.com/chen08209/FlClash/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
-
-### Homebrew
-
-```bash
-brew tap chen08209/tap
-brew install --cask flclash
-```
-
-## Build
-
-1. Update submodules
+1. 拉取子模块 / Update submodules
    ```bash
    git submodule update --init --recursive
    ```
+2. 安装 `Flutter` 与 `Golang` 环境
+3. 运行构建脚本 / Build:
+   - android:`dart setup.dart android`(需 Android SDK + NDK,设置 `ANDROID_NDK`)
+   - windows:`dart setup.dart windows`(需 GCC、Inno Setup)
+   - linux:`dart setup.dart linux`(依赖由脚本自动安装)
+   - macOS:`dart setup.dart macos`
 
-2. Install `Flutter` and `Golang` environment
+## ⭐ Star
 
-3. Build Application
+觉得好用,点个 Star 支持一下 👇
 
-    - android
-
-        1. Install `Android SDK`, `Android NDK`
-
-        2. Set `ANDROID_NDK` environment variable
-
-        3. Run build script
-
-           ```bash
-           dart setup.dart android
-           ```
-
-    - windows
-
-        1. Requires a Windows client
-
-        2. Install `GCC`, `Inno Setup`
-
-        3. Run build script
-
-           ```bash
-           dart setup.dart windows
-           ```
-
-    - linux
-
-        1. Requires a Linux client
-
-        2. Dependencies are auto-installed by setup script, or manually:
-           ```bash
-           sudo apt-get install -y libayatana-appindicator3-dev libkeybinder-3.0-dev
-           ```
-
-        3. Run build script
-
-           ```bash
-           dart setup.dart linux
-           ```
-
-    - macOS
-
-        1. Requires a macOS client
-
-        2. Run build script
-
-           ```bash
-           dart setup.dart macos
-           ```
-
-## Star
-
-The easiest way to support developers is to click on the star (⭐) at the top of the page.
-
-<p style="text-align: center;">
-    <a href="https://api.star-history.com/svg?repos=chen08209/FlClash&Date">
-        <img alt="start" width=50% src="https://api.star-history.com/svg?repos=chen08209/FlClash&Date"/>
+<p align="center">
+    <a href="https://api.star-history.com/svg?repos=TianTiLink/FlClash&Date">
+        <img alt="star" width=60% src="https://api.star-history.com/svg?repos=TianTiLink/FlClash&Date"/>
     </a>
 </p>
+
+---
+
+<sub>本项目基于开源项目 [FlClash](https://github.com/chen08209/FlClash)(ClashMeta GUI 客户端)二次开发,遵循 [GPL-3.0](LICENSE) 协议开源。</sub>
