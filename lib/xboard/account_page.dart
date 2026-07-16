@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
+import 'xboard_endpoint.dart';
 import 'web_page.dart'; // 只用 openExternal(官网)
 import 'agent_center_page.dart';
 import 'orders_page.dart';
@@ -60,7 +61,8 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     if (mounted) setState(() { _inviteLoading = true; _inviteError = null; });
     try {
       final code = await XboardApi(auth.panelUrl).fetchInviteCode(token);
-      final base = auth.panelUrl.replaceAll(RegExp(r'/+$'), '');
+      // 邀请链接用官网落地主地址展示,不用会变的通信地址(auth.panelUrl)。
+      final base = await officialSiteBase();
       if (mounted) setState(() { _inviteLink = '$base/#/register?code=$code'; _inviteLoading = false; });
     } on XboardApiException catch (e) {
       if (mounted) setState(() { _inviteError = e.message; _inviteLoading = false; });
@@ -205,9 +207,6 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     // 门控(XboardGate)会自动切回登录页。
   }
 
-  String _panelBase() =>
-      ref.read(xboardAuthProvider).panelUrl.replaceAll(RegExp(r'/+$'), '');
-
   String _gb(int bytes) => (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2);
 
   String _expire(int? unix) {
@@ -249,7 +248,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                             builder: (_) => const AgentCenterPage()))),
                     _divider(),
                     _tile(theme, Icons.public_outlined, _kIndigo, '官方网站',
-                        () => openExternal(_panelBase())),
+                        () async => openExternal(await officialSiteBase())),
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [

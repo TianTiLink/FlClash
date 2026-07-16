@@ -21,6 +21,7 @@ const String kClientVersion = '0.8.95';
 
 const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';
+const String _kOfficialDomainsCache = 'tt_official_domains';
 
 /// 兜底候选(硬编码,防止本地缓存也没有时无处可探)。
 const List<String> _kSeedApiHosts = <String>[
@@ -147,6 +148,14 @@ Future<TtEndpointResult> resolveEndpoint({
             apis.map((e) => e.toString()).toList(),
           );
         }
+        // 官网落地域名(邀请链接/推广二维码展示用),缓存主/备,第一个是主地址。
+        final officials = cfg['official_domains'];
+        if (officials is List && officials.isNotEmpty) {
+          await sp.setStringList(
+            _kOfficialDomainsCache,
+            officials.map((e) => e.toString()).toList(),
+          );
+        }
       } catch (_) {}
       return TtEndpointResult(base, true, cfg);
     } catch (_) {
@@ -154,4 +163,23 @@ Future<TtEndpointResult> resolveEndpoint({
     }
   }
   return TtEndpointResult(ttActiveBase, false, <String, dynamic>{});
+}
+
+/// 官网落地【主地址】—— 邀请链接/推广二维码的展示域名。用稳定的官网地址,
+/// 不用会轮换/被墙的 API 通信地址(auth.panelUrl)。取后台 appconfig 的
+/// official_domains 第一个;本地还没缓存(首启/拉取失败)时回退硬编码兜底。
+/// 返回形如 https://tiantiweb.xyz(无尾斜杠)。
+Future<String> officialSiteBase() async {
+  try {
+    final sp = await SharedPreferences.getInstance();
+    final list = sp.getStringList(_kOfficialDomainsCache);
+    if (list != null && list.isNotEmpty) {
+      var h = list.first.trim();
+      if (h.isNotEmpty) {
+        if (!h.startsWith('http')) h = 'https://$h';
+        return h.replaceAll(RegExp(r'/+$'), '');
+      }
+    }
+  } catch (_) {}
+  return 'https://tiantiweb.xyz';
 }

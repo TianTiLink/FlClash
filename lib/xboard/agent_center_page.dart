@@ -17,6 +17,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'reseller_api.dart';
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
+import 'xboard_endpoint.dart';
 
 class AgentCenterPage extends ConsumerStatefulWidget {
   const AgentCenterPage({super.key});
@@ -92,7 +93,8 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
     }
     try {
       final code = await XboardApi(auth.panelUrl).fetchInviteCode(token);
-      final base = auth.panelUrl.replaceAll(RegExp(r'/+$'), '');
+      // 邀请链接/二维码用官网落地主地址展示,不用会变的通信地址(auth.panelUrl)。
+      final base = await officialSiteBase();
       if (mounted) {
         setState(() {
           _inviteLink = '$base/#/register?code=$code';
