@@ -17,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'xboard_auth.dart' show ttActiveBase;
 
 /// 本次编译的客户端版本号。发新版时:改这里、重编,再把后台对应平台版本号改成新的。
-const String kClientVersion = '0.8.94';
+const String kClientVersion = '0.8.95';
 
 const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';

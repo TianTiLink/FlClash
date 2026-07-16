@@ -172,6 +172,36 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     final state = ref.watch(proxiesTabStateProvider.select((state) => state));
     final groups = state.groups;
     if (groups.isEmpty || _tabController == null) {
+      // 直连模式下 groups 恒为空(currentGroupsState 按模式过滤),不是没有节点。
+      // 明确告诉用户原因并给一键切回,否则看起来像"节点全没了"。
+      final mode = ref.watch(
+        patchClashConfigProvider.select((state) => state.mode),
+      );
+      if (mode == Mode.direct) {
+        return Align(
+          alignment: const Alignment(0.0, -0.25),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ProxyEmptyIllustration(),
+              const SizedBox(height: 16),
+              Text(
+                '当前为「直连」模式,流量不走节点',
+                style: Theme.of(context).textTheme.titleMedium?.toBold.toLight,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  ref
+                      .read(setupActionProvider.notifier)
+                      .changeMode(Mode.rule);
+                },
+                child: const Text('切回智能模式,显示节点'),
+              ),
+            ],
+          ),
+        );
+      }
       return NullStatus(
         illustration: const ProxyEmptyIllustration(),
         label: appLocalizations.nullTip(appLocalizations.proxies),

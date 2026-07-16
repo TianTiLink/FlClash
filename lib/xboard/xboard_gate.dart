@@ -76,10 +76,11 @@ class _XboardGateState extends ConsumerState<XboardGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 从后台切回前台:查一次插件新通知 + 弹一次后台公告最新一条(每次打开都弹)。
+    // 从后台切回前台:只查插件新通知(有新才弹)。后台公告不在这里弹——
+    // 公告只在冷启动首帧弹一次(见 _startNoticeWatch),最小化/切回不重弹,
+    // 关闭软件重新启动才会再弹。
     if (state == AppLifecycleState.resumed && mounted) {
       maybeShowNewNotices(context, ref);
-      maybeShowLatestAnnouncement(context, ref);
     }
   }
 
@@ -90,7 +91,7 @@ class _XboardGateState extends ConsumerState<XboardGate>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         maybeShowNewNotices(context, ref);
-        maybeShowLatestAnnouncement(context, ref); // 每次打开 App:后台公告有内容就弹最新一条
+        maybeShowLatestAnnouncement(context, ref); // 冷启动首帧:公告有内容就弹最新一条(每次启动仅一次)
       }
     });
     _noticeTimer = Timer.periodic(const Duration(minutes: 4), (_) {

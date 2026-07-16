@@ -57,10 +57,13 @@ NavigationItemsState navigationItemsState(Ref ref) {
     currentGroupsStateProvider.select((state) => state.value.isNotEmpty),
   );
   final isInit = ref.watch(initProvider);
+  // 只要有订阅 profile 就显示「代理」页,不能只看 groups:groups 仅在内核成功
+  // 应用配置且非直连模式时才非空——若用户切到直连(currentGroupsState 恒为空)
+  // 或应用失败,代理页会整个消失,且刷新订阅/重新登录都找不回来(踩过的坑)。
   return NavigationItemsState(
     value: navigation.getItems(
       openLogs: openLogs,
-      hasProxies: !isInit ? hasProfiles : hasProxies,
+      hasProxies: !isInit ? hasProfiles : (hasProxies || hasProfiles),
     ),
   );
 }

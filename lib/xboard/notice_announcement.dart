@@ -1,11 +1,12 @@
-// 后台原生「公告管理」弹窗 —— 每次打开 App(登录后首帧 + 从后台切回前台)拉一次原生公告,
-// 有内容就弹「最新一条」;没有就不弹。不做"看过不弹",每次打开都弹(符合"强制每次显示")。
+// 后台原生「公告管理」弹窗 —— 冷启动(登录后首帧)拉一次原生公告,
+// 有内容就弹「最新一条」;没有就不弹。【每个进程只弹一次】:最小化/切后台再回来
+// 不重弹,关闭软件重新启动才会再弹(用户要求,勿改回"切前台也弹")。
 //
 // 与 notice_watcher.dart 是两套、互不影响:
 //   notice_watcher   → 插件发通知(/api/v1/reseller/notices),只弹比"看过的"新的那条、每条一次。
-//   本文件           → Xboard 原生公告(/api/v1/user/notice/fetch),每次打开弹最新一条。
+//   本文件           → Xboard 原生公告(/api/v1/user/notice/fetch),每次冷启动弹最新一条。
 //
-// 接入(在 xboard_gate.dart 的首帧回调 + didChangeAppLifecycleState.resumed 里各调一次):
+// 接入(只在 xboard_gate.dart 的首帧回调里调用;不要加到 didChangeAppLifecycleState):
 //   maybeShowLatestAnnouncement(context, ref);
 //
 // 说明:原生公告正文是后台富文本(HTML)。FlClash 无 HTML 渲染依赖,这里转成可读纯文本显示。
@@ -17,7 +18,8 @@ import 'package:http/http.dart' as http;
 
 import 'xboard_auth.dart';
 
-bool _announcing = false; // 防重入:多个触发点(首帧/切前台)同时进来只弹一个
+bool _announcing = false; // 防重入:并发触发只弹一个
+bool _announcedThisLaunch = false; // 本次进程已弹过:再触发一律不弹,重启应用才复位
 
 /// 把公告 HTML 正文转成可读纯文本(去标签、还原常见实体、压缩多余空行)。
 String _htmlToText(String s) {
@@ -38,7 +40,7 @@ String _htmlToText(String s) {
 }
 
 Future<void> maybeShowLatestAnnouncement(BuildContext context, WidgetRef ref) async {
-  if (_announcing) return;
+  if (_announcing || _announcedThisLaunch) return;
   final auth = ref.read(xboardAuthProvider);
   final token = auth.authData;
   // 需登录才拉公告;游客不弹。
@@ -67,6 +69,7 @@ Future<void> maybeShowLatestAnnouncement(BuildContext context, WidgetRef ref) as
   if (!context.mounted) return;
 
   _announcing = true;
+  _announcedThisLaunch = true;
   try {
     await showDialog<void>(
       context: context,
