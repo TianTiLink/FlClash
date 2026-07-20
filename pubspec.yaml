@@ -1,7 +1,7 @@
 name: fl_clash
 description: TianTiLink 天梯 · 高速 VPN 梯子代理加速器,一键连接科学上网,支持 Clash 协议节点订阅,低延迟稳定不掉线、安全加密、无广告。
 publish_to: 'none'
-version: 0.8.95+2026071601
+version: 0.8.96+2026072001
 environment:
   sdk: '>=3.8.0 <4.0.0'
 

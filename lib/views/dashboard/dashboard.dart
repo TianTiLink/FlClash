@@ -300,6 +300,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                         mainAxisSpacing: spacing,
                         children: children,
                       ),
+                const SizedBox(height: 20),
+                Text(
+                  '$appName v${globalState.packageInfo.version}',
+                  textAlign: TextAlign.center,
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: context.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),

@@ -19,6 +19,8 @@ import 'xboard_api.dart';
 import 'xboard_auth.dart';
 import 'xboard_endpoint.dart';
 
+const int _maxVisibleAgentLevel = 3;
+
 class AgentCenterPage extends ConsumerStatefulWidget {
   const AgentCenterPage({super.key});
 
@@ -234,7 +236,7 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
     final theme = Theme.of(context);
     final link = _inviteLink;
     final tip = isAgent
-        ? '你是【代理】:好友通过你的链接注册后,他每次充值,你都按层级比例拿【现金佣金(USDT)】,支持多级返佣,余额满额可提现。层级越深、下线越多,赚得越多。'
+        ? '你是【代理】:好友通过你的链接注册后,他每次充值,你都按层级比例拿【现金佣金(USDT)】,支持三层返佣,余额满额可提现。三层下线越多,赚得越多。'
         : '好友通过你的链接注册后,他充值时按比例返【可用流量】给你(仅直属一级)。想改成拿【现金佣金】+ 多级返佣?联系客服升级为代理。';
     final tipColor = isAgent ? Colors.amber : theme.colorScheme.primary;
     return Card(
@@ -429,7 +431,10 @@ class _DownlinesTabState extends State<_DownlinesTab> {
               const Text('层级 '),
               DropdownButton<int>(
                 value: _level,
-                items: [for (var i = 1; i <= 10; i++) DropdownMenuItem(value: i, child: Text('第 $i 层'))],
+                items: [
+                  for (var i = 1; i <= _maxVisibleAgentLevel; i++)
+                    DropdownMenuItem(value: i, child: Text('第 $i 层')),
+                ],
                 onChanged: (v) {
                   if (v != null) {
                     setState(() {

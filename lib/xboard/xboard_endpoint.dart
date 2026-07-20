@@ -11,13 +11,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:fl_clash/common/utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'xboard_auth.dart' show ttActiveBase;
-
-/// 本次编译的客户端版本号。发新版时:改这里、重编,再把后台对应平台版本号改成新的。
-const String kClientVersion = '0.8.95';
 
 const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';
@@ -34,7 +33,13 @@ class TtEndpointResult {
   final String activeBase; // 探通的地址(已写入 ttActiveBase)
   final bool online; // 是否有任一地址探通
   final Map<String, dynamic> config; // 完整 appconfig(拿不到为空 map)
-  TtEndpointResult(this.activeBase, this.online, this.config);
+  final String currentVersion; // 安装包自身版本号(package_info)
+  TtEndpointResult(
+    this.activeBase,
+    this.online,
+    this.config, {
+    required this.currentVersion,
+  });
 
   String get _platformKey => Platform.isAndroid
       ? 'android'
@@ -75,10 +80,26 @@ class TtEndpointResult {
   bool get updateForce => config['update_force'] == true;
   String get updateNote => (config['update_note'] ?? '').toString();
 
-  /// 版本不一致 = 有更新(后台版本号非空且与编译版本不同)。
+  /// 只有后台版本严格高于当前安装版本才提示更新。
   bool get hasUpdate {
     final lv = latestVersion;
-    return lv != null && lv.isNotEmpty && lv != kClientVersion;
+    return lv != null && isRemoteVersionNewer(lv, currentVersion);
+  }
+}
+
+/// 比较后台和当前安装版本。格式异常时静默跳过,避免后台误填导致错误弹窗。
+bool isRemoteVersionNewer(String remoteVersion, String currentVersion) {
+  String normalize(String version) {
+    return version.trim().replaceFirst(RegExp(r'^[vV]'), '');
+  }
+
+  final remote = normalize(remoteVersion);
+  final current = normalize(currentVersion);
+  if (remote.isEmpty || current.isEmpty) return false;
+  try {
+    return utils.compareVersions(remote, current) > 0;
+  } catch (_) {
+    return false;
   }
 }
 
@@ -131,6 +152,7 @@ Future<Map<String, dynamic>> _probe(String base, Duration timeout) async {
 /// 探通后:写 ttActiveBase、持久化"上次可用地址"、缓存后台最新 api_domains、返回结果(含版本)。
 /// 全失败:保持 ttActiveBase 不变,online=false,config={}(登录/订阅照常用默认地址,等同现状)。
 Future<TtEndpointResult> resolveEndpoint({
+  required String currentVersion,
   Duration perTry = const Duration(seconds: 6),
 }) async {
   final cands = await _candidates();
@@ -157,12 +179,22 @@ Future<TtEndpointResult> resolveEndpoint({
           );
         }
       } catch (_) {}
-      return TtEndpointResult(base, true, cfg);
+      return TtEndpointResult(
+        base,
+        true,
+        cfg,
+        currentVersion: currentVersion,
+      );
     } catch (_) {
       // 换下一个候选
     }
   }
-  return TtEndpointResult(ttActiveBase, false, <String, dynamic>{});
+  return TtEndpointResult(
+    ttActiveBase,
+    false,
+    <String, dynamic>{},
+    currentVersion: currentVersion,
+  );
 }
 
 /// 官网落地【主地址】—— 邀请链接/推广二维码的展示域名。用稳定的官网地址,
