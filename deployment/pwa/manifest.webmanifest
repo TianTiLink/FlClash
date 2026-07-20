@@ -1,0 +1,15 @@
+{
+  "name": "云茄",
+  "short_name": "云茄",
+  "description": "云茄加速器",
+  "start_url": "/dl/app.html",
+  "scope": "/dl/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "icons": [
+    { "src": "/dl/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/dl/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

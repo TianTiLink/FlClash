@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>云茄 · iOS 使用教程</title>
+<meta name="theme-color" content="#0b0e14">
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#0f1420; --card:#161d2b; --line:#242e40; --fg:#eaf0f8; --sub:#8b9ab0;
+    --accent:#5b6ef5; --accent2:#7c5cf6; --ok:#34d399; --grad:linear-gradient(135deg,#5b6ef5,#7c5cf6);
+    --safe-t:env(safe-area-inset-top); --safe-b:env(safe-area-inset-bottom);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-text-size-adjust:100%}
+  .top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;
+    padding:calc(var(--safe-t) + 12px) 16px 12px;background:rgba(11,14,20,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .top .back{font-size:24px;width:30px;color:var(--fg);text-decoration:none;line-height:1}
+  .top h1{margin:0;font-size:17px;font-weight:700}
+  .wrap{max-width:520px;margin:0 auto;padding:16px 16px calc(var(--safe-b) + 40px)}
+
+  .hero{background:var(--grad);border-radius:18px;padding:20px;text-align:center;margin-bottom:18px}
+  .hero h2{margin:0 0 4px;font-size:20px}
+  .hero p{margin:0;font-size:13.5px;opacity:.92}
+  .overview{display:flex;gap:8px;margin-top:16px}
+  .ov{flex:1;background:rgba(255,255,255,.14);border-radius:12px;padding:10px 6px}
+  .ov .n{font-size:11px;opacity:.85}
+  .ov .t{font-size:13px;font-weight:700;margin-top:3px}
+
+  .part{margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+  .part .badge{width:26px;height:26px;border-radius:8px;background:var(--grad);display:grid;place-items:center;font-weight:800;font-size:14px;flex:0 0 auto}
+  .part h3{margin:0;font-size:16px}
+
+  .step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .step .fig{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;place-items:center;margin-bottom:12px}
+  .step svg{width:100%;height:auto;max-width:260px;display:block}
+  .step .s-t{font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}
+  .step .s-t .num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+  .step .s-d{color:var(--sub);font-size:13.5px;line-height:1.7;margin:8px 0 0}
+  .step .s-d b{color:var(--fg)}
+  .kbd{display:inline-block;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:12.5px;color:var(--accent);font-weight:700}
+
+  .tip{background:rgba(91,110,245,.1);border:1px solid rgba(91,110,245,.35);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.7;color:var(--fg);margin:16px 0}
+  .cta{display:block;text-align:center;text-decoration:none;background:var(--grad);color:#fff;font-weight:800;font-size:16px;
+    padding:16px;border-radius:16px;margin-top:22px;box-shadow:0 12px 28px rgba(91,110,245,.4)}
+  .ghost{display:block;text-align:center;text-decoration:none;background:var(--card);border:1px solid var(--line);color:var(--fg);
+    font-weight:600;padding:14px;border-radius:14px;margin-top:10px}
+  .foot{text-align:center;color:var(--sub);font-size:12px;margin-top:22px}
+  /* SVG 通用 */
+  .ph{fill:#0f1420;stroke:#33405a;stroke-width:3}
+  .scr{fill:#0b0e14}
+  .mut{fill:#2a3446}
+  .hi{fill:none;stroke:#5b6ef5;stroke-width:2.5}
+  .lab{fill:#5b6ef5;font:700 12px -apple-system,sans-serif}
+  .lab2{fill:#8b9ab0;font:11px -apple-system,sans-serif}
+  .wt{fill:#eaf0f8;font:700 11px -apple-system,sans-serif}
+</style>
+</head>
+<body>
+  <div class="top"><a class="back" href="/dl/app.html">‹</a><h1>iOS 使用教程</h1></div>
+  <div class="wrap">
+
+    <div class="hero">
+      <h2>iPhone 三步用上云茄</h2>
+      <p>把 App 加到主屏 → 装免费客户端 → 一键连接</p>
+      <div class="overview">
+        <div class="ov"><div class="n">第一步</div><div class="t">📲 加到主屏</div></div>
+        <div class="ov"><div class="n">第二步</div><div class="t">📦 装 sing-box</div></div>
+        <div class="ov"><div class="n">第三步</div><div class="t">⚡ 一键连接</div></div>
+      </div>
+    </div>
+
+    <!-- ===== 第一步 ===== -->
+    <div class="part"><span class="badge">1</span><h3>把「云茄」加到主屏(像 App 一样)</h3></div>
+
+    <div class="step">
+      <div class="fig">
+        <!-- Safari 分享按钮 -->
+        <svg viewBox="0 0 260 250" xmlns="http://www.w3.org/2000/svg">
+          <rect class="ph" x="66" y="8" width="128" height="234" rx="22"/>
+          <rect class="scr" x="70" y="12" width="120" height="226" rx="19"/>
+          <rect class="mut" x="108" y="18" width="44" height="7" rx="3.5"/>
+          <!-- 网页内容 -->
+          <rect x="84" y="42" width="92" height="9" rx="4.5" fill="#5b6ef5"/>
+          <rect class="mut" x="84" y="62" width="80" height="6" rx="3"/>
+          <rect class="mut" x="84" y="76" width="88" height="6" rx="3"/>
+          <rect class="mut" x="84" y="90" width="60" height="6" rx="3"/>
+          <!-- 底部工具栏 -->
+          <line x1="72" y1="196" x2="188" y2="196" stroke="#242e40" stroke-width="1.5"/>
+          <path class="mut" d="M92 214 l-6 6 M92 214 l6 6 M92 214 v14" stroke="#2a3446" stroke-width="2" fill="none"/>
+          <text x="118" y="222" class="mut" font-size="18">›</text>
+          <!-- 分享按钮(高亮)-->
+          <circle class="hi" cx="150" cy="216" r="16"/>
+          <path d="M150 210 v13 M145 214 l5-5 5 5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="145" y="217" width="10" height="9" rx="1.5" fill="none" stroke="#fff" stroke-width="2"/>
+          <!-- 箭头+标注 -->
+          <path d="M206 200 q18 8 -30 16" stroke="#5b6ef5" stroke-width="2" fill="none" marker-end="url(#a1)"/>
+          <defs><marker id="a1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#5b6ef5"/></marker></defs>
+          <text x="200" y="196" class="lab">点分享</text>
+        </svg>
+      </div>
+      <div class="s-t"><span class="num">1</span>用 Safari 打开云茄</div>
+      <p class="s-d">用 iPhone 自带的 <b>Safari 浏览器</b> 打开云茄网址,点屏幕<b>底部中间的「分享」按钮</b>(一个方框上带向上箭头 <span class="kbd">↑</span>)。</p>
+    </div>
+
+    <div class="step">
+      <div class="fig">
+        <!-- 分享菜单:添加到主屏幕 -->
+        <svg viewBox="0 0 260 250" xmlns="http://www.w3.org/2000/svg">
+          <rect class="ph" x="66" y="8" width="128" height="234" rx="22"/>
+          <rect class="scr" x="70" y="12" width="120" height="226" rx="19"/>
+          <!-- 分享面板 -->
+          <rect x="78" y="96" width="104" height="132" rx="14" fill="#161d2b" stroke="#33405a" stroke-width="1.5"/>
+          <rect class="mut" x="118" y="104" width="24" height="4" rx="2"/>
+          <!-- 行:拷贝 -->
+          <rect x="88" y="120" width="10" height="10" rx="2" fill="#2a3446"/>
+          <rect class="mut" x="104" y="122" width="46" height="6" rx="3"/>
+          <!-- 行:添加到主屏幕(高亮)-->
+          <rect x="84" y="140" width="92" height="26" rx="8" fill="rgba(91,110,245,.18)" stroke="#5b6ef5" stroke-width="1.8"/>
+          <rect x="90" y="148" width="12" height="12" rx="3" fill="none" stroke="#5b6ef5" stroke-width="2"/>
+          <path d="M96 151 v6 M93 154 h6" stroke="#5b6ef5" stroke-width="2" stroke-linecap="round"/>
+          <text x="110" y="158" class="wt">添加到主屏幕</text>
+          <!-- 行:其他 -->
+          <rect x="88" y="178" width="10" height="10" rx="2" fill="#2a3446"/>
+          <rect class="mut" x="104" y="180" width="40" height="6" rx="3"/>
+          <rect x="88" y="198" width="10" height="10" rx="2" fill="#2a3446"/>
+          <rect class="mut" x="104" y="200" width="52" height="6" rx="3"/>
+        </svg>
+      </div>
+      <div class="s-t"><span class="num">2</span>点「添加到主屏幕」</div>
+      <p class="s-d">在弹出的菜单里<b>向下滑动</b>,找到 <b>「添加到主屏幕」</b> 点一下,再点右上角<b>「添加」</b>。</p>
+    </div>
+
+    <div class="step">
+      <div class="fig">
+        <!-- 主屏图标 -->
+        <svg viewBox="0 0 260 250" xmlns="http://www.w3.org/2000/svg">
+          <rect class="ph" x="66" y="8" width="128" height="234" rx="22"/>
+          <rect class="scr" x="70" y="12" width="120" height="226" rx="19"/>
+          <!-- 图标网格 -->
+          <g>
+            <rect class="mut" x="86" y="60" width="26" height="26" rx="7"/>
+            <rect class="mut" x="120" y="60" width="26" height="26" rx="7"/>
+            <rect class="mut" x="154" y="60" width="20" height="26" rx="7"/>
+            <!-- 云茄图标(高亮)-->
+            <rect x="86" y="96" width="26" height="26" rx="7" fill="url(#g1)"/>
+            <path d="M92 100 v18 M106 100 v18 M92 104 h14 M92 109 h14 M92 114 h14" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+            <rect class="mut" x="120" y="96" width="26" height="26" rx="7"/>
+            <rect class="mut" x="154" y="96" width="20" height="26" rx="7"/>
+            <rect class="mut" x="86" y="132" width="26" height="20" rx="7"/>
+            <rect class="mut" x="120" y="132" width="26" height="20" rx="7"/>
+          </g>
+          <text x="99" y="134" class="lab" text-anchor="middle" font-size="9">云茄</text>
+          <circle class="hi" cx="99" cy="109" r="20"/>
+          <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6ef5"/><stop offset="1" stop-color="#7c5cf6"/></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="s-t"><span class="num">3</span>主屏就有「云茄」App 了</div>
+      <p class="s-d">现在主屏多了一个<b>云茄图标</b>,以后点它<b>全屏打开</b>,和商店里下的 App 一模一样——登录、买套餐、看流量都在里面。</p>
+    </div>
+
+    <!-- ===== 第二步 ===== -->
+    <div class="part"><span class="badge">2</span><h3>装免费翻墙客户端 sing-box</h3></div>
+
+    <div class="step">
+      <div class="fig">
+        <!-- App Store 里的 sing-box -->
+        <svg viewBox="0 0 260 200" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="30" width="220" height="60" rx="14" fill="#161d2b" stroke="#33405a" stroke-width="1.5"/>
+          <!-- sing-box 图标 -->
+          <rect x="34" y="42" width="36" height="36" rx="9" fill="url(#g2)"/>
+          <path d="M52 48 l12 6 v10 l-12 6 -12 -6 v-10 z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M40 54 l12 6 12 -6 M52 60 v14" stroke="#fff" stroke-width="1.6" fill="none"/>
+          <text x="82" y="56" class="wt" font-size="15">sing-box</text>
+          <text x="82" y="72" class="lab2">安全上网客户端</text>
+          <!-- 获取按钮 -->
+          <rect x="176" y="48" width="52" height="24" rx="12" fill="#5b6ef5"/>
+          <text x="202" y="64" class="wt" text-anchor="middle" fill="#fff">获取</text>
+          <text x="130" y="120" class="lab" text-anchor="middle" font-size="14">App Store 搜「sing-box」· 免费</text>
+          <defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6ef5"/><stop offset="1" stop-color="#7c5cf6"/></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="s-t"><span class="num">4</span>App Store 搜「sing-box」下载</div>
+      <p class="s-d">打开 <b>App Store</b>,搜索 <span class="kbd">sing-box</span>,下载安装(<b>完全免费</b>)。它负责真正的连接;<b>Hiddify</b> 也免费、同样可用。</p>
+    </div>
+
+    <!-- ===== 第三步 ===== -->
+    <div class="part"><span class="badge">3</span><h3>登录 · 买套餐 · 一键连接</h3></div>
+
+    <div class="step">
+      <div class="fig">
+        <!-- 云茄 App 节点页:导入到 sing-box -->
+        <svg viewBox="0 0 260 250" xmlns="http://www.w3.org/2000/svg">
+          <rect class="ph" x="66" y="8" width="128" height="234" rx="22"/>
+          <rect class="scr" x="70" y="12" width="120" height="226" rx="19"/>
+          <rect class="mut" x="108" y="18" width="44" height="7" rx="3.5"/>
+          <text x="130" y="46" class="wt" text-anchor="middle" font-size="12">一键导入</text>
+          <!-- 导入按钮(高亮)-->
+          <rect x="82" y="60" width="96" height="34" rx="10" fill="rgba(91,110,245,.18)" stroke="#5b6ef5" stroke-width="1.8"/>
+          <rect x="90" y="69" width="16" height="16" rx="4" fill="url(#g3)"/>
+          <text x="114" y="80" class="wt" font-size="10">导入到 sing-box</text>
+          <rect x="150" y="72" width="20" height="11" rx="5.5" fill="rgba(52,211,153,.2)"/>
+          <text x="160" y="80" text-anchor="middle" font-size="7" fill="#34d399" font-weight="700">免费</text>
+          <!-- 其他按钮 -->
+          <rect class="mut" x="82" y="104" width="96" height="26" rx="8"/>
+          <rect class="mut" x="82" y="138" width="96" height="26" rx="8"/>
+          <path d="M206 78 q-16 0 -30 0" stroke="#5b6ef5" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+          <defs>
+            <marker id="a3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#5b6ef5"/></marker>
+            <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6ef5"/><stop offset="1" stop-color="#7c5cf6"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="s-t"><span class="num">5</span>云茄 App 里登录、买套餐、导入节点</div>
+      <p class="s-d">打开云茄 App <b>登录 → 买一个套餐</b>,到<b>「节点」页</b>点 <b>「导入到 sing-box」</b>——你的节点会自动送进 sing-box,不用手动复制粘贴。</p>
+    </div>
+
+    <div class="step">
+      <div class="fig">
+        <!-- sing-box 连接开关 -->
+        <svg viewBox="0 0 260 250" xmlns="http://www.w3.org/2000/svg">
+          <rect class="ph" x="66" y="8" width="128" height="234" rx="22"/>
+          <rect class="scr" x="70" y="12" width="120" height="226" rx="19"/>
+          <rect class="mut" x="108" y="18" width="44" height="7" rx="3.5"/>
+          <text x="130" y="50" class="wt" text-anchor="middle" font-size="12">sing-box</text>
+          <!-- 大开关(开)-->
+          <rect x="96" y="88" width="68" height="36" rx="18" fill="#34d399"/>
+          <circle cx="146" cy="106" r="14" fill="#fff"/>
+          <text x="130" y="150" text-anchor="middle" font-size="12" fill="#34d399" font-weight="800">● 已连接</text>
+          <rect class="mut" x="90" y="172" width="80" height="6" rx="3"/>
+          <rect class="mut" x="90" y="186" width="60" height="6" rx="3"/>
+          <circle class="hi" cx="130" cy="106" r="30"/>
+        </svg>
+      </div>
+      <div class="s-t"><span class="num">6</span>在 sing-box 里点开关连接</div>
+      <p class="s-d">切到 <b>sing-box</b>,点大<b>开关打开</b>(变绿=已连接),就能正常上网了。以后日常只在 sing-box 里开/关;续费、换套餐回云茄 App。</p>
+    </div>
+
+    <div class="tip">
+      💡 <b>小提示</b>:第一次连接 sing-box 会请求「添加 VPN 配置」,点<b>允许</b>并用面容/密码确认即可(这是 iOS 的正常安全提示)。换套餐或流量用完后,在云茄 App 续费,再回节点页重新「导入」一次就会更新。
+    </div>
+
+    <a class="cta" href="/dl/app.html">🚀 打开云茄 App 开始</a>
+    <a class="ghost" href="/dl/import.html">📋 其他客户端 / 扫码导入</a>
+
+    <div class="foot">遇到问题?打开云茄 App → 我的 → 工单/客服</div>
+  </div>
+</body>
+</html>

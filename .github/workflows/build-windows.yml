@@ -1,0 +1,257 @@
+# 云编译 Windows 桌面版 —— 分步显式构建 + 自动把报错写到「运行摘要页」。
+# 版本对齐当前官方源码:Flutter 3.44.4 stable / Go 1.26.4(2026-07-13 核对 main)。
+#
+# 流程:1) dart setup.dart windows 编 Go 内核(core/Clash.Meta,CGO)+ 写 env.json(打包失败放行);
+#       2) 显式 flutter build windows --release 出完整 Release/;3) 捆绑 VC++ 运行库;4) 压便携 zip。
+# 两个 run 步骤的输出都 tee 到日志文件;一旦失败,自动把日志末尾写进 $GITHUB_STEP_SUMMARY
+# (运行页顶部就能看到),并把完整日志作为 windows-build-log 产物上传——不用再翻长日志。
+name: build-windows
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout(含子模块)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: 开启 git 长路径(Windows 必须)
+        run: git config --global core.longpaths true
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+          cache: true
+
+      - name: Flutter 依赖
+        run: |
+          flutter --version
+          flutter pub get
+
+      # 第 1 段:官方脚本编 Go 内核 + 写 env.json。打包(Inno)可能失败,用 continue-on-error 放行;
+      # 全程输出 tee 到 setup-windows.log,失败也留证据。
+      - name: 编内核 + 生成 env.json(官方脚本;打包失败可忽略)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          dart setup.dart windows --env stable -v 2>&1 | Tee-Object -FilePath setup-windows.log
+          Write-Host "setup.dart 退出码:$LASTEXITCODE"
+
+      # 第 2 段:显式编译完整 Windows 应用。真编不过就当场红(exit code 传递),报错进 flutter-build.log。
+      - name: 编译完整 Windows 应用(flutter build windows --release)
+        id: fbuild
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          if (Test-Path env.json) {
+            Write-Host "用 env.json 编译"
+            flutter build windows --release --dart-define-from-file=env.json 2>&1 | Tee-Object -FilePath flutter-build.log
+          } else {
+            Write-Host "未见 env.json,直接编译"
+            flutter build windows --release 2>&1 | Tee-Object -FilePath flutter-build.log
+          }
+          Write-Host "flutter build 退出码:$LASTEXITCODE"
+          exit $LASTEXITCODE
+
+      # 失败时:把两个日志末尾写进【运行摘要页】(运行页顶部即可见,免翻长日志)。
+      - name: 失败时把报错写进运行摘要页
+        if: failure()
+        shell: pwsh
+        run: |
+          function Dump($title, $file) {
+            "## $title" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            if (Test-Path $file) {
+              '```text' | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+              Get-Content $file -Tail 80 | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+              '```'      | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            } else {
+              "(未生成 $file)" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            }
+          }
+          Dump "flutter build windows 报错(末尾 80 行)" "flutter-build.log"
+          Dump "内核 / setup.dart 报错(末尾 80 行)" "setup-windows.log"
+
+      # 捆绑 VC++ 运行库:Flutter Windows 应用硬依赖它,目标机没装会报
+      # 「找不到 MSVCP140.dll / VCRUNTIME140.dll / VCRUNTIME140_1.dll 无法继续执行代码」。
+      # 从 VS 的 VC++ Redist 目录(最权威)拷,System32 兜底,并【强制校验三件必需 dll 已进 Release】。
+      - name: 捆绑并校验 VC++ 运行库(根治 msvcp140.dll 缺失)
+        if: always()
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          if (-not (Test-Path $rel)) { Write-Host "::warning::Release 不存在,跳过(见 flutter build 报错)。"; exit 0 }
+          $need  = @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll')
+          $extra = @('msvcp140_1.dll','msvcp140_2.dll','concrt140.dll','vccorlib140.dll')
+          $sources = @()
+          # 来源1(权威):VS 安装里的 VC++ Redist\MSVC\<ver>\x64\Microsoft.VC*.CRT,用 vswhere 定位
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $vs = & $vswhere -latest -products * -property installationPath
+            if ($vs) {
+              $root = Join-Path $vs 'VC\Redist\MSVC'
+              if (Test-Path $root) {
+                Get-ChildItem $root -Directory | ForEach-Object {
+                  $crt = Join-Path $_.FullName 'x64'
+                  if (Test-Path $crt) {
+                    Get-ChildItem $crt -Directory -Filter 'Microsoft.VC*.CRT' -ErrorAction SilentlyContinue | ForEach-Object { $sources += $_.FullName }
+                  }
+                }
+              }
+            }
+          }
+          # 来源2(兜底):System32
+          $sources += (Join-Path $env:SystemRoot 'System32')
+          Write-Host "候选来源:"; $sources | ForEach-Object { Write-Host "  $_" }
+          foreach ($dll in ($need + $extra)) {
+            if (Test-Path (Join-Path $rel $dll)) { continue }
+            foreach ($src in $sources) {
+              $p = Join-Path $src $dll
+              if (Test-Path $p) { Copy-Item $p $rel -Force; Write-Host "已捆绑 $dll  <- $src"; break }
+            }
+          }
+          $missing = $need | Where-Object { -not (Test-Path (Join-Path $rel $_)) }
+          if ($missing) {
+            Write-Host "::error::必需 VC++ 运行库未能捆绑:$($missing -join ', ')(装机会打不开;把本步日志贴我)"
+            exit 1
+          }
+          Write-Host "OK - Release 内已确认含:$($need -join ', ')"
+
+      - name: 诊断 · 列出产物目录
+        if: always()
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          Write-Host "===== $rel ====="
+          if (Test-Path $rel) { Get-ChildItem $rel | Select-Object Name, Length | Format-Table -AutoSize } else { Write-Host "(Release 不存在)" }
+          Write-Host "===== dist/ ====="
+          if (Test-Path dist) { Get-ChildItem -Recurse dist | Select-Object FullName, Length | Format-Table -AutoSize } else { Write-Host "(dist 不存在)" }
+
+      - name: 打包便携版 zip
+        if: always()
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          if ((Test-Path $rel) -and (Get-ChildItem $rel)) {
+            Compress-Archive -Path "$rel/*" -DestinationPath "YunQieLink-windows-x64-portable.zip" -Force
+            Get-Item "YunQieLink-windows-x64-portable.zip" | Select-Object Name, Length | Format-Table -AutoSize
+          } else {
+            Write-Host "::warning::Release 为空,未生成便携 zip(见摘要页的 flutter build 报错)。"
+          }
+
+      # 打正式安装包:此刻 Release 已含 VC++ 运行库(上一步已校验),用 Inno Setup(ISCC)直接打包,
+      # 所以安装包必然自带运行库,装机不再缺 dll。装到 Program Files\<应用名>,建开始菜单+桌面快捷方式。
+      # 用行数组拼 .iss(避免 here-string 在缩进 YAML 里的坑);应用名/exe 名从 Release 里自动探测。
+      - name: 打正式安装包(Inno Setup;自带 VC++,装到 Program Files)
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $rel = "build/windows/x64/runner/Release"
+          if (-not ((Test-Path $rel) -and (Get-ChildItem $rel))) {
+            Write-Host "::warning::Release 为空,跳过安装包(见 flutter build 报错)。"; exit 0
+          }
+          # 从 windows/CMakeLists.txt 读 BINARY_NAME 拿"正牌"应用 exe(Release 里可能还有内核/服务 exe,
+          # 直接取第一个 exe 可能选错 → 快捷方式目标/图标指错)。读不到再退化为第一个 exe。
+          $app = $null
+          if (Test-Path windows/CMakeLists.txt) {
+            $m = [regex]::Match((Get-Content windows/CMakeLists.txt -Raw), 'set\(\s*BINARY_NAME\s+"([^"]+)"')
+            if ($m.Success) { $app = $m.Groups[1].Value }
+          }
+          if ($app -and (Test-Path (Join-Path $rel "$app.exe"))) {
+            $exe = "$app.exe"
+          } else {
+            $exe = (Get-ChildItem $rel -Filter *.exe | Select-Object -First 1).Name
+            $app = [System.IO.Path]::GetFileNameWithoutExtension($exe)
+          }
+          if (-not $exe) { Write-Host "::warning::Release 里没有 exe,跳过安装包。"; exit 0 }
+          Write-Host "应用 exe = $exe (BINARY_NAME=$app)"
+          $relWin = (Resolve-Path $rel).Path
+          $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "${env:ProgramFiles}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $found = Get-ChildItem "C:\Program Files*" -Filter ISCC.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $iscc = $found.FullName }
+          }
+          if (-not $iscc) { Write-Host "::warning::未找到 Inno Setup(ISCC.exe),跳过安装包;便携版仍可用。"; exit 0 }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          # 安装器 setup.exe 的图标:用仓库里的品牌图标 app_icon.ico;缺失则退回 Inno 默认灰图标。
+          $iconPath = Join-Path (Get-Location).Path 'windows\runner\resources\app_icon.ico'
+          $iconLine = if (Test-Path $iconPath) { "SetupIconFile=$iconPath" } else { Write-Host "::warning::未找到 app_icon.ico,安装器用默认图标"; '' }
+          $iss = @(
+            '[Setup]',
+            "AppName=$app",
+            'AppVersion=1.0.0',
+            "AppPublisher=$app",
+            "DefaultDirName={autopf}\$app",
+            "DefaultGroupName=$app",
+            "UninstallDisplayIcon={app}\$exe",
+            $iconLine,
+            'OutputDir=dist',
+            "OutputBaseFilename=$app-windows-x64-setup",
+            'Compression=lzma2',
+            'SolidCompression=yes',
+            'ArchitecturesAllowed=x64',
+            'ArchitecturesInstallIn64BitMode=x64',
+            'WizardStyle=modern',
+            '',
+            '[Files]',
+            "Source: `"$relWin\*`"; DestDir: `"{app}`"; Flags: recursesubdirs createallsubdirs ignoreversion",
+            '',
+            '[Icons]',
+            "Name: `"{group}\$app`"; Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; IconFilename: `"{app}\$exe`"",
+            "Name: `"{autodesktop}\$app`"; Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; IconFilename: `"{app}\$exe`"",
+            '',
+            '[Run]',
+            "Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; Description: `"Run $app`"; Flags: nowait postinstall skipifsilent"
+          )
+          Set-Content -Path installer.iss -Value $iss -Encoding UTF8
+          Write-Host "ISCC: $iscc   应用名: $app   exe: $exe"
+          & $iscc installer.iss
+          if ($LASTEXITCODE -ne 0) { Write-Host "::warning::ISCC 打包失败(exit $LASTEXITCODE);便携版仍可用。"; exit 0 }
+          Get-ChildItem dist -Filter "*-windows-x64-setup.exe" | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: 上传便携版(解压即用)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-windows-portable
+          path: YunQieLink-windows-x64-portable.zip
+          if-no-files-found: warn
+          overwrite: true
+
+      # 只上传我用 Inno 打的安装包(*-windows-x64-setup.exe,自带 VC++);
+      # 官方 flutter_distributor 那个缺 dll 的 *-amd64-setup.exe 不上传,免得再拿错。
+      - name: 上传正式安装包(Inno,自带 VC++)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-windows-installer
+          path: dist/*-windows-x64-setup.exe
+          if-no-files-found: warn
+          overwrite: true
+
+      # 完整构建日志(诊断用):不管成败都上传,方便贴给我定位。
+      - name: 上传构建日志(诊断)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: |
+            flutter-build.log
+            setup-windows.log
+          if-no-files-found: ignore
+          overwrite: true

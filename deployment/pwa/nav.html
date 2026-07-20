@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<script>
+  // ⚠️ 必须最先执行(在渲染前),避免闪现门面页。
+  // 老客户端 / 邀请链接会把 #/plan、#/register?code=x、#/forget 等打到导航域名;
+  // 导航域名根路径现在是纯HTML门面(不再是面板 SPA),这里把带 #/ 的老链接转到官网面板域名,
+  // 保留完整 hash(含 ?code= 参数),让充值/注册/找回/邀请照常可用。
+  (function(){
+    try{
+      var h = location.hash || '';
+      if (h.indexOf('#/') === 0 && h.length > 2){
+        location.replace('https://yunqie.xyz/' + h);
+      }
+    }catch(e){}
+  })();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>云茄 · 官方入口</title>
+<link rel="icon" href="/dl/favicon.ico">
+<link rel="apple-touch-icon" href="/dl/icon-180.png">
+<style>
+  :root{--bg:#0b0e14;--bg2:#0f1420;--card:#161d2b;--line:#242e40;--fg:#eaf0f8;--sub:#8b9ab0;--accent:#5b6ef5;--ok:#34d399;--grad:linear-gradient(135deg,#34E4C4,#3B82F6 40%,#7C4DFF 72%,#FF4D9D)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:radial-gradient(120% 70% at 50% -10%,#1a2140 0%,var(--bg) 60%);color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    min-height:100vh;padding:max(24px,env(safe-area-inset-top)) 18px 40px}
+  .wrap{max-width:440px;margin:0 auto}
+  .brand{text-align:center;margin:14px 0 22px}
+  .brand img{width:72px;height:72px;border-radius:20px}
+  .brand h1{font-size:22px;margin:12px 0 2px;font-weight:800}
+  .brand p{color:var(--sub);font-size:13px;margin:0}
+  .sec{margin-bottom:20px}
+  .sec .t{font-size:12px;color:var(--sub);margin:0 0 8px 4px;letter-spacing:1px}
+  .btn{display:flex;align-items:center;gap:10px;width:100%;padding:14px 14px;border-radius:15px;
+    background:var(--card);border:1px solid var(--line);color:var(--fg);text-decoration:none;margin-bottom:10px;
+    transition:.12s;cursor:pointer}
+  .btn:active{transform:scale(.985)}
+  .btn .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:18px;background:var(--bg2);flex:0 0 auto}
+  .btn .m{flex:1;min-width:0}
+  .btn .m b{display:block;font-weight:700;font-size:15px}
+  .btn .m small{color:var(--sub);font-size:12px;word-break:break-all}
+  .btn .arr{color:var(--sub);font-size:18px;flex:0 0 auto}
+  .primary{background:var(--grad);border:0;color:#fff}
+  .primary .ic{background:rgba(255,255,255,.18)} .primary .m small{color:rgba(255,255,255,.9)}
+  .primary .arr{color:#fff} .primary .copy{border-color:rgba(255,255,255,.5);color:#fff}
+  /* 点击复制按钮 */
+  .copy{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--sub);
+    border-radius:9px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.12s}
+  .copy:active{transform:scale(.92);background:rgba(91,110,245,.15)}
+  .note{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:#fbbf24;border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:18px}
+  .tip{color:var(--sub);font-size:12.5px;text-align:center;line-height:1.9;margin-top:8px}
+  .tip b{color:var(--fg)}
+  /* 可用地址 · 点击复制 芯片 */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+    color:var(--fg);border-radius:20px;padding:8px 13px;font-size:13px;cursor:pointer;transition:.12s}
+  .chip:active{transform:scale(.94);border-color:var(--accent)}
+  .chip .k{color:var(--sub);font-size:15px}
+  /* 复制成功提示 */
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+    background:var(--ok);color:#04231a;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:12px;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:.22s;max-width:88vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:99}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <img src="/dl/icon-512.png" alt="云茄">
+    <h1>云茄 · 官方入口</h1>
+    <p>本页收藏好,任一地址打不开就换备用 · 地址可点击复制</p>
+  </div>
+
+  <div id="note" class="note" style="display:none"></div>
+
+  <div class="sec">
+    <div class="t">进入官网(注册 / 登录 / 充值)</div>
+    <div id="official"></div>
+  </div>
+
+  <div class="sec">
+    <div class="t">下载客户端</div>
+    <div id="downloads"></div>
+  </div>
+
+  <div class="sec">
+    <div class="t">可用地址 · 点一下复制,粘到浏览器打开</div>
+    <div id="addrs" class="chips"></div>
+  </div>
+
+  <div class="tip" id="backup"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  var $=function(s){return document.querySelector(s);};
+  // 来路统计:?f=渠道码 → 记30天cookie;官网链接也带上,跨域传给官网落地页
+  var TTSRC='';
+  (function(){try{var m=location.search.match(/[?&]f=([A-Za-z0-9_-]{2,32})/);if(m){TTSRC=m[1];document.cookie='tt_src='+TTSRC+';max-age=2592000;path=/;SameSite=Lax';try{localStorage.setItem('tt_src',TTSRC);}catch(e){}}else{try{TTSRC=localStorage.getItem('tt_src')||'';}catch(e){}}}catch(e){}})();
+  // 候选:当前所在域名 + 硬编码兜底(拉配置用,某个被墙就换)
+  var CANDS=[location.origin,'https://yunqielink.com','https://yunqielink.net'];
+  // 全部拉取失败时的兜底(保证页面永远有内容)
+  var FALLBACK={
+    nav_domains:['yunqielink.com','yunqielink.net'],
+    official_domains:['yunqie.xyz','yunqielink.xyz','yunqieweb.xyz'],
+    downloads:{android:'/dl/YunQieLink-android.apk',windows:'/dl/YunQieLink-windows.exe',macos:'/dl/YunQieLink-macos.zip',ios:'/dl/import.html'},
+    update_note:''
+  };
+
+  // ---------- 点击复制 ----------
+  function showToast(msg){
+    var t=$('#toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove('show');},1600);
+  }
+  function copyText(s){
+    var ok=function(){ showToast('✓ 已复制:'+s); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(s).then(ok).catch(function(){ fallbackCopy(s,ok); });
+    }else{ fallbackCopy(s,ok); }
+  }
+  function fallbackCopy(s,cb){
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=s; ta.setAttribute('readonly','');
+      ta.style.position='fixed'; ta.style.top='-1000px'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      ta.setSelectionRange(0,s.length);
+      var done=document.execCommand('copy');
+      document.body.removeChild(ta);
+      done?cb():showToast('长按下面地址手动复制');
+    }catch(e){ showToast('长按下面地址手动复制'); }
+  }
+  function openUrl(u){ location.href=u; }
+  function abs(host,path){ // path 是 /dl/xx 时补上 host
+    if(/^https?:\/\//i.test(path)) return path;
+    return 'https://'+String(host).replace(/^https?:\/\//,'').replace(/\/+$/,'')+path;
+  }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  async function getCfg(){
+    for(var i=0;i<CANDS.length;i++){
+      try{
+        var r=await fetch(CANDS[i].replace(/\/+$/,'')+'/api/v1/reseller/appconfig',{headers:{'Accept':'application/json'}});
+        var j=await r.json(); if(j&&j.data) return {cfg:j.data, base:CANDS[i]};
+      }catch(e){}
+    }
+    return {cfg:FALLBACK, base:location.origin};
+  }
+  var DLMETA={android:['🤖','安卓 Android','兼容版 · 直接安装'],windows:['🪟','Windows','Win 10/11 安装版'],macos:['🍎','macOS','Apple 芯片 · 解压运行'],ios:['🍏','iOS 苹果','一键导入']};
+
+  (async function(){
+    var res=await getCfg(); var c=res.cfg; var dlHost=res.base;
+
+    // ---- 官网入口(可点开 + 可复制)----
+    var off=c.official_domains||FALLBACK.official_domains;
+    $('#official').innerHTML=off.map(function(d,i){
+      var host=String(d).replace(/^https?:\/\//,'').replace(/\/+$/,'');
+      var u='https://'+host+(TTSRC?'/?f='+TTSRC:'');
+      return '<div class="btn '+(i===0?'primary':'')+'" onclick="openUrl(\''+u+'\')">'
+        +'<span class="ic">'+(i===0?'🚀':'🌐')+'</span>'
+        +'<span class="m"><b>'+(i===0?'官网主入口':'官网备用')+'</b><small>'+esc(host)+'</small></span>'
+        +'<button class="copy" onclick="event.stopPropagation();copyText(\''+u+'\')">复制</button>'
+        +'<span class="arr">›</span></div>';
+    }).join('');
+
+    // ---- 下载(可下载 + 可复制)----
+    // iOS 特殊:苹果装 App = 用 Safari 打开 PWA 页「加到主屏」,微信/App内置浏览器加不了。
+    // 所以 iOS 条目主动作 = 复制苹果页面地址(app.html),提示用 Safari 打开。
+    var dl=c.downloads||FALLBACK.downloads;
+    var iosUrl=abs(dlHost,'/dl/app.html');
+    $('#downloads').innerHTML=['android','windows','macos','ios'].filter(function(k){return k==='ios'||dl[k];}).map(function(k){
+      if(k==='ios'){
+        return '<div class="btn" onclick="copyText(\''+iosUrl+'\')">'
+          +'<span class="ic">🍏</span>'
+          +'<span class="m"><b>iOS 苹果</b><small>点这里复制地址 → 用 Safari 打开 → 加到主屏</small></span>'
+          +'<button class="copy" onclick="event.stopPropagation();copyText(\''+iosUrl+'\')">复制地址</button>'
+          +'<span class="arr">📋</span></div>';
+      }
+      var m=DLMETA[k]; var href=abs(dlHost,dl[k]);
+      return '<div class="btn" onclick="openUrl(\''+href+'\')">'
+        +'<span class="ic">'+m[0]+'</span>'
+        +'<span class="m"><b>'+m[1]+'</b><small>'+m[2]+'</small></span>'
+        +'<button class="copy" onclick="event.stopPropagation();copyText(\''+href+'\')">复制链接</button>'
+        +'<span class="arr">↓</span></div>';
+    }).join('');
+
+    // ---- 可用地址芯片(点一下整条复制)----
+    var addrs=[];
+    off.forEach(function(d,i){ var h=String(d).replace(/^https?:\/\//,'').replace(/\/+$/,''); addrs.push({t:(i===0?'官网':'官网备'),v:'https://'+h}); });
+    var nav=c.nav_domains||FALLBACK.nav_domains;
+    nav.forEach(function(d,i){ var h=String(d).replace(/^https?:\/\//,'').replace(/\/+$/,''); addrs.push({t:(i===0?'入口':'入口备'),v:'https://'+h}); });
+    $('#addrs').innerHTML=addrs.map(function(a){
+      return '<span class="chip" onclick="copyText(\''+a.v+'\')"><span class="k">'+a.t+'</span> '+esc(a.v.replace(/^https:\/\//,''))+' 📋</span>';
+    }).join('');
+
+    // ---- 更新提示 ----
+    if(c.update_note){ $('#note').style.display='block'; $('#note').textContent='📢 '+c.update_note; }
+
+    // ---- 备用入口文字 ----
+    if(nav.length>1){ $('#backup').innerHTML='本页打不开?换备用入口:<br>'+nav.map(function(n){return '<b>'+esc(n)+'</b>';}).join(' &nbsp;/&nbsp; '); }
+  })();
+</script>
+</body>
+</html>
