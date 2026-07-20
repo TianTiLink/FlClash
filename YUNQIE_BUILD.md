@@ -17,7 +17,7 @@
 
 1. 新建公开 GitHub 仓库（GPL-3.0 要求发布完整修改源码）。
 2. 上传本目录全部文件；`core/Clash.Meta` 已补齐，不再是 ZIP 中的空目录。
-3. 如仓库地址不是 `YunQieLink/FlClash`，同步修改 `lib/common/constant.dart` 和 README 中的仓库地址。
+3. GitHub 仓库地址已配置为 `newlastold/YunQieLink-client`，客户端版本检查和 README Releases 链接均使用该地址。
 4. 在 Actions 页面运行：
    - `build-android`：生成 APK；
    - `build-windows`：生成 Windows 安装包/便携包；

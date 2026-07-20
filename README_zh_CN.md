@@ -6,7 +6,7 @@
 
 [**English**](README.md)
 
-[![License](https://img.shields.io/github/license/YunQieLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-yunqielink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://yunqielink.com)
+[![License](https://img.shields.io/github/license/newlastold/YunQieLink-client?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-yunqielink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://yunqielink.com)
 
 **高速 VPN · 梯子 · 代理加速器 · 一键科学上网,低延迟稳定不掉线、安全加密、无广告。**
 
@@ -16,7 +16,7 @@
 
 - 🌐 **官网直下(推荐)**:**https://yunqielink.com** — Android / Windows / macOS 一键下载
 - 📱 **iOS**:前往 [yunqieweb.xyz/dl/app.html](https://yunqieweb.xyz/dl/app.html) **一键导入订阅**(免费客户端,加到主屏即用)
-- 📦 GitHub Releases:**https://github.com/YunQieLink/FlClash/releases**
+- 📦 GitHub Releases:**https://github.com/newlastold/YunQieLink-client/releases**
 
 ## 🤝 推广赚钱
 
@@ -47,8 +47,8 @@
 觉得好用,点页面顶部的星标(⭐)支持一下。
 
 <p align="center">
-    <a href="https://api.star-history.com/svg?repos=YunQieLink/FlClash&Date">
-        <img alt="star" width=60% src="https://api.star-history.com/svg?repos=YunQieLink/FlClash&Date"/>
+    <a href="https://api.star-history.com/svg?repos=newlastold/YunQieLink-client&Date">
+        <img alt="star" width=60% src="https://api.star-history.com/svg?repos=newlastold/YunQieLink-client&Date"/>
     </a>
 </p>
 
