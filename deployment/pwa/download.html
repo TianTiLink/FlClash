@@ -86,15 +86,19 @@
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full).then(ok).catch(fb);}else{fb();}
     function fb(){try{var ta=document.createElement('textarea');ta.value=full;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);ok();}catch(e){toast('复制失败');}}}
   var PLAT=[
-    {k:'android',ic:'🤖',name:'安卓 Android',desc:'兼容版 APK,适配所有机型,直接安装。',ext:'.apk',dl:'/dl/YunQieLink-android.apk'},
+    {k:'android',ic:'🤖',name:'安卓 Android',desc:'主流 64 位 ARM 手机和平板,直接安装。',ext:'.apk',dl:'/dl/YunQieLink-android.apk'},
+    {k:'android-v7a',vkey:'android',ic:'🤖',name:'安卓 Android（老手机 v7a）',desc:'老款或 32 位安卓手机请下载这个 v7a 包；普通新手机请选择上面的 ARM64。',ext:'.apk',dl:'/dl/YunQieLink-android-armeabi-v7a.apk'},
+    {k:'android-x86',vkey:'android',ic:'🧩',name:'安卓 Android（x86_64）',desc:'安卓模拟器和少数 x86_64 设备专用。',ext:'.apk',dl:'/dl/YunQieLink-android-x86_64.apk'},
     {k:'windows',ic:'🪟',name:'Windows',desc:'Win 10 / 11 安装版,含一键 TUN 全局代理。',ext:'.exe',dl:'/dl/YunQieLink-windows.exe'},
+    {k:'windows-portable',vkey:'windows',ic:'🧳',name:'Windows 免安装版',desc:'不用安装,下载 ZIP 后解压，直接运行 YunQieLink.exe。',ext:'.zip',dl:'/dl/YunQieLink-windows-portable.zip'},
     {k:'macos',ic:'🍎',name:'macOS',desc:'Apple 芯片,解压运行;首次右键打开放行。',ext:'.zip',dl:'/dl/YunQieLink-macos.zip'},
+    {k:'macos-intel',vkey:'macos',ic:'💻',name:'macOS · Intel 芯片',desc:'适用于 Intel 处理器 Mac,解压后首次右键打开。',ext:'.zip',dl:'/dl/YunQieLink-macos-intel.zip'},
     {k:'ios',ic:'🍏',name:'iOS 苹果',desc:'网页版加到主屏,全屏 App 化;或一键导入客户端。',ext:'PWA',dl:'/dl/app.html',guide:'/dl/ios-guide.html'},
   ];
   var VER={},DLS={};
   function render(){
     $('#grid').innerHTML=PLAT.map(function(p){
-      var dl=DLS[p.k]||p.dl; var ver=VER[p.k]?('v'+VER[p.k]):'';
+      var dl=DLS[p.k]||p.dl; var vk=p.vkey||p.k; var ver=VER[vk]?('v'+VER[vk]):'';
       var isIos=p.k==='ios';
       var main = isIos
         ? '<a class="btn" href="'+dl+'">🍏 打开网页版</a><a class="btn ghost" style="margin-top:9px" href="'+(p.guide)+'">查看 iOS 教程</a>'
