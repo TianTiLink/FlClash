@@ -9,7 +9,7 @@
 - 官网入口：`https://yunqie.xyz`、`https://yunqielink.xyz`、`https://yunqieweb.xyz`
 - Android applicationId：`com.yunqielink.app`
 - macOS bundle id：`com.yunqielink.app`
-- 当前客户端版本：`0.8.95`
+- 当前客户端版本：`0.8.96`
 
 旧项目的 Firebase/Crashlytics 已移除，构建时不需要 `SERVICE_JSON`。云茄新 Logo 已替换登录页、Android、Windows、macOS、Linux 与 PWA 图标资源。
 

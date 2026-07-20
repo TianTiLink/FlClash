@@ -7,6 +7,7 @@
 // 接入(改 lib/application.dart 一处,若已接过则无需再改):
 //   把 MaterialApp 的  home: child!   改成   home: XboardGate(child: child!),
 
+import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,13 +46,15 @@ class _XboardGateState extends ConsumerState<XboardGate> {
   }
 
   // 启动只跑一次:逐个探测通信地址,探通后让会话切到该地址(防封 failover),
-  // 再比对后台版本号,不一致就弹「建议更新」(非强制)。全程失败静默,等同现状。
+  // 再比对后台版本号,仅后台版本更高时弹「建议更新」(非强制)。全程失败静默,等同现状。
   Future<void> _resolveEndpointOnce() async {
     if (_endpointTried) return;
     _endpointTried = true;
     TtEndpointResult r;
     try {
-      r = await resolveEndpoint();
+      r = await resolveEndpoint(
+        currentVersion: globalState.packageInfo.version,
+      );
     } catch (_) {
       return;
     }

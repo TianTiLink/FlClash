@@ -17,7 +17,7 @@ import 'xboard_endpoint.dart';
 bool _shownOnce = false;
 bool _versionShownOnce = false;
 
-/// 版本检查弹窗 —— 编译版本和后台 tt_appconfig.versions 不一致时弹「建议更新」。
+/// 版本检查弹窗 —— 后台 tt_appconfig.versions 高于当前安装版本时弹「建议更新」。
 /// 默认非强制(可点「稍后再说」继续用);后台勾了强制更新且配了下载地址才真正阻断。
 /// 下载地址来自后台按平台配置的 downloads,点「前往更新」用系统浏览器打开。
 Future<void> maybeShowVersionUpdate(
@@ -50,7 +50,7 @@ Future<void> maybeShowVersionUpdate(
               Text(note),
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('当前版本:v$kClientVersion',
+                child: Text('当前版本:v${r.currentVersion}',
                     style:
                         const TextStyle(color: Colors.grey, fontSize: 12)),
               ),
