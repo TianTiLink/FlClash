@@ -31,6 +31,18 @@ jobs:
         with:
           submodules: recursive
 
+      # 源码曾在 Windows/ZIP 环境中丢失 Unix 可执行位，Xcode 的 CocoaPods
+      # 脚本阶段会因此报 run_build_tool.sh: Permission denied。
+      - name: 修复并校验 Unix 构建脚本权限
+        run: |
+          chmod +x \
+            plugins/setup/buildkit/build_pod.sh \
+            plugins/setup/buildkit/run_build_tool.sh \
+            plugins/rust_api/cargokit/build_pod.sh \
+            plugins/rust_api/cargokit/run_build_tool.sh
+          test -x plugins/setup/buildkit/run_build_tool.sh
+          test -x plugins/rust_api/cargokit/run_build_tool.sh
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
