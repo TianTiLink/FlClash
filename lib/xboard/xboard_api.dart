@@ -298,6 +298,10 @@ class XboardApi {
     } catch (_) {
       throw XboardApiException('结账响应异常');
     }
+    if (resp.statusCode >= 400) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? '结账失败');
+    }
     if (body is Map && body.containsKey('type')) {
       return (type: _int(body['type']), data: (body['data'] ?? '').toString());
     }
@@ -345,6 +349,10 @@ class XboardApi {
     } catch (_) {
       throw XboardApiException('响应不是合法 JSON(检查面板地址是否正确)');
     }
+    if (resp.statusCode >= 400) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+    }
     if (body is! Map || body['data'] == null) {
       final msg = (body is Map ? body['message'] : null) ?? '请求失败';
       throw XboardApiException(msg.toString());
@@ -383,6 +391,10 @@ class XboardApi {
     } catch (_) {
       throw XboardApiException('响应不是合法 JSON(检查面板地址是否正确)');
     }
+    if (resp.statusCode >= 400) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+    }
     if (body is! Map || body['data'] is! List) {
       throw XboardApiException(
           (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
@@ -407,6 +419,10 @@ class XboardApi {
     } catch (_) {
       throw XboardApiException('响应不是合法 JSON(检查面板地址是否正确)');
     }
+    if (resp.statusCode >= 400) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+    }
     if (body is! Map || !body.containsKey('data')) {
       throw XboardApiException(
           (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
@@ -424,6 +440,10 @@ class XboardApi {
       body = jsonDecode(utf8.decode(resp.bodyBytes));
     } catch (_) {
       throw XboardApiException(failMsg);
+    }
+    if (resp.statusCode >= 400) {
+      throw XboardApiException(
+          (body is Map ? body['message'] : null)?.toString() ?? failMsg);
     }
     if (body is Map && (body['data'] == true || body['data'] == 1)) return;
     throw XboardApiException(
