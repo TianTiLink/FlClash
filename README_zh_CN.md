@@ -6,7 +6,7 @@
 
 [**English**](README.md)
 
-[![License](https://img.shields.io/github/license/newlastold/YunQieLink-client?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-yunqielink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://yunqielink.com)
+[![License](https://img.shields.io/github/license/newlastold/YunQieLink-client?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@lin168138-2AABEE?style=flat-square&logo=telegram)](https://t.me/lin168138) [![Website](https://img.shields.io/badge/官网-yunqielink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://yunqielink.com)
 
 **高速 VPN · 梯子 · 代理加速器 · 一键科学上网,低延迟稳定不掉线、安全加密、无广告。**
 
@@ -20,7 +20,7 @@
 
 ## 🤝 推广赚钱
 
-把 YunQieLink 分享给好友,他们注册购买后,你按**后台代理提成比例**拿提成——自己用得爽、顺便还能赚。想做代理 / 拿更高比例,联系 Telegram [@DBglobal1](https://t.me/DBglobal1)。
+把 YunQieLink 分享给好友,他们注册购买后,你按**后台代理提成比例**拿提成——自己用得爽、顺便还能赚。想做代理 / 拿更高比例,联系 Telegram [@lin168138](https://t.me/lin168138)。
 
 ## 💻 预览
 
