@@ -3,7 +3,7 @@
 // - 静态资源(图标/manifest):cache-first(快),只在 resp.ok 时写缓存(不缓存 5xx/错误页)。
 // - API(/api/)与非 GET:一律走网络,绝不缓存(账号/订阅/支付实时)。
 // 改版号即可让浏览器重装、清旧缓存。
-const CACHE = 'tt-shell-v4';
+const CACHE = 'yq-shell-v5';
 const STATIC = ['/dl/manifest.webmanifest', '/dl/icon-180.png', '/dl/icon-192.png', '/dl/icon-512.png'];
 
 self.addEventListener('install', (e) => {

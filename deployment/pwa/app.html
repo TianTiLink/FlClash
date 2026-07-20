@@ -336,8 +336,8 @@ async function apiRaw(path,{method='GET',body=null,auth=true}={}){
 async function apiData(path,opt){
   const res=await apiRaw(path,opt);
   if(res.status===401||res.status===403){doLogout(true);throw new Error('登录已过期,请重新登录');}
-  if(res.status>=500)throw new Error('服务器错误('+res.status+')');
   let j={};try{j=await res.json();}catch(e){throw new Error('响应异常(检查网络)');}
+  if(res.status>=400)throw new Error(j.message||('请求失败('+res.status+')'));
   if(j.data===undefined||j.data===null)throw new Error(j.message||'请求失败');
   return j.data;
 }
@@ -594,9 +594,11 @@ async function pay(tradeNo,method){
     const res=await apiRaw('/api/v1/user/order/checkout',{method:'POST',body:{trade_no:tradeNo,method}});
     if(res.status===401||res.status===403){doLogout(true);throw new Error('登录已过期,请重新登录');}
     let body;try{body=await res.json();}catch(e){throw new Error('结账响应异常');}
+    if(res.status>=400){throw new Error((body&&body.message)||('结账失败('+res.status+')'));}
     if(!body||body.type===undefined){throw new Error((body&&body.message)||'结账失败');}  // checkout 返回裸 {type,data}
     const type=+body.type, data=String(body.data==null?'':body.data);
     if(type===-1){ afterPaid(); return; }                       // 免费订单(afterPaid 会关弹窗)
+    if(type===1&&/^https?:\/\//i.test(data)){window.location.assign(data);return;}
     pollOrder(tradeNo);
     payModal(tradeNo,data);                                      // type 1/0 都渲染可点链接+复制
   }catch(e){modalMsg('支付失败',e.message,[{t:'知道了',fn:closeModal}]);}
