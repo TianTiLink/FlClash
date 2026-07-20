@@ -75,6 +75,9 @@
   header h2{margin:0;font-size:17px;font-weight:700}
   header .h-sp{margin-left:auto}
   header .chip{font-size:12px;color:var(--sub);background:var(--card);border:1px solid var(--line);padding:5px 10px;border-radius:20px}
+  header .refresh{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);color:var(--sub)}
+  header .refresh svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  header .refresh.busy svg{animation:sp .7s linear infinite}
 
   main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px calc(var(--safe-b) + 84px)}
   .page{display:none;animation:fade .25s ease}
@@ -214,6 +217,7 @@
     <img class="h-logo" src="/dl/icon-512.png" alt="云茄" style="object-fit:cover">
     <h2 id="h-title">云茄</h2>
     <span class="h-sp"></span>
+    <button class="refresh" id="h-refresh" onclick="refreshPage()" aria-label="刷新页面" title="刷新页面"><svg viewBox="0 0 24 24"><path d="M20 6v5h-5"/><path d="M19 11a7.5 7.5 0 1 0 1 5"/></svg></button>
     <span class="chip" id="h-chip">—</span>
   </header>
 
@@ -448,12 +452,21 @@ async function showLatestNotice(){
   $('#notice-ok').onclick=closeModal;
 }
 const TITLES={home:'云茄',plans:'选择套餐',nodes:'我的节点',me:'我的'};
+let ACTIVE_TAB='home';
 function showTab(t){
+  ACTIVE_TAB=t;
   ['home','plans','nodes','me'].forEach(p=>{$('#page-'+p).classList.toggle('on',p===t);$('#nav-'+p).classList.toggle('on',p===t);});
   $('#h-title').textContent=TITLES[t]||'云茄';
   $('#app').querySelector('main').scrollTop=0;
   if(t==='plans')loadPlans();
   if(t==='nodes')loadNodes();
+}
+function refreshPage(){
+  const btn=$('#h-refresh');
+  if(btn)btn.classList.add('busy');
+  const url=new URL(location.href);
+  url.searchParams.set('_refresh',Date.now());
+  location.replace(url.toString());
 }
 
 //==================== 订阅状态(首页/节点/我的共用)====================
@@ -530,7 +543,7 @@ async function loadPlans(){
   const box=$('#plans-list');box.innerHTML='<div class="empty"><span class="spin"></span> 加载套餐…</div>';
   try{
     const plans=await apiData('/api/v1/user/plan/fetch');
-    if(!plans.length){box.innerHTML='<div class="empty">暂无可购买套餐</div>';return;}
+    if(!plans.length){box.innerHTML='<div class="empty">暂无可购买套餐<br><button class="ghostbtn" style="margin-top:14px" onclick="loadPlans()">刷新套餐</button></div>';return;}
     box.innerHTML='';
     plans.forEach(p=>{
       const div=document.createElement('div');div.className='plan';
@@ -552,7 +565,7 @@ async function loadPlans(){
       if(!prices.children.length)prices.innerHTML='<span class="muted sm">暂未开放购买</span>';
       box.appendChild(div);
     });
-  }catch(e){box.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
+  }catch(e){box.innerHTML='<div class="empty">'+esc(e.message)+'<br><button class="ghostbtn" style="margin-top:14px" onclick="loadPlans()">重新加载</button></div>';}
 }
 // 用 DOMParser 的惰性文档取纯文本——绝不用活动文档的 innerHTML,否则 <img onerror> 会在解析时执行
 function stripHtml(h){try{return (new DOMParser().parseFromString(String(h==null?'':h),'text/html').body.textContent||'').trim();}catch(e){return '';}}
@@ -810,6 +823,7 @@ function maybeIosHint(){
   if(isIOS&&!standalone&&!localStorage.getItem('tt_ioshint')){ setTimeout(()=>$('#iosHint').classList.add('show'),1500); }
 }
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('/dl/sw.js').catch(()=>{})); }
+window.addEventListener('pageshow',e=>{if(e.persisted&&tok()){SUB=null;loadStatus();if(ACTIVE_TAB==='plans')loadPlans();}});
 
 //==================== 启动 ====================
 authMode('login');
