@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YunQieLink 云茄 · 下载客户端</title>
+<link rel="icon" href="/dl/favicon.ico">
+<style>
+  :root{--ink:#0a0e1a;--panel:#121a2e;--panel2:#0d1322;--line:#233052;--fg:#eaf0ff;--sub:#8a98bd;--dim:#5d6a90;--accent:#f6b64b;--accent-2:#5b8cff;--good:#46e0a0;--accent-ink:#1a1204;--mono:ui-monospace,Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px}
+  body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vw 40vw at 80% -10%,rgba(246,182,75,.09),transparent 60%),radial-gradient(50vw 40vw at 5% 6%,rgba(91,140,255,.09),transparent 55%)}
+  header{position:sticky;top:0;z-index:20;background:rgba(10,14,26,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;height:58px;gap:14px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px}
+  .brand .mark{width:22px;height:22px;border-radius:7px;background:url('/dl/icon-512.png') center/cover no-repeat;box-shadow:0 0 14px rgba(91,140,255,.4)}
+  .nav .right{margin-left:auto;display:flex;gap:12px}
+  .lnk{color:var(--sub);font-size:14px}
+  .lnk:hover{color:var(--fg)}
+  .hd{padding:44px 0 8px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:2px;color:var(--accent-2)}
+  h1{font-size:clamp(28px,4.4vw,40px);font-weight:850;letter-spacing:-.8px;margin:8px 0 0}
+  .sub{color:var(--sub);margin-top:10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:30px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column}
+  .card .ic{font-size:30px}
+  .card h3{margin:12px 0 2px;font-size:19px}
+  .card .ver{font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .card p{color:var(--sub);font-size:14px;margin:12px 0 16px;flex:1}
+  .card .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--accent),#e79a2b);color:var(--accent-ink);font-weight:800;border-radius:12px;padding:13px;font-size:15px;cursor:pointer;border:0}
+  .card .btn.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--fg)}
+  .card .cprow{display:flex;gap:8px;margin-top:9px}
+  .card .cp{flex:1;text-align:center;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;color:var(--sub);cursor:pointer}
+  .card .cp:active{border-color:var(--accent);color:var(--fg)}
+  .note{background:rgba(91,140,255,.08);border:1px solid rgba(91,140,255,.3);border-radius:14px;padding:16px 18px;color:var(--sub);font-size:14px;margin-bottom:34px}
+  .note b{color:var(--fg)}
+  .steps{color:var(--sub);font-size:14px;line-height:1.9}
+  footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:13px;margin-top:20px;text-align:center}
+  .toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(16px);background:var(--good);color:#04231a;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:.2s;z-index:99;max-width:88vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header><div class="wrap nav">
+  <a class="brand" href="/dl/index.html"><span class="mark"></span>云茄</a>
+  <div class="right"><a class="lnk" href="/dl/index.html">← 返回首页</a><a class="lnk" href="/dl/tutorial.html">使用教程</a></div>
+</div></header>
+
+<main class="wrap">
+  <div class="hd">
+    <div class="kicker">DOWNLOAD</div>
+    <h1>下载云茄客户端</h1>
+    <p class="sub">选择你的设备下载安装。装好后用<b style="color:var(--fg)">网站账号密码登录</b>,自动拉取节点,无需手动复制订阅。</p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="note">
+    <b>📌 安装小贴士</b><br>
+    · 安卓:下载后点开安装,若提示「未知来源」允许即可(用兼容版,适配所有机型)。<br>
+    · Windows:双击 .exe 安装。提示「无法验证发布者」→ 点「<b>更多信息 → 仍要运行</b>」;若提示「只能从 Microsoft Store 获取」→ 设置 → 应用 → 高级应用设置 →「选择获取应用的位置」改成「<b>任何来源</b>」再装(应用未签名,非病毒)。<br>
+    · macOS:下载 .zip 解压后,<b>右键 →打开</b> 绕过 Gatekeeper(未签名应用首次需手动放行)。<br>
+    · iOS:用 <b>Safari</b> 打开网页版,点底部「分享 → 添加到主屏幕」,像 App 一样全屏使用。
+  </div>
+
+  <div class="kicker">HOW TO</div>
+  <h1 style="font-size:22px">装好之后</h1>
+  <p class="steps">
+    ① 打开客户端 → 用你在官网注册的<b style="color:var(--fg)">邮箱账号密码登录</b><br>
+    ② 登录后节点<b style="color:var(--fg)">自动同步</b>,无需复制订阅链接<br>
+    ③ 点「连接」,选规则 / 全局模式,开始畅享<br>
+    ④ 还没账号?先去 <a href="/dl/app.html?go=register" style="color:var(--accent-2)">注册</a>,选套餐、支付宝/微信支付,秒开通。<br>
+    详细图文见 <a href="/dl/tutorial.html" style="color:var(--accent-2)">完整使用教程 →</a>
+  </p>
+</main>
+
+<footer>云茄 · 全球节点 · 智能加速 &nbsp;·&nbsp; <a href="/dl/index.html" style="color:var(--sub)">官网首页</a></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+  var $=function(s){return document.querySelector(s);};
+  function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},1600);}
+  function copyText(s){var full=/^https?:/.test(s)?s:(location.origin+s);var ok=function(){toast('✓ 已复制:'+full);};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full).then(ok).catch(fb);}else{fb();}
+    function fb(){try{var ta=document.createElement('textarea');ta.value=full;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);ok();}catch(e){toast('复制失败');}}}
+  var PLAT=[
+    {k:'android',ic:'🤖',name:'安卓 Android',desc:'兼容版 APK,适配所有机型,直接安装。',ext:'.apk',dl:'/dl/YunQieLink-android.apk'},
+    {k:'windows',ic:'🪟',name:'Windows',desc:'Win 10 / 11 安装版,含一键 TUN 全局代理。',ext:'.exe',dl:'/dl/YunQieLink-windows.exe'},
+    {k:'macos',ic:'🍎',name:'macOS',desc:'Apple 芯片,解压运行;首次右键打开放行。',ext:'.zip',dl:'/dl/YunQieLink-macos.zip'},
+    {k:'ios',ic:'🍏',name:'iOS 苹果',desc:'网页版加到主屏,全屏 App 化;或一键导入客户端。',ext:'PWA',dl:'/dl/app.html',guide:'/dl/ios-guide.html'},
+  ];
+  var VER={},DLS={};
+  function render(){
+    $('#grid').innerHTML=PLAT.map(function(p){
+      var dl=DLS[p.k]||p.dl; var ver=VER[p.k]?('v'+VER[p.k]):'';
+      var isIos=p.k==='ios';
+      var main = isIos
+        ? '<a class="btn" href="'+dl+'">🍏 打开网页版</a><a class="btn ghost" style="margin-top:9px" href="'+(p.guide)+'">查看 iOS 教程</a>'
+        : '<a class="btn" href="'+dl+'" download>⬇ 下载 '+p.ext+'</a>'
+          +'<div class="cprow"><span class="cp" onclick="copyText(\''+dl+'\')">复制下载链接</span></div>';
+      return '<div class="card"><div class="ic">'+p.ic+'</div>'
+        +'<h3>'+p.name+' <span class="ver">'+ver+'</span></h3>'
+        +'<p>'+p.desc+'</p>'+main+'</div>';
+    }).join('');
+  }
+  render();
+  fetch(location.origin+'/api/v1/reseller/appconfig',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.data){ VER=j.data.versions||{}; DLS=j.data.downloads||{}; render(); }
+  }).catch(function(){});
+</script>
+</body>
+</html>
