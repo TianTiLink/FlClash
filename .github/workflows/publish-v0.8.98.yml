@@ -1,0 +1,48 @@
+name: publish-v0.8.98
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v0.8.98.yml']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ANDROID_RUN: '29837350452'
+      WINDOWS_RUN: '29837350634'
+      MACOS_RUN: '29837350995'
+    steps:
+      - name: Download verified build artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/android staging/windows staging/portable staging/mac-arm64 staging/mac-amd64 release
+          gh run download "$ANDROID_RUN" -R "$GITHUB_REPOSITORY" -n artifact-android -D staging/android
+          gh run download "$WINDOWS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-windows-installer -D staging/windows
+          gh run download "$WINDOWS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-windows-portable -D staging/portable
+          gh run download "$MACOS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-macos-arm64 -D staging/mac-arm64
+          gh run download "$MACOS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-macos-amd64 -D staging/mac-amd64
+
+          cp "$(find staging/android -type f -name '*arm64-v8a.apk' -print -quit)" release/TianTiLink-android.apk
+          cp "$(find staging/android -type f -name '*armeabi-v7a.apk' -print -quit)" release/TianTiLink-android-armeabi-v7a.apk
+          cp "$(find staging/android -type f -name '*x86_64.apk' -print -quit)" release/TianTiLink-android-x86_64.apk
+          cp "$(find staging/windows -type f -name '*.exe' -print -quit)" release/TianTiLink-windows.exe
+          cp "$(find staging/portable -type f -name '*.zip' -print -quit)" release/TianTiLink-windows-portable.zip
+          cp "$(find staging/mac-arm64 -type f -name '*.zip' -print -quit)" release/TianTiLink-macos.zip
+          cp "$(find staging/mac-amd64 -type f -name '*.zip' -print -quit)" release/TianTiLink-macos-intel.zip
+          sha256sum release/* | tee release/SHA256SUMS.txt
+
+      - name: Publish GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view v0.8.98 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create v0.8.98 -R "$GITHUB_REPOSITORY" --title 'TianTiLink 0.8.98' --notes '注册页面增加蜜罐与滑块验证码。'
+          gh release upload v0.8.98 -R "$GITHUB_REPOSITORY" release/* --clobber
