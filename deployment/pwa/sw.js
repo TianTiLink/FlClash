@@ -1,10 +1,10 @@
-// 云茄 PWA service worker。
+// 天梯 PWA service worker。
 // - HTML 入口(app.html):network-first —— 在线永远拿最新(支付/业务修复即时生效),离线才回退缓存。
 // - 静态资源(图标/manifest):cache-first(快),只在 resp.ok 时写缓存(不缓存 5xx/错误页)。
 // - API(/api/)与非 GET:一律走网络,绝不缓存(账号/订阅/支付实时)。
 // 改版号即可让浏览器重装、清旧缓存。
-const CACHE = 'yq-shell-v5';
-const STATIC = ['/dl/manifest.webmanifest', '/dl/icon-180.png', '/dl/icon-192.png', '/dl/icon-512.png'];
+const CACHE = 'yq-shell-v9';
+const STATIC = ['/dl/manifest.webmanifest', '/dl/icon-180.png', '/dl/icon-192.png', '/dl/icon-512.png', '/dl/brand-logo.png', '/dl/register-guard.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(STATIC)).then(() => self.skipWaiting()));

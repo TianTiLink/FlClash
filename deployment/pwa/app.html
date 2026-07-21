@@ -15,6 +15,7 @@
 <link rel="icon" href="/dl/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/dl/icon-192.png">
 <link rel="apple-touch-icon" href="/dl/icon-180.png">
+<script defer src="/dl/register-guard.js?v=20260721-popup"></script>
 <style>
   :root{
     --bg:#0b0e14; --bg2:#0f1420; --card:#161d2b; --card2:#1c2434; --line:#242e40;
@@ -45,6 +46,7 @@
   .logo svg{width:44px;height:44px}
   .brand h1{margin:0;font-size:24px;letter-spacing:2px}
   .brand p{margin:4px 0 0;color:var(--sub);font-size:13px}
+  .auth-free{margin:0 0 14px;padding:12px 14px;border:1px solid rgba(52,211,153,.36);border-radius:13px;background:rgba(52,211,153,.1);color:var(--ok);text-align:center;font-size:15px;font-weight:850}.auth-free span{display:block;color:var(--sub);font-size:11px;font-weight:500;margin-top:2px}
   .authtabs{display:flex;background:var(--card);border-radius:12px;padding:4px;margin-bottom:16px}
   .authtabs button{flex:1;padding:9px;border-radius:9px;color:var(--sub);font-weight:600;font-size:14px}
   .authtabs button.on{background:var(--grad);color:#fff}
@@ -156,6 +158,7 @@
   .sheet .body{flex:1;overflow-y:auto;padding:16px 16px calc(var(--safe-b) + 20px)}
 
   .list-row{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+  .mobile-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0 4px}.mobile-pager:empty{display:none}.mobile-pager button{border:1px solid var(--line);background:var(--card2);color:var(--fg);border-radius:9px;padding:8px 12px;font-size:12px}.mobile-pager button:disabled{opacity:.4}.mobile-pager span{color:var(--sub);font-size:12px}
   .list-row .lr-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700}
   .pill.g{background:rgba(52,211,153,.15);color:var(--ok)} .pill.y{background:rgba(251,191,36,.15);color:var(--warn)}
@@ -169,6 +172,21 @@
   .copyrow .v{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px;
     font:12px ui-monospace,monospace;overflow:auto;white-space:nowrap}
   .copyrow button{background:var(--grad);color:#fff;border-radius:10px;padding:0 16px;font-weight:700}
+
+  .cs{position:fixed;right:16px;bottom:calc(var(--safe-b) + 88px);z-index:55;background:var(--grad);color:#fff;border:0;border-radius:999px;padding:13px 18px;font-weight:800;cursor:pointer;box-shadow:0 14px 34px rgba(91,110,245,.42);display:flex;align-items:center;gap:8px}
+  .cs:active{transform:scale(.96)}
+  .chat{position:fixed;right:16px;bottom:calc(var(--safe-b) + 88px);z-index:56;width:min(360px,calc(100vw - 32px));height:min(520px,calc(100dvh - 132px));background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 26px 70px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden}
+  .chat.on{display:flex}
+  .chat .ch{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .chat .ch button{font-size:22px;color:var(--sub)}
+  .chat .body{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:82%;padding:10px 12px;border-radius:14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+  .msg.me{align-self:flex-end;background:var(--grad);color:#fff;border-bottom-right-radius:4px}
+  .msg.staff{align-self:flex-start;background:var(--card2);border:1px solid var(--line);color:var(--fg);border-bottom-left-radius:4px}
+  .msg.sys{align-self:center;background:transparent;color:var(--sub);font-size:12.5px;text-align:center}
+  .chat .in{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+  .chat .in input{flex:1;background:var(--bg2);border:1px solid var(--line);color:var(--fg);border-radius:12px;padding:12px;outline:none}
+  .chat .in button{background:var(--grad);color:#fff;border-radius:12px;padding:0 15px;font-weight:800}
 
   /* 弹窗 / toast / iOS 提示 */
   .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:24px}
@@ -192,13 +210,14 @@
 <!-- ================= 登录 / 注册 ================= -->
 <div id="login">
   <div class="brand">
-    <img class="logo" src="/dl/icon-512.png" alt="云茄" style="object-fit:cover">
+    <img class="logo" src="/dl/brand-logo.png" alt="云茄 Logo" style="object-fit:contain">
     <h1>云茄</h1>
-    <p>登录你的账号,开始加速</p>
+    <p>登录账号，开始稳定连接</p>
   </div>
+  <div class="auth-free">注册即可免费使用<span>创建账号后立即进入用户中心</span></div>
   <div class="authtabs">
     <button id="tab-login" class="on" onclick="authMode('login')">登录</button>
-    <button id="tab-reg" onclick="authMode('reg')">注册</button>
+    <button id="tab-reg" onclick="authMode('reg')">免费注册</button>
   </div>
   <div class="field"><label>邮箱</label><input id="in-email" type="email" inputmode="email" autocomplete="username" placeholder="邮箱"></div>
   <div class="field"><label>密码</label><input id="in-pw" type="password" autocomplete="current-password" placeholder="密码"></div>
@@ -214,7 +233,7 @@
 <!-- ================= 主 App ================= -->
 <div id="app">
   <header>
-    <img class="h-logo" src="/dl/icon-512.png" alt="云茄" style="object-fit:cover">
+    <img class="h-logo" src="/dl/brand-logo.png" alt="云茄 Logo" style="object-fit:contain">
     <h2 id="h-title">云茄</h2>
     <span class="h-sp"></span>
     <button class="refresh" id="h-refresh" onclick="refreshPage()" aria-label="刷新页面" title="刷新页面"><svg viewBox="0 0 24 24"><path d="M20 6v5h-5"/><path d="M19 11a7.5 7.5 0 1 0 1 5"/></svg></button>
@@ -235,7 +254,7 @@
       <button class="ghostbtn" onclick="showTab('plans')">💳 购买 / 续费套餐</button>
       <div class="card sm muted" style="margin-top:14px;line-height:1.7">
         <b style="color:var(--fg)">怎么用?</b><br>
-        ① 点上面「一键导入节点」,选一个免费客户端(推荐 sing-box)导入你的节点;<br>
+        ① 点上面「一键导入节点」,选择排在第一位的免费客户端 Hiddify 导入节点;<br>
         ② 回到那个客户端点连接即可上网;<br>
         ③ 本页负责账号、套餐、续费;连接在客户端里操作。
       </div>
@@ -263,7 +282,7 @@
     <!-- 我的 -->
     <section class="page" id="page-me">
       <div class="card" style="display:flex;align-items:center;gap:14px">
-        <img class="logo" src="/dl/icon-512.png" alt="云茄" style="width:52px;height:52px;border-radius:15px;margin:0;object-fit:cover">
+        <img class="logo" src="/dl/brand-logo.png" alt="云茄 Logo" style="width:52px;height:52px;border-radius:15px;margin:0;object-fit:contain">
         <div style="min-width:0"><div style="font-weight:800;font-size:16px" id="me-email" class="sel">—</div><div class="muted sm" id="me-sub">—</div></div>
       </div>
       <div class="menu">
@@ -273,6 +292,7 @@
         <div class="mitem" onclick="openInvite()"><span class="mi">🎁</span><span>邀请提成</span><span class="arr">›</span></div>
       </div>
       <div class="menu">
+        <div class="mitem" onclick="goLanding()"><span class="mi">🏠</span><span>返回落地页</span><span class="arr">›</span></div>
         <div class="mitem" onclick="location.href='/dl/ios-guide.html'"><span class="mi">📲</span><span>iOS 使用教程</span><span class="arr">›</span></div>
         <div class="mitem" onclick="doLogout()"><span class="mi">🚪</span><span style="color:var(--bad)">退出登录</span><span class="arr">›</span></div>
       </div>
@@ -286,6 +306,13 @@
     <button id="nav-nodes" onclick="showTab('nodes')"><span class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg></span>节点</button>
     <button id="nav-me" onclick="showTab('me')"><span class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/></svg></span>我的</button>
   </nav>
+
+  <button class="cs" data-cs aria-label="在线客服">💬 在线客服</button>
+  <div class="chat" id="chat" aria-live="polite">
+    <div class="ch"><b>在线客服</b><button onclick="toggleGuestChat(false)" aria-label="关闭">×</button></div>
+    <div class="body" id="chat-body"><div class="msg sys">您好，请直接留言，客服看到会回复。</div></div>
+    <div class="in"><input id="chat-input" placeholder="输入问题..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendGuestMsg()}"><button onclick="sendGuestMsg()">发送</button></div>
+  </div>
 </div>
 
 <!-- 子页:订单 / 工单 / 邀请 -->
@@ -321,10 +348,61 @@ const API=location.origin;                 // 与面板同源;换域名自动跟
 function tok(){return localStorage.getItem('tt_auth')||'';}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),1800);}
+function goLanding(){location.href='/dl/index.html';}
+const CS_GKEY='tt_guest_id';
+let guestChatOpen=false,guestChatPoll=null,guestLastCount=-1;
+function guestId(){
+  let g=localStorage.getItem(CS_GKEY);
+  if(!g){
+    const r=(window.crypto&&window.crypto.getRandomValues)?Array.from(window.crypto.getRandomValues(new Uint32Array(4))).map(x=>x.toString(16)).join(''):String(Date.now())+Math.random().toString(16).slice(2);
+    g='g_'+r; localStorage.setItem(CS_GKEY,g);
+  }
+  return g;
+}
+function toggleGuestChat(on){
+  guestChatOpen=on===undefined?!guestChatOpen:!!on;
+  const panel=$('#chat'), btn=document.querySelector('.cs');
+  if(!panel||!btn)return;
+  panel.classList.toggle('on',guestChatOpen);
+  btn.style.display=guestChatOpen?'none':'flex';
+  clearInterval(guestChatPoll);
+  if(guestChatOpen){
+    loadGuestMsgs(true);
+    guestChatPoll=setInterval(loadGuestMsgs,4000);
+    setTimeout(()=>{const i=$('#chat-input'); if(i)i.focus();},80);
+  }
+}
+document.querySelectorAll('[data-cs]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();toggleGuestChat(true);}));
+function renderGuestMsgs(list){
+  const body=$('#chat-body'); if(!body)return;
+  if(!Array.isArray(list)||!list.length){body.innerHTML='<div class="msg sys">您好，请直接留言，客服看到会回复。</div>';return;}
+  body.innerHTML=list.map(m=>{
+    const mine=!m.is_staff;
+    return '<div class="msg '+(mine?'me':'staff')+'">'+esc(m.message||'')+'</div>';
+  }).join('');
+  if(list.length!==guestLastCount){body.scrollTop=body.scrollHeight;guestLastCount=list.length;}
+}
+function loadGuestMsgs(scroll){
+  fetch(API+'/api/v1/reseller/guest/fetch?guest_id='+encodeURIComponent(guestId()),{headers:{'Accept':'application/json'}})
+    .then(r=>r.json()).then(j=>{renderGuestMsgs((j&&j.data)||[]);if(scroll){const b=$('#chat-body');if(b)b.scrollTop=b.scrollHeight;}}).catch(()=>{});
+}
+function sendGuestMsg(){
+  const i=$('#chat-input'); if(!i)return;
+  const v=i.value.trim(); if(!v)return;
+  i.value='';
+  fetch(API+'/api/v1/reseller/guest/send',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({guest_id:guestId(),message:v})})
+    .then(()=>loadGuestMsgs(true)).catch(()=>toast('发送失败，请稍后重试'));
+}
 function copyText(t){ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已复制'),()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('已复制');}catch(e){}a.remove();}); }
 function fmtBytes(n){n=+n||0;const g=n/1073741824;if(g>=1)return g.toFixed(2)+' GB';const m=n/1048576;return m.toFixed(0)+' MB';}
 function fmtDate(ts){if(!ts)return '长期有效';const d=new Date(ts*1000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function yuan(cents){return '¥'+((+cents||0)/100).toFixed(2);}
+function cleanPlanName(name){return String(name||'').replace(/[（(]\s*系统隐藏\s*[）)]/g,'').trim();}
+function isSystemPlan(p){const n=String(p&&p.name||'');return n.includes('系统隐藏')||n.includes('注册赠送');}
+function mobilePager(page,total,perPage,fn){
+  const pages=Math.max(1,Math.ceil((Number(total)||0)/(Number(perPage)||10)));if(pages<=1)return '';
+  return '<div class="mobile-pager"><button '+(page<=1?'disabled':'')+' onclick="'+fn+'('+(page-1)+')">上一页</button><span>'+page+' / '+pages+'</span><button '+(page>=pages?'disabled':'')+' onclick="'+fn+'('+(page+1)+')">下一页</button></div>';
+}
 
 async function apiRaw(path,{method='GET',body=null,auth=true}={}){
   const h={'Accept':'application/json'};
@@ -352,7 +430,7 @@ async function apiTrue(path,opt){ // 写操作,data==true
 //==================== 登录 / 注册 ====================
 let AUTH='login';
 function authMode(m){AUTH=m;$('#tab-login').classList.toggle('on',m==='login');$('#tab-reg').classList.toggle('on',m==='reg');
-  $('#reg-extra').style.display=m==='reg'?'block':'none';$('#authbtn').textContent=m==='reg'?'注册并登录':'登录';$('#authmsg').textContent='';applyCodeRow();}
+  $('#reg-extra').style.display=m==='reg'?'block':'none';$('#authbtn').textContent=m==='reg'?'免费注册并进入':'登录';$('#authmsg').textContent='';applyCodeRow();}
 // 验证码框是否显示,跟随后台「邮箱验证」开关(is_email_verify),不再写死永远显示。
 let NEED_CODE=null; // null=配置还没拉到(先不显示,避免后台关着却闪出验证码框)
 function applyCodeRow(){const r=$('#code-row');if(r)r.style.display=(AUTH==='reg'&&NEED_CODE===true)?'':'none';}
@@ -375,6 +453,7 @@ function authErr(t){$('#authmsg').textContent=t||'';}
 async function submitAuth(){
   const email=$('#in-email').value.trim(), pw=$('#in-pw').value;
   if(!email||!pw){authErr('请输入邮箱和密码');return;}
+  if(AUTH==='reg'&&NEED_CODE===true&&!$('#in-code').value.trim()){authErr('请输入邮箱验证码');return;}
   const btn=$('#authbtn');btn.disabled=true;const old=btn.textContent;btn.innerHTML='<span class="spin"></span>';
   try{
     let data;
@@ -382,6 +461,10 @@ async function submitAuth(){
       const body={email,password:pw};
       const code=$('#in-code').value.trim(), inv=$('#in-invite').value.trim();
       if(code)body.email_code=code; if(inv)body.invite_code=inv;
+      if(!window.registerGuardRequest)throw new Error('安全验证加载失败，请刷新后重试');
+      const guard=await window.registerGuardRequest();
+      if(!guard)return;
+      Object.assign(body,guard);
       data=await apiData('/api/v1/passport/auth/register',{method:'POST',auth:false,body});
     }else{
       data=await apiData('/api/v1/passport/auth/login',{method:'POST',auth:false,body:{email,password:pw}});
@@ -390,13 +473,14 @@ async function submitAuth(){
     localStorage.setItem('tt_auth',data.auth_data);
     localStorage.setItem('tt_email',email);
     enterApp();
-  }catch(e){authErr(e.message);}
-  btn.disabled=false;btn.textContent=old;
+  }catch(e){authErr(e.message);if(AUTH==='reg'&&window.registerGuardReset)window.registerGuardReset();}
+  finally{btn.disabled=false;btn.textContent=old;}
 }
 function doLogout(silent){
   localStorage.removeItem('tt_auth');
   $('#app').style.display='none';$('#login').style.display='flex';
   ['orders','tickets','ticket','invite'].forEach(closeSheet);
+  toggleGuestChat(false);
   if(!silent)toast('已退出');
 }
 
@@ -475,13 +559,14 @@ async function loadStatus(){
     SUB=await apiData('/api/v1/user/getSubscribe');
     const used=(+SUB.u||0)+(+SUB.d||0), total=+SUB.transfer_enable||0;
     const pct=total>0?Math.min(100,Math.round(used/total*100)):0;
-    $('#hs-plan').textContent=(SUB.plan&&SUB.plan.name)?SUB.plan.name:'未购买套餐';
+    const planName=cleanPlanName(SUB.plan&&SUB.plan.name);
+    $('#hs-plan').textContent=planName||'未购买套餐';
     $('#hs-bar').style.width=pct+'%';
     $('#hs-used').textContent=fmtBytes(used)+' / '+(total>0?fmtBytes(total):'不限');
     $('#hs-exp').textContent=SUB.expired_at?('到期 '+fmtDate(SUB.expired_at)):'长期有效';
     const left=total>0?fmtBytes(Math.max(0,total-used)):'不限';
     $('#h-chip').textContent='剩 '+left;
-    $('#me-sub').textContent=((SUB.plan&&SUB.plan.name)||'未购买')+' · 到期 '+fmtDate(SUB.expired_at);
+    $('#me-sub').textContent=(planName||'未购买')+' · 到期 '+fmtDate(SUB.expired_at);
     updateHomeAlert(SUB, used, total);
   }catch(e){
     $('#hs-plan').textContent='未购买套餐';$('#hs-used').textContent='去「套餐」购买';$('#hs-exp').textContent='';
@@ -505,8 +590,8 @@ function updateHomeAlert(sub, used, total){
 
 //==================== 节点导入 ====================
 const CLIENTS=[
-  {key:'singbox',name:'sing-box',ico:'📦',flag:'sing-box',free:true,link:u=>'sing-box://import-remote-profile?url='+encodeURIComponent(u)+'#'+encodeURIComponent('云茄')},
-  {key:'hiddify',name:'Hiddify',ico:'🛡️',flag:'hiddify',free:true,link:u=>'hiddify://import/'+encodeURI(u)+'#'+encodeURIComponent('云茄')},
+  {key:'hiddify',name:'Hiddify（推荐）',ico:'🛡️',flag:'hiddify',free:true,link:u=>'hiddify://import/'+encodeURI(u)+'#YunQieLink'},
+  {key:'singbox',name:'sing-box',ico:'📦',flag:'sing-box',free:true,link:u=>'sing-box://import-remote-profile?url='+encodeURIComponent(u)+'#'+encodeURIComponent('YunQieLink')},
   {key:'shadowrocket',name:'Shadowrocket',ico:'🚀',flag:'shadowrocket',free:false,link:u=>'sub://'+b64(u)},
   {key:'stash',name:'Stash',ico:'💧',flag:'stash',free:false,link:u=>'stash://install-config?url='+encodeURIComponent(u)},
   {key:'loon',name:'Loon',ico:'🌙',flag:'loon',free:false,link:u=>'loon://import?sub='+encodeURIComponent(u)},
@@ -539,18 +624,20 @@ async function oneTapConnect(){
 
 //==================== 套餐 / 购买 ====================
 const PERIODS=[['month_price','月付'],['quarter_price','季付'],['half_year_price','半年付'],['year_price','年付'],['two_year_price','两年付'],['three_year_price','三年付'],['onetime_price','一次性'],['reset_price','流量重置']];
-async function loadPlans(){
+async function loadPlans(page=1){
   const box=$('#plans-list');box.innerHTML='<div class="empty"><span class="spin"></span> 加载套餐…</div>';
   try{
-    const plans=await apiData('/api/v1/user/plan/fetch');
+    const plans=(await apiData('/api/v1/user/plan/fetch')).filter(p=>!isSystemPlan(p));
     if(!plans.length){box.innerHTML='<div class="empty">暂无可购买套餐<br><button class="ghostbtn" style="margin-top:14px" onclick="loadPlans()">刷新套餐</button></div>';return;}
+    const perPage=10,pages=Math.max(1,Math.ceil(plans.length/perPage));page=Math.min(pages,Math.max(1,Number(page)||1));
     box.innerHTML='';
-    plans.forEach(p=>{
+    plans.slice((page-1)*perPage,page*perPage).forEach(p=>{
       const div=document.createElement('div');div.className='plan';
       const gb=p.transfer_enable?(p.transfer_enable+' GB 流量'):'';
       div.innerHTML='<div class="pname"></div>'+(gb?'<div class="muted sm gbline" style="margin-top:4px"></div>':'')+
         '<div class="pdesc"'+(p.content?'':' style="display:none"')+'></div><div class="prices"></div>';
-      div.querySelector('.pname').textContent=p.name||'';           // textContent:天然防 XSS/破坏
+      const planName=cleanPlanName(p.name);
+      div.querySelector('.pname').textContent=planName||'';           // textContent:天然防 XSS/破坏
       if(gb)div.querySelector('.gbline').textContent=gb;
       if(p.content)div.querySelector('.pdesc').textContent=stripHtml(p.content);
       const prices=div.querySelector('.prices');
@@ -558,13 +645,14 @@ async function loadPlans(){
         if(p[k]!=null&&p[k]!==''){
           const b=document.createElement('button');b.className='price';
           b.innerHTML='<span class="pv">'+yuan(p[k])+'</span><span class="pt">'+esc(label)+'</span>';
-          b.addEventListener('click',()=>buy(p.id,k,p.name||'',label,p[k]));   // 闭包传真实值,无字符串拼接
+          b.addEventListener('click',()=>buy(p.id,k,planName||'',label,p[k]));   // 闭包传真实值,无字符串拼接
           prices.appendChild(b);
         }
       });
       if(!prices.children.length)prices.innerHTML='<span class="muted sm">暂未开放购买</span>';
       box.appendChild(div);
     });
+    box.insertAdjacentHTML('beforeend',mobilePager(page,plans.length,perPage,'loadPlans'));
   }catch(e){box.innerHTML='<div class="empty">'+esc(e.message)+'<br><button class="ghostbtn" style="margin-top:14px" onclick="loadPlans()">重新加载</button></div>';}
 }
 // 用 DOMParser 的惰性文档取纯文本——绝不用活动文档的 innerHTML,否则 <img onerror> 会在解析时执行
@@ -633,22 +721,24 @@ function afterPaid(){ closeModal(); clearInterval(pollTimer); toast('支付成�
 function openSheet(k){$('#sheet-'+k).classList.add('on');}
 function closeSheet(k){const el=$('#sheet-'+k);if(el)el.classList.remove('on');}
 
-async function openOrders(){
+async function openOrders(page=1){
   openSheet('orders');const b=$('#orders-body');b.innerHTML='<div class="empty"><span class="spin"></span> 加载…</div>';
   try{
     const rows=await apiData('/api/v1/user/order/fetch');
     if(!rows.length){b.innerHTML='<div class="empty">还没有订单</div>';return;}
     const OS={0:['待支付','y'],1:['开通中','b'],2:['已取消','r'],3:['已完成','g'],4:['已折抵','g']};
+    const perPage=20,pages=Math.max(1,Math.ceil(rows.length/perPage));page=Math.min(pages,Math.max(1,Number(page)||1));
     b.innerHTML='';
-    rows.forEach(o=>{
+    rows.slice((page-1)*perPage,page*perPage).forEach(o=>{
       const s=OS[o.status]||['?','b'];
       const row=document.createElement('div');row.className='list-row';
-      row.innerHTML='<div class="lr-top"><b>'+esc(o.plan&&o.plan.name||o.trade_no)+'</b><span class="pill '+s[1]+'">'+s[0]+'</span></div>'+
+      row.innerHTML='<div class="lr-top"><b>'+esc(cleanPlanName(o.plan&&o.plan.name)||o.trade_no)+'</b><span class="pill '+s[1]+'">'+s[0]+'</span></div>'+
         '<div class="muted sm" style="margin-top:6px">'+yuan(o.total_amount)+' · '+fmtT(o.created_at)+'</div>'+
         '<div class="muted sm" style="margin-top:2px">单号 '+esc(o.trade_no)+'</div>';
       if(o.status===0){const pb=document.createElement('button');pb.className='ghostbtn';pb.style.marginTop='10px';pb.textContent='去支付';pb.addEventListener('click',()=>resumePay(o.trade_no));row.appendChild(pb);}
       b.appendChild(row);
     });
+    b.insertAdjacentHTML('beforeend',mobilePager(page,rows.length,perPage,'openOrders'));
   }catch(e){b.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
 }
 async function resumePay(tradeNo){
@@ -659,19 +749,21 @@ async function resumePay(tradeNo){
 }
 function fmtT(ts){if(!ts)return '';const d=new Date(ts*1000);return (d.getMonth()+1)+'-'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 
-async function openTickets(){
+async function openTickets(page=1){
   openSheet('tickets');const b=$('#tickets-body');b.innerHTML='<div class="empty"><span class="spin"></span> 加载…</div>';
   try{
     const rows=await apiData('/api/v1/user/ticket/fetch');
     if(!rows.length){b.innerHTML='<div class="empty">还没有工单,点右上「+ 新建」联系客服</div>';return;}
+    const perPage=10,pages=Math.max(1,Math.ceil(rows.length/perPage));page=Math.min(pages,Math.max(1,Number(page)||1));
     b.innerHTML='';
-    rows.forEach(t=>{
+    rows.slice((page-1)*perPage,page*perPage).forEach(t=>{
       const open=t.status===0;
       const row=document.createElement('div');row.className='list-row';
       row.innerHTML='<div class="lr-top"><b>'+esc(t.subject)+'</b><span class="pill '+(open?'g':'r')+'">'+(open?'进行中':'已关闭')+'</span></div><div class="muted sm" style="margin-top:6px">'+fmtT(t.created_at)+' ›</div>';
       row.addEventListener('click',()=>openTicket(t.id,t.subject));
       b.appendChild(row);
     });
+    b.insertAdjacentHTML('beforeend',mobilePager(page,rows.length,perPage,'openTickets'));
   }catch(e){b.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
 }
 function newTicket(){
@@ -762,12 +854,31 @@ async function openInvite(){
       +'<div class="card center"><div class="muted sm">扫码注册 · 你的专属二维码</div><canvas id="inv-qr" width="380" height="380" style="width:190px;height:190px;margin:12px auto;border-radius:12px;background:#fff;display:block"></canvas>'
       +'<div class="muted sm">邀请码 <b class="sel" style="color:var(--fg);font-size:15px;letter-spacing:1px">'+esc(code||'—')+'</b></div></div>'
       +'<div class="card"><h3>推广链接</h3><div class="copyrow"><div class="v sel">'+esc(link)+'</div><button id="inv-copy">复制</button></div><p class="muted sm" style="margin-top:8px">把链接或二维码发给好友,TA 注册即绑定你。</p></div>'
-      +rulesHtml;
+      +rulesHtml
+      +'<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">我邀请的人员</h3><select id="aff-level" style="background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:7px;color:var(--fg)">'+Array.from({length:Math.max(1,rates.length||3)},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' 级</option>').join('')+'</select></div><div id="aff-downlines"><div class="empty"><span class="spin"></span> 加载…</div></div></div>'
+      +'<div class="card"><h3>佣金记录</h3><div id="aff-records"><div class="empty"><span class="spin"></span> 加载…</div></div></div>'
+      +'<div class="card"><h3>使用教程</h3><div class="muted sm" style="line-height:1.8">① 分享链接或二维码<br>② 好友注册后自动绑定<br>③ 下级付款后按层级比例自动结算<br>④ 余额达标后填写 TRC20 地址提现</div><div style="display:flex;gap:8px;margin-top:12px"><a class="ghostbtn" style="margin:0;flex:1;text-align:center" href="/dl/tutorial.html">完整教程</a><a class="ghostbtn" style="margin:0;flex:1;text-align:center" href="/dl/ios-guide.html">iOS 教程</a></div></div>';
     $('#inv-copy').addEventListener('click',()=>copyText(link));
     var wdb=document.getElementById('wd-btn'); if(wdb)wdb.onclick=()=>openWithdraw(sum);
     try{ ttDrawQR(document.getElementById('inv-qr'), link); }catch(e){}
+    var levelSelect=document.getElementById('aff-level');if(levelSelect)levelSelect.onchange=()=>loadMobileAffiliateDetails(levelSelect.value,1,1);
+    loadMobileAffiliateDetails(1);
   }catch(e){b.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
 }
+let MOBILE_AFF_LEVEL=1,MOBILE_AFF_DOWN_PAGE=1,MOBILE_AFF_RECORD_PAGE=1;
+async function loadMobileAffiliateDetails(level=MOBILE_AFF_LEVEL,downPage=1,recordPage=1){
+  MOBILE_AFF_LEVEL=Math.max(1,Number(level)||1);MOBILE_AFF_DOWN_PAGE=Math.max(1,Number(downPage)||1);MOBILE_AFF_RECORD_PAGE=Math.max(1,Number(recordPage)||1);
+  const down=document.getElementById('aff-downlines'),records=document.getElementById('aff-records');if(!down||!records)return;
+  down.innerHTML='<div class="empty"><span class="spin"></span> 加载…</div>';
+  try{
+    const values=await Promise.all([apiData('/api/v1/reseller/downlines?level='+MOBILE_AFF_LEVEL+'&page='+MOBILE_AFF_DOWN_PAGE+'&per_page=10'),apiData('/api/v1/reseller/records?type=commission&page='+MOBILE_AFF_RECORD_PAGE+'&per_page=10')]);
+    const downData=values[0]||{},recordData=values[1]||{},users=downData.list||[],logs=recordData.list||[];
+    down.innerHTML=(users.length?users.map(u=>'<div class="list-row"><div class="lr-top"><b>'+esc(u.email||'用户')+'</b><span class="pill">'+esc(u.level||MOBILE_AFF_LEVEL)+' 级</span></div><div class="muted sm" style="margin-top:6px">注册 '+fmtT(u.created_at)+' · 贡献 '+Number(u.contribution&&u.contribution.value||0).toFixed(2)+' USDT</div></div>').join(''):'<div class="empty">该层级暂无邀请用户</div>')+mobilePager(MOBILE_AFF_DOWN_PAGE,downData.total,10,'loadMobileAffiliateDownPage');
+    records.innerHTML=(logs.length?logs.map(r=>'<div class="list-row"><div class="lr-top"><b>'+esc(r.from_email||'下级用户')+'</b><b style="color:var(--accent)">+'+Number(r.amount||0).toFixed(2)+' USDT</b></div><div class="muted sm" style="margin-top:6px">'+esc(r.level||1)+' 级 · '+fmtT(r.created_at)+'</div></div>').join(''):'<div class="empty">暂无佣金记录</div>')+mobilePager(MOBILE_AFF_RECORD_PAGE,recordData.total,10,'loadMobileAffiliateRecordPage');
+  }catch(e){down.innerHTML='<div class="empty">'+esc(e.message)+'</div>';records.innerHTML='<div class="empty">'+esc(e.message)+'</div>';}
+}
+function loadMobileAffiliateDownPage(page){loadMobileAffiliateDetails(MOBILE_AFF_LEVEL,page,MOBILE_AFF_RECORD_PAGE);}
+function loadMobileAffiliateRecordPage(page){loadMobileAffiliateDetails(MOBILE_AFF_LEVEL,MOBILE_AFF_DOWN_PAGE,page);}
 // 代理提现:填 TRC20 地址 + 金额 → POST /api/v1/reseller/withdraw。校验最低额/余额/地址格式。
 function openWithdraw(sum){
   const bal=+((sum&&sum.commission_balance_display)||0);
@@ -789,14 +900,14 @@ function openWithdraw(sum){
     if(a<min){toast('最低提现 '+min+' USDT');return;}
     if(a>bal){toast('超过可提现余额');return;}
     const btn=$('#wd-ok');btn.disabled=true;btn.textContent='提交中…';
-    try{ await apiTrue('/api/v1/reseller/withdraw',{method:'POST',body:{usdt_address:address,amount:a}}); toast('提现申请已提交,等待审核'); closeModal(); openInvite(); }
+    try{ await apiData('/api/v1/reseller/withdraw',{method:'POST',body:{usdt_address:address,amount:a}}); toast('提现申请已提交,等待审核'); closeModal(); openInvite(); }
     catch(e){ toast(e.message||'提交失败'); btn.disabled=false;btn.textContent='提交申请'; }
   };
-  // 提现记录
-  apiData('/api/v1/reseller/withdraw/history').then(r=>{
-    const list=Array.isArray(r)?r:(r&&r.data)||[];
-    if(list.length){ $('#wd-hist').innerHTML='<b style="color:var(--fg)">最近提现</b><br>'+list.slice(0,5).map(w=>(w.amount!=null?w.amount:'?')+' USDT · '+esc(w.status_text||'')).join('<br>'); }
-  }).catch(()=>{});
+  loadMobileWithdrawHistory(1);
+}
+async function loadMobileWithdrawHistory(page=1){
+  const box=$('#wd-hist');if(!box)return;box.innerHTML='提现记录加载中…';
+  try{const data=await apiData('/api/v1/reseller/withdraw/history?page='+page+'&per_page=10'),list=data.list||[];box.innerHTML=list.length?'<b style="color:var(--fg)">提现记录</b><br>'+list.map(w=>(w.amount!=null?w.amount:'?')+' USDT · '+esc(w.status_text||'')+' · '+fmtT(w.created_at)).join('<br>')+mobilePager(Number(data.page)||page,data.total,10,'loadMobileWithdrawHistory'):'暂无提现记录';}catch(e){box.textContent=e.message||'提现记录加载失败';}
 }
 
 //==================== 弹窗 ====================
