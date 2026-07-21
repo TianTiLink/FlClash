@@ -144,10 +144,18 @@ class XboardAuth extends Notifier<XboardAuthState> {
     required String password,
     String? inviteCode,
     String? emailCode,
+    String? sliderToken,
+    String? companyWebsite,
   }) async {
     final api = XboardApi(panelUrl);
-    final res = await api.register(email, password,
-        inviteCode: inviteCode, emailCode: emailCode);
+    final res = await api.register(
+      email,
+      password,
+      inviteCode: inviteCode,
+      emailCode: emailCode,
+      sliderToken: sliderToken,
+      companyWebsite: companyWebsite,
+    );
 
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kPanelUrl, panelUrl);

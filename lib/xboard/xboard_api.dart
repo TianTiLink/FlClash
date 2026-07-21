@@ -8,6 +8,7 @@
 // 若想复用 FlClash 自带的 dio 请求器,可把下面 http 调用替换为它的 request。
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 class XboardApiException implements Exception {
@@ -25,6 +26,28 @@ class XboardLoginResult {
   final String token;
 
   XboardLoginResult(this.authData, this.token);
+}
+
+class XboardSliderChallenge {
+  final String challengeId;
+  final Uint8List background;
+  final Uint8List piece;
+  final double width;
+  final double height;
+  final double pieceWidth;
+  final double pieceHeight;
+  final double pieceY;
+
+  XboardSliderChallenge({
+    required this.challengeId,
+    required this.background,
+    required this.piece,
+    required this.width,
+    required this.height,
+    required this.pieceWidth,
+    required this.pieceHeight,
+    required this.pieceY,
+  });
 }
 
 class XboardSubscribe {
@@ -83,10 +106,16 @@ class XboardApi {
     String password, {
     String? inviteCode,
     String? emailCode,
+    String? sliderToken,
+    String? companyWebsite,
   }) async {
     final body = <String, dynamic>{'email': email, 'password': password};
     if (inviteCode != null && inviteCode.isNotEmpty) body['invite_code'] = inviteCode;
     if (emailCode != null && emailCode.isNotEmpty) body['email_code'] = emailCode;
+    if (sliderToken != null && sliderToken.isNotEmpty) {
+      body['slider_token'] = sliderToken;
+    }
+    body['company_website'] = companyWebsite ?? '';
     final resp = await http
         .post(
           _u('/api/v1/passport/auth/register'),
@@ -104,6 +133,51 @@ class XboardApi {
       throw XboardApiException('注册响应缺少 auth_data/token');
     }
     return XboardLoginResult(authData, token);
+  }
+
+  Future<XboardSliderChallenge> fetchRegistrationChallenge() async {
+    final resp = await http.get(
+      _u('/api/v1/reseller/guest/register-guard/challenge'),
+      headers: const {'Accept': 'application/json'},
+    ).timeout(timeout);
+    final data = _unwrap(resp, badAuthMsg: '验证图片加载失败');
+    return XboardSliderChallenge(
+      challengeId: data['challenge_id']?.toString() ?? '',
+      background: _decodeDataImage(data['background']),
+      piece: _decodeDataImage(data['piece']),
+      width: _double(data['width']),
+      height: _double(data['height']),
+      pieceWidth: _double(data['piece_width']),
+      pieceHeight: _double(data['piece_height']),
+      pieceY: _double(data['piece_y']),
+    );
+  }
+
+  Future<String> verifyRegistrationSlider(
+    String challengeId,
+    double offset,
+    List<Map<String, num>> track,
+  ) async {
+    final resp = await http
+        .post(
+          _u('/api/v1/reseller/guest/register-guard/verify'),
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({
+            'challenge_id': challengeId,
+            'offset': offset,
+            'track': track,
+          }),
+        )
+        .timeout(timeout);
+    final data = _unwrap(resp, badAuthMsg: '滑块验证失败');
+    final token = data['slider_token']?.toString();
+    if (token == null || token.isEmpty) {
+      throw XboardApiException('滑块验证响应异常');
+    }
+    return token;
   }
 
   /// 发送邮箱验证码(面板开启「邮箱验证」时用)。端点:POST /api/v1/passport/comm/sendEmailVerify {email}。
@@ -334,6 +408,23 @@ class XboardApi {
     if (v is num) return v.toInt();
     if (v is String) return int.tryParse(v) ?? 0;
     return 0;
+  }
+
+  static double _double(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static Uint8List _decodeDataImage(dynamic value) {
+    final text = value?.toString() ?? '';
+    final comma = text.indexOf(',');
+    final encoded = comma >= 0 ? text.substring(comma + 1) : text;
+    try {
+      return base64Decode(encoded);
+    } catch (_) {
+      throw XboardApiException('验证图片格式异常');
+    }
   }
 
   Map<String, dynamic> _unwrap(http.Response resp, {required String badAuthMsg}) {

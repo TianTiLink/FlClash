@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
+import 'registration_slider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -24,6 +25,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _pass2 = TextEditingController();
   final _invite = TextEditingController();
   final _code = TextEditingController();
+  final _companyWebsite = TextEditingController();
   bool _obscure = true;
   bool _busy = false;
   bool _sending = false;
@@ -33,6 +35,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   // 是否需要邮箱验证码框:null=还在读后台配置(先不显示,避免闪现),
   // true=后台开了邮箱验证→显示;false=后台关了→隐藏。
   bool? _needCode;
+  String? _sliderToken;
+  int _sliderEpoch = 0;
 
   @override
   void initState() {
@@ -50,6 +54,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _pass2.dispose();
     _invite.dispose();
     _code.dispose();
+    _companyWebsite.dispose();
     _timer?.cancel();
     super.dispose();
   }
@@ -97,6 +102,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       setState(() => _error = '两次输入的密码不一致');
       return;
     }
+    if (_sliderToken == null) {
+      setState(() => _error = '请先拖动滑块完成安全验证');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -108,12 +117,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             password: _pass.text,
             inviteCode: _invite.text.trim(),
             emailCode: _code.text.trim(),
+            sliderToken: _sliderToken,
+            companyWebsite: _companyWebsite.text,
           );
       if (mihomoUrl != null) await importXboardSubscription(mihomoUrl);
       // 注册即登录:弹掉本页,门控已切到主界面(新号无套餐会在「我的」页看到去充值提示)。
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() {
+        _error = e.toString();
+        _sliderToken = null;
+        _sliderEpoch++;
+      });
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -217,6 +232,24 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       prefixIcon: Icon(Icons.card_giftcard_outlined),
                       border: OutlineInputBorder(),
                     ),
+                  ),
+                  Offstage(
+                    offstage: true,
+                    child: TextFormField(
+                      controller: _companyWebsite,
+                      autofillHints: null,
+                      decoration: const InputDecoration(
+                        labelText: '公司网站',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  RegistrationSlider(
+                    key: ValueKey(_sliderEpoch),
+                    baseUrl: ttActiveBase,
+                    onVerified: (token) {
+                      if (mounted) setState(() => _sliderToken = token);
+                    },
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
