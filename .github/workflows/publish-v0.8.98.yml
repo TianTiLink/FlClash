@@ -15,21 +15,52 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      ANDROID_RUN: '29837350452'
-      WINDOWS_RUN: '29837350634'
-      MACOS_RUN: '29837350995'
     steps:
-      - name: Download verified build artifacts
+      - name: Download Android artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: artifact-android
+          path: staging/android
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '29837350452'
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: artifact-windows-installer
+          path: staging/windows
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '29837350634'
+      - name: Download Windows portable artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: artifact-windows-portable
+          path: staging/portable
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '29837350634'
+      - name: Download macOS arm64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: artifact-macos-arm64
+          path: staging/mac-arm64
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '29837350995'
+      - name: Download macOS Intel artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: artifact-macos-amd64
+          path: staging/mac-amd64
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: '29837350995'
+      - name: Prepare release assets
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p staging/android staging/windows staging/portable staging/mac-arm64 staging/mac-amd64 release
-          gh run download "$ANDROID_RUN" -R "$GITHUB_REPOSITORY" -n artifact-android -D staging/android
-          gh run download "$WINDOWS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-windows-installer -D staging/windows
-          gh run download "$WINDOWS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-windows-portable -D staging/portable
-          gh run download "$MACOS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-macos-arm64 -D staging/mac-arm64
-          gh run download "$MACOS_RUN" -R "$GITHUB_REPOSITORY" -n artifact-macos-amd64 -D staging/mac-amd64
-
+          mkdir -p release
           cp "$(find staging/android -type f -name '*arm64-v8a.apk' -print -quit)" release/TianTiLink-android.apk
           cp "$(find staging/android -type f -name '*armeabi-v7a.apk' -print -quit)" release/TianTiLink-android-armeabi-v7a.apk
           cp "$(find staging/android -type f -name '*x86_64.apk' -print -quit)" release/TianTiLink-android-x86_64.apk
