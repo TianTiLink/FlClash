@@ -266,12 +266,16 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
+          $match = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+)')
+          if (-not $match.Success) { throw 'Cannot read version from pubspec.yaml' }
+          $version = $match.Groups[1].Value
+          $releaseTag = "v$version"
           $installer = Get-ChildItem dist -Filter '*-windows-x64-setup.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Windows installer is missing' }
           Copy-Item $installer.FullName release/TianTiLink-windows.exe -Force
           Copy-Item TianTiLink-windows-x64-portable.zip release/TianTiLink-windows-portable.zip -Force
           Get-FileHash release/* -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content release/SHA256SUMS-windows.txt
-          gh release view v0.8.98 -R $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create v0.8.98 -R $env:GITHUB_REPOSITORY --title 'TianTiLink 0.8.98' --notes '注册页面增加蜜罐与滑块验证码。' }
+          gh release view $releaseTag -R $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create $releaseTag -R $env:GITHUB_REPOSITORY --title "TianTiLink $version" --notes '客户端自动构建发布。' }
           $assets = Get-ChildItem release -File | ForEach-Object { $_.FullName }
-          gh release upload v0.8.98 -R $env:GITHUB_REPOSITORY $assets --clobber
+          gh release upload $releaseTag -R $env:GITHUB_REPOSITORY $assets --clobber

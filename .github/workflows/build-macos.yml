@@ -141,6 +141,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+          release_tag="v${version}"
           mkdir -p release
           if [ '${{ matrix.arch }}' = 'arm64' ]; then
             target='TianTiLink-macos.zip'
@@ -149,5 +151,5 @@ jobs:
           fi
           cp "TianTiLink-macos-${{ matrix.arch }}.zip" "release/$target"
           sha256sum "release/$target" > "release/SHA256SUMS-macos-${{ matrix.arch }}.txt"
-          gh release view v0.8.98 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create v0.8.98 -R "$GITHUB_REPOSITORY" --title 'TianTiLink 0.8.98' --notes '注册页面增加蜜罐与滑块验证码。' || true
-          gh release upload v0.8.98 -R "$GITHUB_REPOSITORY" release/* --clobber
+          gh release view "$release_tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$release_tag" -R "$GITHUB_REPOSITORY" --title "TianTiLink ${version}" --notes '客户端自动构建发布。' || true
+          gh release upload "$release_tag" -R "$GITHUB_REPOSITORY" release/* --clobber
