@@ -35,8 +35,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   // 是否需要邮箱验证码框:null=还在读后台配置(先不显示,避免闪现),
   // true=后台开了邮箱验证→显示;false=后台关了→隐藏。
   bool? _needCode;
-  String? _sliderToken;
-  int _sliderEpoch = 0;
 
   @override
   void initState() {
@@ -96,14 +94,45 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     });
   }
 
+  Future<String?> _requestSliderToken() async {
+    var dialogActive = true;
+    final token = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: const Text('安全验证'),
+        content: SizedBox(
+          width: 360,
+          child: RegistrationSlider(
+            baseUrl: ttActiveBase,
+            onVerified: (token) {
+              if (dialogActive && dialogContext.mounted) {
+                dialogActive = false;
+                Navigator.of(dialogContext).pop(token);
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              dialogActive = false;
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+    dialogActive = false;
+    return token;
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
     if (_pass.text != _pass2.text) {
       setState(() => _error = '两次输入的密码不一致');
-      return;
-    }
-    if (_sliderToken == null) {
-      setState(() => _error = '请先拖动滑块完成安全验证');
       return;
     }
     setState(() {
@@ -111,24 +140,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _error = null;
     });
     try {
+      final sliderToken = await _requestSliderToken();
+      if (!mounted || sliderToken == null) return;
       final mihomoUrl = await ref.read(xboardAuthProvider.notifier).register(
             panelUrl: ttActiveBase,
             email: _email.text.trim(),
             password: _pass.text,
             inviteCode: _invite.text.trim(),
             emailCode: _code.text.trim(),
-            sliderToken: _sliderToken,
+            sliderToken: sliderToken,
             companyWebsite: _companyWebsite.text,
           );
       if (mihomoUrl != null) await importXboardSubscription(mihomoUrl);
       // 注册即登录:弹掉本页,门控已切到主界面(新号无套餐会在「我的」页看到去充值提示)。
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _sliderToken = null;
-        _sliderEpoch++;
-      });
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -208,6 +235,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               prefixIcon: Icon(Icons.verified_outlined),
                               border: OutlineInputBorder(),
                             ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? '请输入邮箱验证码'
+                                : null,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -242,14 +272,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         labelText: '公司网站',
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  RegistrationSlider(
-                    key: ValueKey(_sliderEpoch),
-                    baseUrl: ttActiveBase,
-                    onVerified: (token) {
-                      if (mounted) setState(() => _sliderToken = token);
-                    },
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
