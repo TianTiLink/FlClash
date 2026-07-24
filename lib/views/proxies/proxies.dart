@@ -28,6 +28,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   bool _hasProviders = false;
   bool _isTab = false;
   bool _refreshingSub = false;
+  bool _testingDelay = false;
 
   // 刷新订阅:从面板重拉最新节点并重新应用(复用账户页同款逻辑)。
   Future<void> _refreshSubscription() async {
@@ -35,8 +36,9 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     setState(() => _refreshingSub = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final url =
-          await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
+      final url = await ref
+          .read(xboardAuthProvider.notifier)
+          .refreshSubscribe();
       if (url == null) throw '未登录或获取节点失败';
       await importXboardSubscription(url);
       messenger.showSnackBar(const SnackBar(content: Text('节点已刷新')));
@@ -44,6 +46,25 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       messenger.showSnackBar(SnackBar(content: Text('刷新失败:$e')));
     } finally {
       if (mounted) setState(() => _refreshingSub = false);
+    }
+  }
+
+  Future<void> _testCurrentGroupDelay() async {
+    if (_testingDelay) return;
+    setState(() => _testingDelay = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final count =
+          await _proxiesTabKey.currentState?.delayTestCurrentGroup() ?? 0;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(count > 0 ? '延迟检测完成，共 $count 个节点' : '当前分组没有可检测的节点'),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('延迟检测失败：$e')));
+    } finally {
+      if (mounted) setState(() => _testingDelay = false);
     }
   }
 
@@ -66,10 +87,14 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       if (_isTab)
         IconButton(
           tooltip: appLocalizations.delayTest,
-          onPressed: () async {
-            await _proxiesTabKey.currentState?.delayTestCurrentGroup();
-          },
-          icon: const Icon(Icons.network_ping),
+          onPressed: _testingDelay ? null : _testCurrentGroupDelay,
+          icon: _testingDelay
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.network_ping),
         ),
       if (_isTab)
         IconButton(

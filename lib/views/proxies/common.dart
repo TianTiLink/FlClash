@@ -68,21 +68,33 @@ Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) async {
   ref
       .read(proxiesActionProvider.notifier)
       .setDelay(Delay(url: currentTestUrl, name: state.proxyName, value: 0));
-  ref
-      .read(proxiesActionProvider.notifier)
-      .setDelay(await coreController.getDelay(currentTestUrl, state.proxyName));
+  try {
+    final delay = await coreController
+        .getDelay(currentTestUrl, state.proxyName)
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () =>
+              Delay(url: currentTestUrl, name: state.proxyName, value: -1),
+        );
+    ref.read(proxiesActionProvider.notifier).setDelay(delay);
+  } catch (_) {
+    ref
+        .read(proxiesActionProvider.notifier)
+        .setDelay(Delay(url: currentTestUrl, name: state.proxyName, value: -1));
+  }
 }
 
-Future<void> delayTest(List<Proxy> proxies, [String? testUrl]) async {
-  final delayProxies = proxies.map<Future>((proxy) async {
-    await proxyDelayTest(proxy, testUrl);
-  }).toList();
-
-  final batchesDelayProxies = delayProxies.batch(100);
-  for (final batchDelayProxies in batchesDelayProxies) {
-    await Future.wait(batchDelayProxies);
+Future<int> delayTest(List<Proxy> proxies, [String? testUrl]) async {
+  const batchSize = 20;
+  for (var start = 0; start < proxies.length; start += batchSize) {
+    final end = start + batchSize < proxies.length
+        ? start + batchSize
+        : proxies.length;
+    final batch = proxies.sublist(start, end);
+    await Future.wait(batch.map((proxy) => proxyDelayTest(proxy, testUrl)));
   }
   globalState.container.read(sortNumProvider.notifier).add();
+  return proxies.length;
 }
 
 double getScrollToSelectedOffset({

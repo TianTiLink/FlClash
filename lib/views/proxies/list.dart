@@ -410,9 +410,12 @@ class _ListHeaderState extends State<ListHeader> {
 
   Future<void> _delayTest() async {
     if (isLock) return;
-    isLock = true;
-    await delayTest(widget.group.all, widget.group.testUrl);
-    isLock = false;
+    setState(() => isLock = true);
+    try {
+      await delayTest(widget.group.all, widget.group.testUrl);
+    } finally {
+      if (mounted) setState(() => isLock = false);
+    }
   }
 
   void _handleChange(String groupName) {
@@ -569,11 +572,17 @@ class _ListHeaderState extends State<ListHeader> {
                     iconSize: 20,
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.all(2),
-                    onPressed: _delayTest,
+                    onPressed: isLock ? null : _delayTest,
                     style: const ButtonStyle(
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    icon: const Icon(Icons.network_ping),
+                    icon: isLock
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.network_ping),
                   ),
                   const SizedBox(width: 6),
                 ] else
