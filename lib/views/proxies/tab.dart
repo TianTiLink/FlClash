@@ -59,10 +59,10 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     _keyMap[currentGroupName]?.currentState?.scrollToSelected();
   }
 
-  Future<void> delayTestCurrentGroup() async {
+  Future<int> delayTestCurrentGroup() async {
     final currentGroupName = getCurrentGroupName();
     final currentState = _keyMap[currentGroupName]?.currentState;
-    await delayTest(currentState?.currentProxies ?? [], currentState?.testUrl);
+    return delayTest(currentState?.currentProxies ?? [], currentState?.testUrl);
   }
 
   Widget _buildMoreButton() {
@@ -192,9 +192,7 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () {
-                  ref
-                      .read(setupActionProvider.notifier)
-                      .changeMode(Mode.rule);
+                  ref.read(setupActionProvider.notifier).changeMode(Mode.rule);
                 },
                 child: const Text('切回智能模式,显示节点'),
               ),
