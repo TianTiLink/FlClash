@@ -110,8 +110,10 @@ class XboardApi {
     String? companyWebsite,
   }) async {
     final body = <String, dynamic>{'email': email, 'password': password};
-    if (inviteCode != null && inviteCode.isNotEmpty) body['invite_code'] = inviteCode;
-    if (emailCode != null && emailCode.isNotEmpty) body['email_code'] = emailCode;
+    if (inviteCode != null && inviteCode.isNotEmpty)
+      body['invite_code'] = inviteCode;
+    if (emailCode != null && emailCode.isNotEmpty)
+      body['email_code'] = emailCode;
     if (sliderToken != null && sliderToken.isNotEmpty) {
       body['slider_token'] = sliderToken;
     }
@@ -136,10 +138,12 @@ class XboardApi {
   }
 
   Future<XboardSliderChallenge> fetchRegistrationChallenge() async {
-    final resp = await http.get(
-      _u('/api/v1/reseller/guest/register-guard/challenge'),
-      headers: const {'Accept': 'application/json'},
-    ).timeout(timeout);
+    final resp = await http
+        .get(
+          _u('/api/v1/reseller/guest/register-guard/challenge'),
+          headers: const {'Accept': 'application/json'},
+        )
+        .timeout(timeout);
     final data = _unwrap(resp, badAuthMsg: '验证图片加载失败');
     return XboardSliderChallenge(
       challengeId: data['challenge_id']?.toString() ?? '',
@@ -212,10 +216,12 @@ class XboardApi {
   /// 拉取失败时保守返回 true(宁可多显示,也不要「后台要求验证却无处输入」把注册卡死)。
   Future<bool> needEmailVerify() async {
     try {
-      final resp = await http.get(
-        _u('/api/v1/guest/comm/config'),
-        headers: const {'Accept': 'application/json'},
-      ).timeout(timeout);
+      final resp = await http
+          .get(
+            _u('/api/v1/guest/comm/config'),
+            headers: const {'Accept': 'application/json'},
+          )
+          .timeout(timeout);
       final body = jsonDecode(utf8.decode(resp.bodyBytes));
       final data = body is Map ? body['data'] : null;
       final v = data is Map ? data['is_email_verify'] : null;
@@ -226,10 +232,12 @@ class XboardApi {
   }
 
   Future<XboardSubscribe> getSubscribe(String authData) async {
-    final resp = await http.get(
-      _u('/api/v1/user/getSubscribe'),
-      headers: {'Authorization': authData, 'Accept': 'application/json'},
-    ).timeout(timeout);
+    final resp = await http
+        .get(
+          _u('/api/v1/user/getSubscribe'),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
+        .timeout(timeout);
     final data = _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
     final url = data['subscribe_url'] as String?;
     if (url == null || url.isEmpty) {
@@ -298,22 +306,37 @@ class XboardApi {
 
   /// 单个工单详情(含对话)。GET /api/v1/user/ticket/fetch?id=<id>(data 为对象,含 message 数组)。
   Future<Map<String, dynamic>> fetchTicketDetail(
-      String authData, int id) async {
-    final resp = await http.get(
-      _u('/api/v1/user/ticket/fetch').replace(queryParameters: {'id': '$id'}),
-      headers: {'Authorization': authData, 'Accept': 'application/json'},
-    ).timeout(timeout);
+    String authData,
+    int id,
+  ) async {
+    final resp = await http
+        .get(
+          _u(
+            '/api/v1/user/ticket/fetch',
+          ).replace(queryParameters: {'id': '$id'}),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
+        .timeout(timeout);
     return _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
   }
 
   /// 新建工单。POST /api/v1/user/ticket/save {subject,level(0|1|2),message}。
-  Future<void> createTicket(String authData,
-      {required String subject, required String message, int level = 1}) async {
+  Future<void> createTicket(
+    String authData, {
+    required String subject,
+    required String message,
+    int level = 1,
+  }) async {
     final resp = await http
-        .post(_u('/api/v1/user/ticket/save'),
-            headers: _jsonAuth(authData),
-            body: jsonEncode(
-                {'subject': subject, 'level': level, 'message': message}))
+        .post(
+          _u('/api/v1/user/ticket/save'),
+          headers: _jsonAuth(authData),
+          body: jsonEncode({
+            'subject': subject,
+            'level': level,
+            'message': message,
+          }),
+        )
         .timeout(timeout);
     _expectTrue(resp, failMsg: '工单创建失败');
   }
@@ -321,9 +344,11 @@ class XboardApi {
   /// 回复工单。POST /api/v1/user/ticket/reply {id,message}。已关闭/需等待客服回复会报错。
   Future<void> replyTicket(String authData, int id, String message) async {
     final resp = await http
-        .post(_u('/api/v1/user/ticket/reply'),
-            headers: _jsonAuth(authData),
-            body: jsonEncode({'id': id, 'message': message}))
+        .post(
+          _u('/api/v1/user/ticket/reply'),
+          headers: _jsonAuth(authData),
+          body: jsonEncode({'id': id, 'message': message}),
+        )
         .timeout(timeout);
     _expectTrue(resp, failMsg: '回复失败');
   }
@@ -331,20 +356,28 @@ class XboardApi {
   /// 关闭工单。POST /api/v1/user/ticket/close {id}。
   Future<void> closeTicket(String authData, int id) async {
     final resp = await http
-        .post(_u('/api/v1/user/ticket/close'),
-            headers: _jsonAuth(authData), body: jsonEncode({'id': id}))
+        .post(
+          _u('/api/v1/user/ticket/close'),
+          headers: _jsonAuth(authData),
+          body: jsonEncode({'id': id}),
+        )
         .timeout(timeout);
     _expectTrue(resp, failMsg: '关闭工单失败');
   }
 
   /// 下单。POST /api/v1/user/order/save {plan_id,period}。period 传价格键,如 'month_price'。
   /// 返回 trade_no(data 为字符串)。若已有未支付订单会抛错。
-  Future<String> createOrder(String authData,
-      {required int planId, required String period}) async {
+  Future<String> createOrder(
+    String authData, {
+    required int planId,
+    required String period,
+  }) async {
     final resp = await http
-        .post(_u('/api/v1/user/order/save'),
-            headers: _jsonAuth(authData),
-            body: jsonEncode({'plan_id': planId, 'period': period}))
+        .post(
+          _u('/api/v1/user/order/save'),
+          headers: _jsonAuth(authData),
+          body: jsonEncode({'plan_id': planId, 'period': period}),
+        )
         .timeout(timeout);
     return _unwrapScalar(resp, badAuthMsg: '登录已过期,请重新登录').toString();
   }
@@ -357,11 +390,16 @@ class XboardApi {
   /// 返回裸 {type,data}(不带 envelope):type=1 外部支付URL(浏览器打开);
   /// type=0 二维码串(原生渲染);type=-1 免费订单已支付(data=true)。
   Future<({int type, String data})> checkout(
-      String authData, String tradeNo, int method) async {
+    String authData,
+    String tradeNo,
+    int method,
+  ) async {
     final resp = await http
-        .post(_u('/api/v1/user/order/checkout'),
-            headers: _jsonAuth(authData),
-            body: jsonEncode({'trade_no': tradeNo, 'method': method}))
+        .post(
+          _u('/api/v1/user/order/checkout'),
+          headers: _jsonAuth(authData),
+          body: jsonEncode({'trade_no': tradeNo, 'method': method}),
+        )
         .timeout(timeout);
     if (resp.statusCode == 401 || resp.statusCode == 403) {
       throw XboardApiException('登录已过期,请重新登录');
@@ -374,23 +412,28 @@ class XboardApi {
     }
     if (resp.statusCode >= 400) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? '结账失败');
+        (body is Map ? body['message'] : null)?.toString() ?? '结账失败',
+      );
     }
     if (body is Map && body.containsKey('type')) {
       return (type: _int(body['type']), data: (body['data'] ?? '').toString());
     }
     throw XboardApiException(
-        (body is Map ? body['message'] : null)?.toString() ?? '结账失败');
+      (body is Map ? body['message'] : null)?.toString() ?? '结账失败',
+    );
   }
 
   /// 轮询订单状态。GET /api/v1/user/order/check?trade_no=(data 为整数)。
   /// 0 待支付 / 1 开通中 / 2 已取消 / 3 已完成 / 4 已折抵。
   Future<int> checkOrderStatus(String authData, String tradeNo) async {
-    final resp = await http.get(
-      _u('/api/v1/user/order/check')
-          .replace(queryParameters: {'trade_no': tradeNo}),
-      headers: {'Authorization': authData, 'Accept': 'application/json'},
-    ).timeout(timeout);
+    final resp = await http
+        .get(
+          _u(
+            '/api/v1/user/order/check',
+          ).replace(queryParameters: {'trade_no': tradeNo}),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
+        .timeout(timeout);
     return _int(_unwrapScalar(resp, badAuthMsg: '登录已过期,请重新登录'));
   }
 
@@ -410,6 +453,28 @@ class XboardApi {
     return 0;
   }
 
+  /// Keep the subscription path/token but move it to the API base that the
+  /// endpoint resolver has actually proved reachable.
+  static String rebaseSubscribeUrl(String subscribeUrl, String baseUrl) {
+    final source = Uri.tryParse(subscribeUrl);
+    final base = Uri.tryParse(baseUrl);
+    if (source == null ||
+        base == null ||
+        !source.hasAbsolutePath ||
+        base.scheme != 'https' ||
+        base.host.isEmpty) {
+      return subscribeUrl;
+    }
+    return Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: source.path,
+      query: source.hasQuery ? source.query : null,
+      fragment: source.hasFragment ? source.fragment : null,
+    ).toString();
+  }
+
   static double _double(dynamic value) {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0;
@@ -427,7 +492,10 @@ class XboardApi {
     }
   }
 
-  Map<String, dynamic> _unwrap(http.Response resp, {required String badAuthMsg}) {
+  Map<String, dynamic> _unwrap(
+    http.Response resp, {
+    required String badAuthMsg,
+  }) {
     if (resp.statusCode == 401 || resp.statusCode == 403) {
       throw XboardApiException(badAuthMsg);
     }
@@ -442,7 +510,8 @@ class XboardApi {
     }
     if (resp.statusCode >= 400) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+        (body is Map ? body['message'] : null)?.toString() ?? '请求失败',
+      );
     }
     if (body is! Map || body['data'] == null) {
       final msg = (body is Map ? body['message'] : null) ?? '请求失败';
@@ -453,23 +522,29 @@ class XboardApi {
   }
 
   Map<String, String> _jsonAuth(String authData) => {
-        'Authorization': authData,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Authorization': authData,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Future<List<Map<String, dynamic>>> _getList(
-      String path, String authData) async {
-    final resp = await http.get(
-      _u(path),
-      headers: {'Authorization': authData, 'Accept': 'application/json'},
-    ).timeout(timeout);
+    String path,
+    String authData,
+  ) async {
+    final resp = await http
+        .get(
+          _u(path),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
+        .timeout(timeout);
     return _unwrapList(resp, badAuthMsg: '登录已过期,请重新登录');
   }
 
   /// data 为「数组」时解包(订单/套餐/工单列表/支付方式)。现有 _unwrap 只认 Map,会崩。
-  List<Map<String, dynamic>> _unwrapList(http.Response resp,
-      {required String badAuthMsg}) {
+  List<Map<String, dynamic>> _unwrapList(
+    http.Response resp, {
+    required String badAuthMsg,
+  }) {
     if (resp.statusCode == 401 || resp.statusCode == 403) {
       throw XboardApiException(badAuthMsg);
     }
@@ -484,15 +559,20 @@ class XboardApi {
     }
     if (resp.statusCode >= 400) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+        (body is Map ? body['message'] : null)?.toString() ?? '请求失败',
+      );
     }
     if (body is! Map || body['data'] is! List) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+        (body is Map ? body['message'] : null)?.toString() ?? '请求失败',
+      );
     }
     return (body['data'] as List)
-        .map((e) =>
-            e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+        .map(
+          (e) => e is Map<String, dynamic>
+              ? e
+              : Map<String, dynamic>.from(e as Map),
+        )
         .toList();
   }
 
@@ -512,11 +592,13 @@ class XboardApi {
     }
     if (resp.statusCode >= 400) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+        (body is Map ? body['message'] : null)?.toString() ?? '请求失败',
+      );
     }
     if (body is! Map || !body.containsKey('data')) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? '请求失败');
+        (body is Map ? body['message'] : null)?.toString() ?? '请求失败',
+      );
     }
     return body['data'];
   }
@@ -534,10 +616,12 @@ class XboardApi {
     }
     if (resp.statusCode >= 400) {
       throw XboardApiException(
-          (body is Map ? body['message'] : null)?.toString() ?? failMsg);
+        (body is Map ? body['message'] : null)?.toString() ?? failMsg,
+      );
     }
     if (body is Map && (body['data'] == true || body['data'] == 1)) return;
     throw XboardApiException(
-        (body is Map ? body['message'] : null)?.toString() ?? failMsg);
+      (body is Map ? body['message'] : null)?.toString() ?? failMsg,
+    );
   }
 }

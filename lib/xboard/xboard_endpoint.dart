@@ -1,17 +1,8 @@
-// 客户端通信地址 failover + 版本检查(防封核心)。
-//
-// 启动时 resolveEndpoint() 逐个探测候选 API 地址,用第一个能通的写入全局 ttActiveBase;
-// 顺带把后台配置的 api_domains 缓存到本地(下次优先探),并返回版本/下载信息给版本检查用。
-//
-// 单一数据源:后台 admin_setting('tt_appconfig') -> GET /api/v1/reseller/appconfig。
-// 候选顺序 = [上次探通的地址(最快) → 本地缓存的 api_domains → 硬编码兜底],逐个探。
-// 这样正常时走"上次可用地址"秒开,只有它被墙才 failover 到备用,避免没解析的域名拖慢启动。
-// 域名全没解析/全被墙时探测都失败 -> 保持默认地址,行为等同现状,安全降级。
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:fl_clash/common/utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,19 +12,20 @@ import 'xboard_auth.dart' show ttActiveBase;
 const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';
 const String _kOfficialDomainsCache = 'tt_official_domains';
+const String _kEmergencyApiBase = 'https://186.244.223.118';
+const String _kBootstrapUrl = '$_kEmergencyApiBase/api/v1/reseller/bootstrap';
+const String _kBootstrapBrand = 'tianti';
+const String _kBootstrapPublicKey =
+    'xuExWLhJahYP7i2GXhjdzFsvYmc9Sx4KSO9NWzwpMBY=';
 
-/// 兜底候选(硬编码,防止本地缓存也没有时无处可探)。
-const List<String> _kSeedApiHosts = <String>[
-  'https://14fas434ojf54a.xyz',  // API 主(客户端通信)
-  'https://jais2d5n6as1ddf.xyz', // API 备
-  'https://tiantilink.com',      // 最后兜底:两个 .xyz 都不通时,新装用户仍能引导上线
-];
+const List<String> _kSeedApiHosts = <String>['https://pafslnnalksdf.xyz'];
 
 class TtEndpointResult {
-  final String activeBase; // 探通的地址(已写入 ttActiveBase)
-  final bool online; // 是否有任一地址探通
-  final Map<String, dynamic> config; // 完整 appconfig(拿不到为空 map)
-  final String currentVersion; // 安装包自身版本号(package_info)
+  final String activeBase;
+  final bool online;
+  final Map<String, dynamic> config;
+  final String currentVersion;
+
   TtEndpointResult(
     this.activeBase,
     this.online,
@@ -44,50 +36,45 @@ class TtEndpointResult {
   String get _platformKey => Platform.isAndroid
       ? 'android'
       : Platform.isWindows
-          ? 'windows'
-          : Platform.isMacOS
-              ? 'macos'
-              : 'pwa';
+      ? 'windows'
+      : Platform.isMacOS
+      ? 'macos'
+      : 'pwa';
 
-  /// 当前平台对应的最新版本号(拿不到返回 null)。
   String? get latestVersion {
-    final v = config['versions'];
-    if (v is! Map) return null;
-    final val = v[_platformKey];
-    return val == null ? null : val.toString();
+    final versions = config['versions'];
+    if (versions is! Map) return null;
+    final value = versions[_platformKey];
+    return value?.toString();
   }
 
-  /// 当前平台对应的下载地址(相对路径补成绝对地址)。
   String? get downloadUrl {
-    final d = config['downloads'];
-    if (d is! Map) return null;
-    // 下载 key:桌面端同版本键,iOS/其它落到 ios 导入页
+    final downloads = config['downloads'];
+    if (downloads is! Map) return null;
     final key = Platform.isAndroid
         ? 'android'
         : Platform.isWindows
-            ? 'windows'
-            : Platform.isMacOS
-                ? 'macos'
-                : 'ios';
-    final val = d[key];
-    if (val == null) return null;
-    var s = val.toString();
-    if (s.isEmpty) return null;
-    if (s.startsWith('http')) return s;
-    return activeBase.replaceAll(RegExp(r'/+$'), '') + s;
+        ? 'windows'
+        : Platform.isMacOS
+        ? 'macos'
+        : 'ios';
+    final value = downloads[key];
+    if (value == null) return null;
+    final path = value.toString();
+    if (path.isEmpty) return null;
+    if (path.startsWith('http')) return path;
+    return activeBase.replaceAll(RegExp(r'/+$'), '') + path;
   }
 
   bool get updateForce => config['update_force'] == true;
   String get updateNote => (config['update_note'] ?? '').toString();
 
-  /// 只有后台版本严格高于当前安装版本才提示更新。
   bool get hasUpdate {
-    final lv = latestVersion;
-    return lv != null && isRemoteVersionNewer(lv, currentVersion);
+    final version = latestVersion;
+    return version != null && isRemoteVersionNewer(version, currentVersion);
   }
 }
 
-/// 比较后台和当前安装版本。格式异常时静默跳过,避免后台误填导致错误弹窗。
 bool isRemoteVersionNewer(String remoteVersion, String currentVersion) {
   String normalize(String version) {
     return version.trim().replaceFirst(RegExp(r'^[vV]'), '');
@@ -103,113 +90,256 @@ bool isRemoteVersionNewer(String remoteVersion, String currentVersion) {
   }
 }
 
-/// 规范化并追加一个候选地址(去重、补 https、去尾斜杠)。
-void _addHost(List<String> list, String? h) {
-  if (h == null) return;
-  var s = h.trim();
-  if (s.isEmpty) return;
-  if (!s.startsWith('http')) s = 'https://$s';
-  s = s.replaceAll(RegExp(r'/+$'), '');
-  if (!list.contains(s)) list.add(s);
+String buildBootstrapPayload({
+  required String brand,
+  required int issuedAt,
+  required int expiresAt,
+  required List<String> apiDomains,
+}) {
+  return <String>[
+    'v1',
+    brand,
+    issuedAt.toString(),
+    expiresAt.toString(),
+    ...apiDomains,
+  ].join('\n');
 }
 
-/// 组装候选:上次探通地址 → 当前默认 → 缓存的 api_domains → 硬编码兜底。
+Future<List<String>> verifyBootstrapDocument(
+  Map<String, dynamic> document, {
+  required String expectedBrand,
+  required String publicKeyBase64,
+  DateTime? now,
+}) async {
+  try {
+    final wrapped = document['data'];
+    final data = wrapped is Map ? Map<String, dynamic>.from(wrapped) : document;
+    final version = data['version'];
+    final brand = data['brand'];
+    final issuedAt = data['issued_at'];
+    final expiresAt = data['expires_at'];
+    final rawDomains = data['api_domains'];
+    final encodedSignature = data['signature'];
+    if (version != 1 ||
+        brand != expectedBrand ||
+        issuedAt is! int ||
+        expiresAt is! int ||
+        rawDomains is! List ||
+        encodedSignature is! String) {
+      return const <String>[];
+    }
+
+    final nowSeconds =
+        (now ?? DateTime.now()).toUtc().millisecondsSinceEpoch ~/ 1000;
+    final lifetime = expiresAt - issuedAt;
+    if (issuedAt > nowSeconds + 600 ||
+        expiresAt < nowSeconds - 300 ||
+        lifetime <= 0 ||
+        lifetime > const Duration(days: 2).inSeconds) {
+      return const <String>[];
+    }
+
+    final domains = <String>[];
+    for (final value in rawDomains.take(8)) {
+      final normalized = _validatedApiBase(value.toString());
+      if (normalized == null) return const <String>[];
+      if (!domains.contains(normalized)) domains.add(normalized);
+    }
+    if (domains.isEmpty) return const <String>[];
+
+    final publicKeyBytes = base64Decode(publicKeyBase64);
+    final signatureBytes = base64Decode(encodedSignature);
+    if (publicKeyBytes.length != 32 || signatureBytes.length != 64) {
+      return const <String>[];
+    }
+    final payload = buildBootstrapPayload(
+      brand: brand,
+      issuedAt: issuedAt,
+      expiresAt: expiresAt,
+      apiDomains: domains,
+    );
+    final signature = Signature(
+      signatureBytes,
+      publicKey: SimplePublicKey(publicKeyBytes, type: KeyPairType.ed25519),
+    );
+    final valid = await Ed25519().verify(
+      utf8.encode(payload),
+      signature: signature,
+    );
+    return valid ? domains : const <String>[];
+  } catch (_) {
+    return const <String>[];
+  }
+}
+
+String? _validatedApiBase(String value) {
+  final uri = Uri.tryParse(value.trim());
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      uri.port != 443 ||
+      uri.hasQuery ||
+      uri.hasFragment ||
+      (uri.path.isNotEmpty && uri.path != '/')) {
+    return null;
+  }
+  final host = uri.host.toLowerCase();
+  if (InternetAddress.tryParse(host) != null ||
+      !host.contains('.') ||
+      !RegExp(r'^[a-z0-9.-]+$').hasMatch(host) ||
+      host.contains('..')) {
+    return null;
+  }
+  return 'https://$host';
+}
+
+void _addHost(List<String> list, String? host) {
+  if (host == null) return;
+  var value = host.trim();
+  if (value.isEmpty) return;
+  if (!value.startsWith('http')) value = 'https://$value';
+  final validated = _validatedApiBase(value);
+  // An IP saved during a previous emergency session must not become a normal
+  // first-choice candidate. Every cold start retries the domains before IP.
+  if (validated != null && !list.contains(validated)) list.add(validated);
+}
+
 Future<List<String>> _candidates() async {
   final list = <String>[];
   try {
-    final sp = await SharedPreferences.getInstance();
-    _addHost(list, sp.getString(_kActiveBaseCache));
-    final cached = sp.getStringList(_kApiDomainsCache);
+    final preferences = await SharedPreferences.getInstance();
+    _addHost(list, preferences.getString(_kActiveBaseCache));
+    final cached = preferences.getStringList(_kApiDomainsCache);
     if (cached != null) {
-      for (final h in cached) {
-        _addHost(list, h);
+      for (final host in cached) {
+        _addHost(list, host);
       }
     }
   } catch (_) {}
   _addHost(list, ttActiveBase);
-  for (final h in _kSeedApiHosts) {
-    _addHost(list, h);
+  for (final host in _kSeedApiHosts) {
+    _addHost(list, host);
   }
   return list;
 }
 
-/// 探测一个地址的 appconfig。通 -> 返回 config map;不通 -> 抛异常。
 Future<Map<String, dynamic>> _probe(String base, Duration timeout) async {
   final uri = Uri.parse('$base/api/v1/reseller/appconfig');
-  final resp = await http
-      .get(uri, headers: {'Accept': 'application/json'}).timeout(timeout);
-  if (resp.statusCode != 200) {
-    throw Exception('HTTP ${resp.statusCode}');
+  final response = await http
+      .get(uri, headers: {'Accept': 'application/json'})
+      .timeout(timeout);
+  if (response.statusCode != 200) {
+    throw Exception('HTTP ${response.statusCode}');
   }
-  final j = jsonDecode(resp.body);
-  if (j is Map && j['data'] is Map) {
-    return Map<String, dynamic>.from(j['data'] as Map);
+  final json = jsonDecode(response.body);
+  if (json is Map && json['data'] is Map) {
+    return Map<String, dynamic>.from(json['data'] as Map);
   }
   throw Exception('bad body');
 }
 
-/// 启动时调用一次:逐个探测,用第一个能通的地址。
-/// 探通后:写 ttActiveBase、持久化"上次可用地址"、缓存后台最新 api_domains、返回结果(含版本)。
-/// 全失败:保持 ttActiveBase 不变,online=false,config={}(登录/订阅照常用默认地址,等同现状)。
+Future<List<String>> _fetchBootstrapDomains(Duration timeout) async {
+  try {
+    final response = await http
+        .get(Uri.parse(_kBootstrapUrl), headers: {'Accept': 'application/json'})
+        .timeout(timeout);
+    if (response.statusCode != 200 || response.bodyBytes.length > 16384) {
+      return const <String>[];
+    }
+    final json = jsonDecode(utf8.decode(response.bodyBytes));
+    if (json is! Map) return const <String>[];
+    return verifyBootstrapDocument(
+      Map<String, dynamic>.from(json),
+      expectedBrand: _kBootstrapBrand,
+      publicKeyBase64: _kBootstrapPublicKey,
+    );
+  } catch (_) {
+    return const <String>[];
+  }
+}
+
+Future<void> _cacheApiDomains(List<String> domains) async {
+  if (domains.isEmpty) return;
+  try {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(_kApiDomainsCache, domains);
+  } catch (_) {}
+}
+
+Future<TtEndpointResult> _activate(
+  String base,
+  Map<String, dynamic> config,
+  String currentVersion,
+) async {
+  ttActiveBase = base;
+  try {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_kActiveBaseCache, base);
+    final apiDomains = config['api_domains'];
+    if (apiDomains is List && apiDomains.isNotEmpty) {
+      await preferences.setStringList(
+        _kApiDomainsCache,
+        apiDomains.map((value) => value.toString()).toList(),
+      );
+    }
+    final officialDomains = config['official_domains'];
+    if (officialDomains is List && officialDomains.isNotEmpty) {
+      await preferences.setStringList(
+        _kOfficialDomainsCache,
+        officialDomains.map((value) => value.toString()).toList(),
+      );
+    }
+  } catch (_) {}
+  return TtEndpointResult(base, true, config, currentVersion: currentVersion);
+}
+
 Future<TtEndpointResult> resolveEndpoint({
   required String currentVersion,
   Duration perTry = const Duration(seconds: 6),
 }) async {
-  final cands = await _candidates();
-  for (final base in cands) {
+  final candidates = await _candidates();
+  for (final base in candidates) {
     try {
-      final cfg = await _probe(base, perTry);
-      ttActiveBase = base;
-      try {
-        final sp = await SharedPreferences.getInstance();
-        await sp.setString(_kActiveBaseCache, base);
-        final apis = cfg['api_domains'];
-        if (apis is List && apis.isNotEmpty) {
-          await sp.setStringList(
-            _kApiDomainsCache,
-            apis.map((e) => e.toString()).toList(),
-          );
-        }
-        // 官网落地域名(邀请链接/推广二维码展示用),缓存主/备,第一个是主地址。
-        final officials = cfg['official_domains'];
-        if (officials is List && officials.isNotEmpty) {
-          await sp.setStringList(
-            _kOfficialDomainsCache,
-            officials.map((e) => e.toString()).toList(),
-          );
-        }
-      } catch (_) {}
-      return TtEndpointResult(
-        base,
-        true,
-        cfg,
-        currentVersion: currentVersion,
-      );
-    } catch (_) {
-      // 换下一个候选
-    }
+      final config = await _probe(base, perTry);
+      return _activate(base, config, currentVersion);
+    } catch (_) {}
   }
+
+  final discovered = await _fetchBootstrapDomains(perTry);
+  await _cacheApiDomains(discovered);
+  for (final base in discovered) {
+    if (candidates.contains(base)) continue;
+    try {
+      final config = await _probe(base, perTry);
+      return _activate(base, config, currentVersion);
+    } catch (_) {}
+  }
+
+  // Last resort: the fixed IP has a trusted IP-address TLS certificate. It is
+  // attempted only after cached, built-in and freshly discovered domains fail.
+  try {
+    final config = await _probe(_kEmergencyApiBase, perTry);
+    return _activate(_kEmergencyApiBase, config, currentVersion);
+  } catch (_) {}
+
   return TtEndpointResult(
     ttActiveBase,
     false,
-    <String, dynamic>{},
+    const <String, dynamic>{},
     currentVersion: currentVersion,
   );
 }
 
-/// 官网落地【主地址】—— 邀请链接/推广二维码的展示域名。用稳定的官网地址,
-/// 不用会轮换/被墙的 API 通信地址(auth.panelUrl)。取后台 appconfig 的
-/// official_domains 第一个;本地还没缓存(首启/拉取失败)时回退硬编码兜底。
-/// 返回形如 https://tiantiweb.xyz(无尾斜杠)。
 Future<String> officialSiteBase() async {
   try {
-    final sp = await SharedPreferences.getInstance();
-    final list = sp.getStringList(_kOfficialDomainsCache);
+    final preferences = await SharedPreferences.getInstance();
+    final list = preferences.getStringList(_kOfficialDomainsCache);
     if (list != null && list.isNotEmpty) {
-      var h = list.first.trim();
-      if (h.isNotEmpty) {
-        if (!h.startsWith('http')) h = 'https://$h';
-        return h.replaceAll(RegExp(r'/+$'), '');
+      var host = list.first.trim();
+      if (host.isNotEmpty) {
+        if (!host.startsWith('http')) host = 'https://$host';
+        return host.replaceAll(RegExp(r'/+$'), '');
       }
     }
   } catch (_) {}

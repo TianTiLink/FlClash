@@ -1,7 +1,7 @@
 name: fl_clash
 description: TianTiLink 天梯 · 高速 VPN 梯子代理加速器,一键连接科学上网,支持 Clash 协议节点订阅,低延迟稳定不掉线、安全加密、无广告。
 publish_to: 'none'
-version: 0.8.99+2026072102
+version: 0.8.100+2026072401
 environment:
   sdk: '>=3.8.0 <4.0.0'
 
@@ -72,6 +72,7 @@ dependencies:
   flutter_svg: ^2.1.0
   flutter_cache_manager: ^3.4.1
   crypto: ^3.0.3
+  cryptography: ^2.9.0
   yaml_writer:
     git:
       url: https://github.com/chen08209/yaml_writer
