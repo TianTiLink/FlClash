@@ -66,6 +66,11 @@ class XboardSubscribe {
     this.expiredAt,
     this.planName,
   });
+
+  bool isExpiredAt(DateTime now) {
+    final expiry = expiredAt;
+    return expiry != null && expiry <= now.millisecondsSinceEpoch ~/ 1000;
+  }
 }
 
 class XboardApi {

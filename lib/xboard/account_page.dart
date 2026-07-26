@@ -25,6 +25,7 @@ import 'package:fl_clash/views/about.dart'; // 关于页(FlClash 自带,含开�
 const Color _kIndigo = Color(0xFF2B2F77);
 const Color _kIndigoDeep = Color(0xFF20244F);
 const Color _kAmber = Color(0xFFE9B949);
+const Color _kExpired = Color(0xFFFF8A80);
 
 class AccountPage extends ConsumerStatefulWidget {
   const AccountPage({super.key});
@@ -395,20 +396,33 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   }
 
   Widget _planBadge() {
-    final name = _info?.planName;
+    final info = _info;
+    final name = info?.planName;
+    final expired = info?.isExpiredAt(DateTime.now()) ?? false;
+    final badgeColor = expired ? _kExpired : _kAmber;
+    final label = _planBadgeLabel(name, expired);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: _kAmber.withOpacity(0.18),
+        color: badgeColor.withOpacity(0.18),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _kAmber.withOpacity(0.6)),
+        border: Border.all(color: badgeColor.withOpacity(0.6)),
       ),
       child: Text(
-        name == null || name.isEmpty ? '未订阅套餐' : name,
-        style: const TextStyle(
-            color: _kAmber, fontSize: 12, fontWeight: FontWeight.w600),
+        label,
+        style: TextStyle(
+          color: badgeColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
+  }
+
+  String _planBadgeLabel(String? name, bool expired) {
+    if (name == null || name.isEmpty) return '未订阅套餐';
+    if (expired) return '已到期 · $name';
+    return name;
   }
 
   Widget _usageBlock(ThemeData theme) {
@@ -431,6 +445,9 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     }
     final info = _info;
     if (info == null) return const SizedBox.shrink();
+    if (info.isExpiredAt(DateTime.now())) {
+      return _expiredBlock(info);
+    }
 
     final used = info.upload + info.download;
     final total = info.transferEnable;
@@ -486,13 +503,82 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     );
   }
 
-  Widget _glassBox({required Widget child}) => Container(
+  Widget _expiredBlock(XboardSubscribe info) {
+    return _glassBox(
+      accentColor: _kExpired,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_busy_rounded, color: _kExpired, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '套餐已到期',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '到期时间 ${_expire(info.expiredAt)}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            '请续费套餐后继续使用，续费成功后下拉刷新即可。',
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _kExpired,
+                foregroundColor: _kIndigoDeep,
+              ),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PlansPage()),
+              ),
+              icon: const Icon(Icons.add_card_outlined, size: 18),
+              label: const Text('立即续费'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glassBox({
+    required Widget child,
+    Color? accentColor,
+  }) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.10),
+          color: (accentColor ?? Colors.white).withOpacity(
+            accentColor == null ? 0.10 : 0.12,
+          ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withOpacity(0.15)),
+          border: Border.all(
+            color: (accentColor ?? Colors.white).withOpacity(
+              accentColor == null ? 0.15 : 0.55,
+            ),
+          ),
         ),
         child: child,
       );

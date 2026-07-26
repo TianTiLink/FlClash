@@ -2,6 +2,30 @@ import 'package:fl_clash/xboard/xboard_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('Subscription expiration', () {
+    final now = DateTime.fromMillisecondsSinceEpoch(
+      2000000000 * 1000,
+      isUtc: true,
+    );
+
+    XboardSubscribe subscription(int? expiredAt) {
+      return XboardSubscribe(
+        subscribeUrl: 'https://example.com/subscription',
+        expiredAt: expiredAt,
+      );
+    }
+
+    test('treats past and current timestamps as expired', () {
+      expect(subscription(1999999999).isExpiredAt(now), isTrue);
+      expect(subscription(2000000000).isExpiredAt(now), isTrue);
+    });
+
+    test('keeps future and unlimited subscriptions active', () {
+      expect(subscription(2000000001).isExpiredAt(now), isFalse);
+      expect(subscription(null).isExpiredAt(now), isFalse);
+    });
+  });
+
   group('Telegram group configuration', () {
     test('returns the configured Telegram HTTPS URL', () {
       final url = XboardApi.parseTelegramGroupUrl({
