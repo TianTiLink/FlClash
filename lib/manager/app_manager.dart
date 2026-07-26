@@ -6,7 +6,6 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/window_manager.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
-import 'package:fl_clash/xboard/xboard_unread.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -199,7 +198,6 @@ class AppSidebarContainer extends ConsumerWidget {
     }
     final currentIndex = navigationState.currentIndex;
     final showLabel = ref.watch(appSettingProvider).showLabel;
-    final unread = ref.watch(xboardUnreadProvider);
     return Row(
       children: [
         _buildBackground(
@@ -236,9 +234,7 @@ class AppSidebarContainer extends ConsumerWidget {
                             destinations: navigationItems
                                 .map(
                                   (e) => NavigationRailDestination(
-                                    icon: (e.label == PageLabel.service && unread > 0)
-                                        ? Badge(label: Text('$unread'), child: e.icon)
-                                        : e.icon,
+                                    icon: e.icon,
                                     label: Text(e.label == PageLabel.account ? '我的' : e.label == PageLabel.service ? '客服' : Intl.message(e.label.name)),
                                   ),
                                 )

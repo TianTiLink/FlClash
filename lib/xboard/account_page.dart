@@ -240,6 +240,10 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                     _tile(theme, Icons.receipt_long_outlined, _kIndigo, '我的订单',
                         () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const OrdersPage()))),
+                    _divider(),
+                    _tile(theme, Icons.support_agent_outlined, _kIndigo, '我的工单',
+                        () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const TicketsPage()))),
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
