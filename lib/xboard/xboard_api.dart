@@ -231,6 +231,48 @@ class XboardApi {
     }
   }
 
+  /// 读取后台实时配置的 Telegram 群地址。
+  ///
+  /// 未配置、关闭或返回了非 Telegram HTTPS 地址时返回 null，客户端据此隐藏入口。
+  Future<String?> getTelegramGroupUrl() async {
+    final resp = await http
+        .get(
+          _u('/api/v1/reseller/guest/plans'),
+          headers: const {'Accept': 'application/json'},
+        )
+        .timeout(timeout);
+    if (resp.statusCode >= 400) return null;
+
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      return null;
+    }
+    return parseTelegramGroupUrl(body);
+  }
+
+  static String? parseTelegramGroupUrl(dynamic body) {
+    final data = body is Map ? body['data'] : null;
+    final telegram = data is Map ? data['telegram'] : null;
+    if (telegram is! Map) return null;
+
+    final configured = telegram['configured'];
+    if (configured != true && configured != 1 && configured != '1') {
+      return null;
+    }
+    final rawUrl = telegram['group_url']?.toString().trim() ?? '';
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        (uri.host.toLowerCase() != 't.me' &&
+            uri.host.toLowerCase() != 'telegram.me') ||
+        uri.pathSegments.isEmpty) {
+      return null;
+    }
+    return uri.toString();
+  }
+
   Future<XboardSubscribe> getSubscribe(String authData) async {
     final resp = await http
         .get(

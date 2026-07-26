@@ -35,6 +35,7 @@ class AccountPage extends ConsumerStatefulWidget {
 
 class _AccountPageState extends ConsumerState<AccountPage> {
   XboardSubscribe? _info;
+  String? _telegramGroupUrl;
   String? _error;
   bool _loading = true;
   bool _refreshing = false; // 防止连点「刷新订阅」在 FlClash 里堆出重复 profile
@@ -47,8 +48,27 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _reload();
     _loadInvite();
+  }
+
+  Future<void> _reload() async {
+    await Future.wait<void>([
+      _load(),
+      _loadTelegramGroup(),
+    ]);
+  }
+
+  Future<void> _loadTelegramGroup() async {
+    final auth = ref.read(xboardAuthProvider);
+    String? groupUrl;
+    try {
+      groupUrl = await XboardApi(auth.panelUrl).getTelegramGroupUrl();
+    } catch (_) {
+      groupUrl = null;
+    }
+    if (!mounted) return;
+    setState(() => _telegramGroupUrl = groupUrl);
   }
 
   Future<void> _loadInvite() async {
@@ -187,7 +207,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
       // importXboardSubscription 现在会在重下/校验失败时抛异常(不再吞),
       // 能走到下面的成功提示 = 真正重下最新节点并重新应用成功了。
       await importXboardSubscription(url);
-      await _load();
+      await _reload();
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('节点已刷新')));
@@ -221,7 +241,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: _reload,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -250,6 +270,16 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                     _tile(theme, Icons.groups_outlined, _kIndigo, '代理中心 / 分销',
                         () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const AgentCenterPage()))),
+                    if (_telegramGroupUrl != null) ...[
+                      _divider(),
+                      _tile(
+                        theme,
+                        Icons.send_rounded,
+                        const Color(0xFF229ED9),
+                        'Telegram 官方群',
+                        () => openExternal(_telegramGroupUrl!),
+                      ),
+                    ],
                     _divider(),
                     _tile(theme, Icons.public_outlined, _kIndigo, '官方网站',
                         () async => openExternal(await officialSiteBase())),
@@ -352,7 +382,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
               ),
               IconButton(
                 tooltip: '刷新',
-                onPressed: _loading ? null : _load,
+                onPressed: _loading ? null : _reload,
                 icon: const Icon(Icons.refresh, color: Colors.white70),
               ),
             ],
