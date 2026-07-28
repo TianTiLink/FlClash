@@ -62,7 +62,22 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
   Future<int> delayTestCurrentGroup() async {
     final currentGroupName = getCurrentGroupName();
     final currentState = _keyMap[currentGroupName]?.currentState;
-    return delayTest(currentState?.currentProxies ?? [], currentState?.testUrl);
+    if (currentState != null && currentState.currentProxies.isNotEmpty) {
+      return delayTest(currentState.currentProxies, currentState.testUrl);
+    }
+
+    // 刷新订阅后 Tab 仍在重建、或旧 profile 尚未记录 currentGroupName 时，
+    // _keyMap 可能暂时取不到已显示的分组。直接从内核同步后的 groups 回退，
+    // 避免错误提示“当前分组没有可检测的节点”。
+    final groups = getCurrentGroups();
+    if (groups.isEmpty) {
+      return 0;
+    }
+    final fallback = groups.firstWhere(
+      (group) => group.name == currentGroupName,
+      orElse: () => groups.first,
+    );
+    return delayTest(fallback.all, fallback.testUrl);
   }
 
   Widget _buildMoreButton() {
