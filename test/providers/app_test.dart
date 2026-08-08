@@ -179,8 +179,8 @@ void main() {
   });
 
   group('CurrentPageLabel provider', () {
-    test('default is dashboard', () {
-      expect(container.read(currentPageLabelProvider), PageLabel.dashboard);
+    test('default is proxies for the TianTiLink client', () {
+      expect(container.read(currentPageLabelProvider), PageLabel.proxies);
     });
 
     test('toPage changes page', () {
