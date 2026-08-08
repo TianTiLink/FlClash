@@ -31,6 +31,7 @@ const _kPanelUrl = 'tianti_api_base';
 const _kEmail = 'tianti_email';
 const _kAuth = 'tianti_auth_token';
 const _kSub = 'tianti_subscribe_url';
+const _notProvided = Object();
 
 class XboardAuthState {
   final bool restored; // 是否已从磁盘读过(避免启动闪现登录页)
@@ -54,16 +55,20 @@ class XboardAuthState {
     bool? loggedIn,
     String? panelUrl,
     String? email,
-    String? authData,
-    String? subscribeUrl,
+    Object? authData = _notProvided,
+    Object? subscribeUrl = _notProvided,
   }) {
     return XboardAuthState(
       restored: restored ?? this.restored,
       loggedIn: loggedIn ?? this.loggedIn,
       panelUrl: panelUrl ?? this.panelUrl,
       email: email ?? this.email,
-      authData: authData ?? this.authData,
-      subscribeUrl: subscribeUrl ?? this.subscribeUrl,
+      authData: identical(authData, _notProvided)
+          ? this.authData
+          : authData as String?,
+      subscribeUrl: identical(subscribeUrl, _notProvided)
+          ? this.subscribeUrl
+          : subscribeUrl as String?,
     );
   }
 }
@@ -114,7 +119,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       subscribeUrl = sub.subscribeUrl;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
-    } on XboardApiException {
+    } on XboardNoSubscriptionException {
       // 账号未购买套餐 / 暂无订阅:不算登录失败,让用户先进 App 再去充值。
       await sp.remove(_kSub);
     }
@@ -162,7 +167,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       subscribeUrl = sub.subscribeUrl;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
-    } on XboardApiException {
+    } on XboardNoSubscriptionException {
       await sp.remove(_kSub);
     }
 
@@ -180,12 +185,28 @@ class XboardAuth extends Notifier<XboardAuthState> {
   Future<String?> refreshSubscribe() async {
     final auth = state.authData;
     if (auth == null) return null;
-    final sub = await XboardApi(state.panelUrl).getSubscribe(auth);
+    XboardSubscribe sub;
+    try {
+      sub = await XboardApi(state.panelUrl).getSubscribe(auth);
+    } on XboardNoSubscriptionException {
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove(_kSub);
+      state = state.copyWith(subscribeUrl: null);
+      rethrow;
+    }
     final subscribeUrl = sub.subscribeUrl;
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kSub, subscribeUrl);
     state = state.copyWith(subscribeUrl: subscribeUrl);
     return XboardApi.toMihomoUrl(subscribeUrl);
+  }
+
+  /// 服务端已经明确确认当前账号没有有效订阅时，清除本机保存的旧地址。
+  /// 普通网络错误不能调用此方法，避免误删仍可使用的节点。
+  Future<void> clearSubscription() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_kSub);
+    state = state.copyWith(subscribeUrl: null);
   }
 
   /// failover 探测到可用通信地址后,让当前会话也切过去(持久化)。

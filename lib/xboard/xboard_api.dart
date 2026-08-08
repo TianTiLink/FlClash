@@ -15,6 +15,14 @@ class XboardApiException implements Exception {
   String toString() => message;
 }
 
+/// 账号当前没有有效套餐，因此服务端不会签发订阅地址。
+///
+/// 单独区分这个业务状态，调用方才可以安全清除旧节点；普通网络错误、TLS 错误
+/// 或服务端临时故障绝不能误删用户当前还能使用的本地配置。
+class XboardNoSubscriptionException extends XboardApiException {
+  XboardNoSubscriptionException() : super('当前账号没有有效套餐，请先购买套餐后再刷新节点');
+}
+
 class XboardLoginResult {
   /// 形如 "Bearer xxxxx",直接作为 Authorization 头。
   final String authData;
@@ -183,7 +191,7 @@ class XboardApi {
     final data = _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
     final url = data['subscribe_url'] as String?;
     if (url == null || url.isEmpty) {
-      throw XboardApiException('未取得订阅地址(账号可能未购买套餐)');
+      throw XboardNoSubscriptionException();
     }
     final plan = data['plan'];
     return XboardSubscribe(

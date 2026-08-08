@@ -162,7 +162,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     }
 
     // 选支付方式
-    int method;
+    Map<String, dynamic> selectedMethod;
     try {
       final methods = await api.getPaymentMethods(a.token);
       _dismissLoader();
@@ -171,11 +171,11 @@ class _PlansPageState extends ConsumerState<PlansPage> {
         return;
       }
       if (methods.length == 1) {
-        method = _toInt(methods.first['id']);
+        selectedMethod = methods.first;
       } else {
         final picked = await _pickMethod(methods);
         if (picked == null) return; // 用户取消
-        method = picked;
+        selectedMethod = picked;
       }
     } catch (e) {
       _dismissLoader();
@@ -187,7 +187,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     _showBlockingLoader('正在发起支付…');
     ({int type, String data}) res;
     try {
-      res = await api.checkout(a.token, tradeNo, method);
+      res = await api.checkout(a.token, tradeNo, _toInt(selectedMethod['id']));
       _dismissLoader();
     } on XboardApiException catch (e) {
       _dismissLoader();
@@ -214,21 +214,24 @@ class _PlansPageState extends ConsumerState<PlansPage> {
           tradeNo: tradeNo,
           payType: res.type,
           payData: res.data,
+          paymentName: selectedMethod['name']?.toString().trim() ?? '所选支付方式',
         ),
       ),
     );
     if (paid == true) await _onPaid();
   }
 
-  Future<int?> _pickMethod(List<Map<String, dynamic>> methods) {
-    return showDialog<int>(
+  Future<Map<String, dynamic>?> _pickMethod(
+    List<Map<String, dynamic>> methods,
+  ) {
+    return showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => SimpleDialog(
         title: const Text('选择支付方式'),
         children: [
           for (final m in methods)
             SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, _toInt(m['id'])),
+              onPressed: () => Navigator.pop(ctx, m),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Text(m['name']?.toString() ?? '支付'),
@@ -494,6 +497,7 @@ class _PayWaitPage extends ConsumerStatefulWidget {
   final String tradeNo;
   final int payType; // 1 外部URL / 0 二维码
   final String payData;
+  final String paymentName;
 
   const _PayWaitPage({
     required this.panelUrl,
@@ -501,6 +505,7 @@ class _PayWaitPage extends ConsumerStatefulWidget {
     required this.tradeNo,
     required this.payType,
     required this.payData,
+    required this.paymentName,
   });
 
   @override
@@ -593,9 +598,10 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (widget.payType == 0) ...[
-                const Text(
-                  '请用支付宝/微信扫码支付',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                Text(
+                  '请使用${widget.paymentName}完成支付',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 16),
                 Container(

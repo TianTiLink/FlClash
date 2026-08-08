@@ -9,6 +9,7 @@ import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_clash/xboard/proxies_connect_bar.dart';
+import 'package:fl_clash/xboard/xboard_api.dart';
 import 'package:fl_clash/xboard/xboard_auth.dart';
 import 'package:fl_clash/xboard/xboard_sync.dart';
 
@@ -35,6 +36,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     if (_refreshingSub) return;
     setState(() => _refreshingSub = true);
     final messenger = ScaffoldMessenger.of(context);
+    final previousSubscription = ref.read(xboardAuthProvider).subscribeUrl;
     try {
       final url = await ref
           .read(xboardAuthProvider.notifier)
@@ -42,8 +44,23 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       if (url == null) throw '未登录或获取节点失败';
       await importXboardSubscription(url);
       messenger.showSnackBar(const SnackBar(content: Text('节点已刷新')));
+    } on XboardNoSubscriptionException {
+      final removed = await clearTianTiSubscriptionProfiles(
+        subscribeUrl: previousSubscription,
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            removed > 0
+                ? '当前账号没有有效套餐，已清除旧节点。请购买套餐后再刷新。'
+                : '当前账号没有有效套餐，请购买套餐后再刷新节点。',
+          ),
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('刷新失败:$e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('网络连接失败，当前节点已保留。请稍后重试：$e')),
+      );
     } finally {
       if (mounted) setState(() => _refreshingSub = false);
     }
@@ -196,6 +213,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       proxiesStyleSettingProvider.select((state) => state.type),
     );
     final isLoading = ref.watch(loadingProvider(LoadingTag.proxies));
+    final auth = ref.watch(xboardAuthProvider);
     return CommonScaffold(
       key: _scaffoldKey,
       isLoading: isLoading,
@@ -206,6 +224,23 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       searchState: AppBarSearchState(onSearch: _onSearch),
       body: Column(
         children: [
+          if (auth.loggedIn && auth.subscribeUrl == null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('当前账号暂无有效套餐，购买套餐后刷新即可获取节点。')),
+                ],
+              ),
+            ),
           Expanded(
             child: switch (proxiesType) {
               ProxiesType.tab => ProxiesTabView(key: _proxiesTabKey),

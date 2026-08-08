@@ -47,8 +47,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _busy = true;
       _error = null;
     });
+    final previousSubscription = ref.read(xboardAuthProvider).subscribeUrl;
     try {
-      final mihomoUrl = await ref.read(xboardAuthProvider.notifier).login(
+      final mihomoUrl = await ref
+          .read(xboardAuthProvider.notifier)
+          .login(
             panelUrl: ttActiveBase,
             email: _emailCtrl.text.trim(),
             password: _passCtrl.text,
@@ -58,6 +61,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // 而不是把一个已注册但还没付费的用户挡在登录页外面。
       if (mihomoUrl != null) {
         await importXboardSubscription(mihomoUrl);
+      } else {
+        await clearTianTiSubscriptionProfiles(
+          subscribeUrl: previousSubscription,
+        );
       }
       // 登录态变化后,门控(XboardGate)会自动切到主界面,无需手动导航。
     } catch (e) {
@@ -92,18 +99,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 天梯品牌 Logo(资源放 assets/images/,pubspec 已声明该目录,自动打包)
-                  Image.asset('assets/images/tt_logo.png',
-                      width: 72, height: 72),
+                  Image.asset(
+                    'assets/images/tt_logo.png',
+                    width: 72,
+                    height: 72,
+                  ),
                   const SizedBox(height: 12),
-                  Text('登录',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    '登录',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text('用主站账号登录,自动同步节点',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.hintColor)),
+                  Text(
+                    '用主站账号登录,自动同步节点',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   // 面板地址已隐藏(写死在 kDefaultPanelUrl),用户只填邮箱密码。
                   TextFormField(
@@ -129,30 +145,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscure
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? '请输入密码' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? '请输入密码' : null,
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!,
-                        style: TextStyle(color: theme.colorScheme.error)),
+                    Text(
+                      _error!,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
                   ],
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: _busy ? null : _login,
                     style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                     child: _busy
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('登录'),
                   ),
                   const SizedBox(height: 16),
@@ -162,7 +183,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       TextButton(
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const RegisterPage()),
+                            builder: (_) => const RegisterPage(),
+                          ),
                         ),
                         child: const Text('注册账号'),
                       ),
@@ -176,8 +198,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Center(
                     child: RichText(
                       text: TextSpan(
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.hintColor),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
+                        ),
                         children: [
                           const TextSpan(text: '还没套餐?'),
                           TextSpan(
@@ -194,8 +217,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Center(
                     child: TextButton.icon(
                       onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const GuestChatPage())),
+                        MaterialPageRoute(
+                          builder: (_) => const GuestChatPage(),
+                        ),
+                      ),
                       icon: const Icon(Icons.support_agent, size: 18),
                       label: const Text('联系客服'),
                     ),

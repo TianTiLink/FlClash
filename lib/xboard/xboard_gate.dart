@@ -29,19 +29,29 @@ class _XboardGateState extends ConsumerState<XboardGate> {
   bool _popupTried = false;
   bool _noticeStarted = false;
   bool _endpointTried = false;
+  bool _startupReady = false;
 
   @override
   void initState() {
     super.initState();
     // 启动时恢复会话(只跑一次)。
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreAndResolve();
+    });
+  }
+
+  Future<void> _restoreAndResolve() async {
+    try {
       final st = ref.read(xboardAuthProvider);
       if (!st.restored) {
-        ref.read(xboardAuthProvider.notifier).restore();
+        await ref.read(xboardAuthProvider.notifier).restore();
       }
-      // 后台 failover 探测通信地址 + 版本检查(异步,不阻塞会话恢复/UI)。
-      _resolveEndpointOnce();
-    });
+      // 必须先恢复旧状态、再探测并覆盖通信地址。并发执行会让旧缓存反向覆盖刚
+      // 探通的新地址，随后账户/推广请求就可能直接命中失效域名并报 TLS 握手失败。
+      await _resolveEndpointOnce();
+    } finally {
+      if (mounted) setState(() => _startupReady = true);
+    }
   }
 
   // 启动只跑一次:逐个探测通信地址,探通后让会话切到该地址(防封 failover),
@@ -90,7 +100,7 @@ class _XboardGateState extends ConsumerState<XboardGate> {
   Widget build(BuildContext context) {
     final auth = ref.watch(xboardAuthProvider);
 
-    if (!auth.restored) {
+    if (!auth.restored || !_startupReady) {
       // 会话恢复中:极简 splash,避免闪现登录页。
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

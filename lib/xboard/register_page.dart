@@ -46,6 +46,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _busy = true;
       _error = null;
     });
+    final previousSubscription = ref.read(xboardAuthProvider).subscribeUrl;
     try {
       final mihomoUrl = await ref
           .read(xboardAuthProvider.notifier)
@@ -58,7 +59,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             sliderToken: null,
             companyWebsite: _companyWebsite.text,
           );
-      if (mihomoUrl != null) await importXboardSubscription(mihomoUrl);
+      if (mihomoUrl != null) {
+        await importXboardSubscription(mihomoUrl);
+      } else {
+        await clearTianTiSubscriptionProfiles(
+          subscribeUrl: previousSubscription,
+        );
+      }
       // 注册即登录:弹掉本页,门控已切到主界面(新号无套餐会在「我的」页看到去充值提示)。
       if (mounted) Navigator.of(context).pop();
     } catch (e) {

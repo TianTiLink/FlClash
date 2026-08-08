@@ -15,6 +15,7 @@ import 'package:fl_clash/models/profile.dart'; // Profile
 import 'package:fl_clash/providers/action.dart'; // profilesActionProvider, setupActionProvider
 import 'package:fl_clash/providers/database.dart'; // profilesProvider
 import 'package:fl_clash/providers/config.dart'; // currentProfileIdProvider, patchClashConfigProvider
+import 'package:fl_clash/providers/app.dart'; // groupsProvider, delayDataSourceProvider
 import 'package:fl_clash/enum/enum.dart'; // Mode
 
 import 'xboard_api.dart';
@@ -46,6 +47,61 @@ bool _sameSubscription(String a, String b) {
     if (qb[entry.key] != entry.value) return false;
   }
   return true;
+}
+
+/// 判断旧版客户端留下的 Profile 是否属于天梯托管订阅。
+///
+/// 优先按服务端最后保存的完整订阅地址精确匹配；只在迁移旧版本、没有地址可比时，
+/// 才接受“天梯品牌名 + /s/ 令牌路径”的组合，避免误删用户自己导入的其他配置。
+bool isTianTiManagedSubscription(Profile profile, {String? subscribeUrl}) {
+  final expected = subscribeUrl?.trim();
+  if (expected != null &&
+      expected.isNotEmpty &&
+      _sameSubscription(profile.url, XboardApi.toMihomoUrl(expected))) {
+    return true;
+  }
+
+  final label = profile.label.trim().toLowerCase().replaceAll(' ', '');
+  const labels = <String>{'tianti', 'tiantilink', '天梯', '天梯link'};
+  if (!labels.contains(label)) return false;
+  final uri = Uri.tryParse(profile.url);
+  return uri != null &&
+      uri.scheme == 'https' &&
+      uri.pathSegments.length >= 2 &&
+      uri.pathSegments.first == 's' &&
+      uri.pathSegments[1].isNotEmpty;
+}
+
+/// 清除已经失效的天梯订阅和内核里残留的旧节点。
+///
+/// 只应在服务端明确返回“没有有效套餐”时调用；网络/TLS 临时失败必须保留旧节点。
+Future<int> clearTianTiSubscriptionProfiles({String? subscribeUrl}) async {
+  final c = globalState.container;
+  final profiles = List<Profile>.from(c.read(profilesProvider));
+  final removed = profiles
+      .where(
+        (profile) =>
+            isTianTiManagedSubscription(profile, subscribeUrl: subscribeUrl),
+      )
+      .toList();
+  if (removed.isEmpty) return 0;
+
+  final activeId = c.read(currentProfileIdProvider);
+  final removedActive = removed.any((profile) => profile.id == activeId);
+  for (final profile in removed) {
+    await c.read(profilesActionProvider.notifier).deleteProfile(profile.id);
+  }
+
+  final remaining = c.read(profilesProvider);
+  if (remaining.isEmpty) {
+    c.read(currentProfileIdProvider.notifier).value = null;
+    c.read(groupsProvider.notifier).value = [];
+    c.read(delayDataSourceProvider.notifier).value = {};
+    await c.read(setupActionProvider.notifier).updateStatus(false);
+  } else if (removedActive) {
+    await c.read(setupActionProvider.notifier).applyProfile(force: true);
+  }
+  return removed.length;
 }
 
 /// 给下载 URL 加一个每次都不同的 cache-buster(`_=时间戳`),绕开任何 CDN/反代对订阅

@@ -54,10 +54,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   }
 
   Future<void> _reload() async {
-    await Future.wait<void>([
-      _load(),
-      _loadTelegramGroup(),
-    ]);
+    await Future.wait<void>([_load(), _loadTelegramGroup()]);
   }
 
   Future<void> _loadTelegramGroup() async {
@@ -76,27 +73,48 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     final auth = ref.read(xboardAuthProvider);
     final token = auth.authData;
     if (token == null) {
-      if (mounted) setState(() { _inviteLoading = false; _inviteError = '未登录'; });
+      if (mounted)
+        setState(() {
+          _inviteLoading = false;
+          _inviteError = '未登录';
+        });
       return;
     }
-    if (mounted) setState(() { _inviteLoading = true; _inviteError = null; });
+    if (mounted)
+      setState(() {
+        _inviteLoading = true;
+        _inviteError = null;
+      });
     try {
       final code = await XboardApi(auth.panelUrl).fetchInviteCode(token);
       // 邀请链接用官网落地主地址展示,不用会变的通信地址(auth.panelUrl)。
       final base = await officialSiteBase();
-      if (mounted) setState(() { _inviteLink = '$base/#/register?code=$code'; _inviteLoading = false; });
+      if (mounted)
+        setState(() {
+          _inviteLink = '$base/#/register?code=$code';
+          _inviteLoading = false;
+        });
     } on XboardApiException catch (e) {
-      if (mounted) setState(() { _inviteError = e.message; _inviteLoading = false; });
+      if (mounted)
+        setState(() {
+          _inviteError = e.message;
+          _inviteLoading = false;
+        });
     } catch (e) {
-      if (mounted) setState(() { _inviteError = '生成推广链接失败:$e'; _inviteLoading = false; });
+      if (mounted)
+        setState(() {
+          _inviteError = '生成推广链接失败:$e';
+          _inviteLoading = false;
+        });
     }
   }
 
   void _copyInvite(String link) {
     Clipboard.setData(ClipboardData(text: link));
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已复制推广链接')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已复制推广链接')));
     }
   }
 
@@ -112,36 +130,54 @@ class _AccountPageState extends ConsumerState<AccountPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.card_giftcard, color: _kAmber, size: 20),
-            const SizedBox(width: 8),
-            const Text('邀请好友返利',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            TextButton(
-              onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AgentCenterPage())),
-              child: const Text('收益明细'),
-            ),
-          ]),
+          Row(
+            children: [
+              const Icon(Icons.card_giftcard, color: _kAmber, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                '邀请好友返利',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AgentCenterPage()),
+                ),
+                child: const Text('收益明细'),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           if (_inviteLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                SizedBox(width: 10),
-                Text('正在生成推广链接…'),
-              ]),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text('正在生成推广链接…'),
+                ],
+              ),
             )
           else if (_inviteLink == null)
-            Row(children: [
-              Expanded(
-                child: Text(_inviteError ?? '暂时无法生成推广链接',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
-              ),
-              TextButton(onPressed: _loadInvite, child: const Text('重试')),
-            ])
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _inviteError ?? '暂时无法生成推广链接',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                  ),
+                ),
+                TextButton(onPressed: _loadInvite, child: const Text('重试')),
+              ],
+            )
           else ...[
             Container(
               width: double.infinity,
@@ -151,13 +187,19 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: theme.dividerColor),
               ),
-              child: SelectableText(_inviteLink!, style: const TextStyle(fontSize: 12.5)),
+              child: SelectableText(
+                _inviteLink!,
+                style: const TextStyle(fontSize: 12.5),
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: _kIndigo, foregroundColor: Colors.white),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kIndigo,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: () => _copyInvite(_inviteLink!),
                 icon: const Icon(Icons.copy, size: 18),
                 label: const Text('复制推广链接'),
@@ -183,11 +225,25 @@ class _AccountPageState extends ConsumerState<AccountPage> {
       });
       return;
     }
+    final previousSubscription = auth.subscribeUrl;
     try {
       final info = await XboardApi(auth.panelUrl).getSubscribe(token);
       if (!mounted) return;
       setState(() {
         _info = info;
+        _loading = false;
+      });
+    } on XboardNoSubscriptionException {
+      try {
+        await ref.read(xboardAuthProvider.notifier).clearSubscription();
+        await clearTianTiSubscriptionProfiles(
+          subscribeUrl: previousSubscription,
+        );
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _info = null;
+        _error = null;
         _loading = false;
       });
     } catch (e) {
@@ -202,21 +258,40 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   Future<void> _refreshSubscription() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
+    final previousSubscription = ref.read(xboardAuthProvider).subscribeUrl;
     try {
-      final url = await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
+      final url = await ref
+          .read(xboardAuthProvider.notifier)
+          .refreshSubscribe();
       if (url == null) throw '未登录或获取节点失败';
       // importXboardSubscription 现在会在重下/校验失败时抛异常(不再吞),
       // 能走到下面的成功提示 = 真正重下最新节点并重新应用成功了。
       await importXboardSubscription(url);
       await _reload();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('节点已刷新')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('节点已刷新')));
+      }
+    } on XboardNoSubscriptionException {
+      final removed = await clearTianTiSubscriptionProfiles(
+        subscribeUrl: previousSubscription,
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              removed > 0 ? '当前账号没有有效套餐，已清除旧节点。请先购买套餐。' : '当前账号没有有效套餐，请先购买套餐。',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('刷新失败:$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('网络连接失败，当前节点已保留：$e')));
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);
@@ -224,6 +299,8 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   }
 
   Future<void> _logout() async {
+    final subscription = ref.read(xboardAuthProvider).subscribeUrl;
+    await clearTianTiSubscriptionProfiles(subscribeUrl: subscription);
     await ref.read(xboardAuthProvider.notifier).logout();
     // 门控(XboardGate)会自动切回登录页。
   }
@@ -254,23 +331,49 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                   _promoHomeCard(theme),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
-                    _tile(theme, Icons.add_card_outlined, _kAmber, '充值 / 购买套餐',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const PlansPage()))),
+                    _tile(
+                      theme,
+                      Icons.add_card_outlined,
+                      _kAmber,
+                      '充值 / 购买套餐',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PlansPage()),
+                      ),
+                    ),
                     _divider(),
-                    _tile(theme, Icons.receipt_long_outlined, _kIndigo, '我的订单',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const OrdersPage()))),
+                    _tile(
+                      theme,
+                      Icons.receipt_long_outlined,
+                      _kIndigo,
+                      '我的订单',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const OrdersPage()),
+                      ),
+                    ),
                     _divider(),
-                    _tile(theme, Icons.support_agent_outlined, _kIndigo, '我的工单',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const TicketsPage()))),
+                    _tile(
+                      theme,
+                      Icons.support_agent_outlined,
+                      _kIndigo,
+                      '我的工单',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const TicketsPage()),
+                      ),
+                    ),
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
-                    _tile(theme, Icons.groups_outlined, _kIndigo, '代理中心 / 分销',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const AgentCenterPage()))),
+                    _tile(
+                      theme,
+                      Icons.groups_outlined,
+                      _kIndigo,
+                      '代理中心 / 分销',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AgentCenterPage(),
+                        ),
+                      ),
+                    ),
                     if (_telegramGroupUrl != null) ...[
                       _divider(),
                       _tile(
@@ -282,18 +385,35 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                       ),
                     ],
                     _divider(),
-                    _tile(theme, Icons.public_outlined, _kIndigo, '官方网站',
-                        () async => openExternal(await officialSiteBase())),
+                    _tile(
+                      theme,
+                      Icons.public_outlined,
+                      _kIndigo,
+                      '官方网站',
+                      () async => openExternal(await officialSiteBase()),
+                    ),
                   ]),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [
-                    _tile(theme, Icons.palette_outlined, _kAmber, '主题',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const ThemeView()))),
+                    _tile(
+                      theme,
+                      Icons.palette_outlined,
+                      _kAmber,
+                      '主题',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ThemeView()),
+                      ),
+                    ),
                     _divider(),
-                    _tile(theme, Icons.info_outline, _kIndigo, '关于',
-                        () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => const AboutView()))),
+                    _tile(
+                      theme,
+                      Icons.info_outline,
+                      _kIndigo,
+                      '关于',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AboutView()),
+                      ),
+                    ),
                     _divider(),
                     _tile(
                       theme,
@@ -313,10 +433,12 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: theme.colorScheme.error,
                         side: BorderSide(
-                            color: theme.colorScheme.error.withOpacity(0.5)),
+                          color: theme.colorScheme.error.withOpacity(0.5),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -333,12 +455,17 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   Widget _header(ThemeData theme) {
     final auth = ref.watch(xboardAuthProvider);
     final email = auth.email.isEmpty ? '(未知账号)' : auth.email;
-    final initial =
-        auth.email.isEmpty ? '?' : auth.email.characters.first.toUpperCase();
+    final initial = auth.email.isEmpty
+        ? '?'
+        : auth.email.characters.first.toUpperCase();
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          20, MediaQuery.of(context).padding.top + 20, 20, 22),
+        20,
+        MediaQuery.of(context).padding.top + 20,
+        20,
+        22,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -358,24 +485,30 @@ class _AccountPageState extends ConsumerState<AccountPage> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: _kAmber,
-                child: Text(initial,
-                    style: const TextStyle(
-                        color: _kIndigoDeep,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: _kIndigoDeep,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     _planBadge(),
                   ],
@@ -430,17 +563,23 @@ class _AccountPageState extends ConsumerState<AccountPage> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 14),
         child: Center(
-            child: SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.4, color: Colors.white70))),
+          child: SizedBox(
+            height: 22,
+            width: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+              color: Colors.white70,
+            ),
+          ),
+        ),
       );
     }
     if (_error != null) {
       return _glassBox(
-        child: Text('读取用量失败:$_error',
-            style: const TextStyle(color: Colors.white, fontSize: 12)),
+        child: Text(
+          '读取用量失败:$_error',
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
       );
     }
     final info = _info;
@@ -461,16 +600,21 @@ class _AccountPageState extends ConsumerState<AccountPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(total > 0 ? _gb(remain) : _gb(used),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                total > 0 ? _gb(remain) : _gb(used),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(width: 6),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text(total > 0 ? 'GB 剩余' : 'GB 已用(不限量)',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                child: Text(
+                  total > 0 ? 'GB 剩余' : 'GB 已用(不限量)',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -494,8 +638,10 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                     : '已用 ${_gb(used)} GB',
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
-              Text('到期 ${_expire(info.expiredAt)}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(
+                '到期 ${_expire(info.expiredAt)}',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
             ],
           ),
         ],
@@ -551,9 +697,9 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                 backgroundColor: _kExpired,
                 foregroundColor: _kIndigoDeep,
               ),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PlansPage()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const PlansPage())),
               icon: const Icon(Icons.add_card_outlined, size: 18),
               label: const Text('立即续费'),
             ),
@@ -563,41 +709,43 @@ class _AccountPageState extends ConsumerState<AccountPage> {
     );
   }
 
-  Widget _glassBox({
-    required Widget child,
-    Color? accentColor,
-  }) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: (accentColor ?? Colors.white).withOpacity(
-            accentColor == null ? 0.10 : 0.12,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: (accentColor ?? Colors.white).withOpacity(
-              accentColor == null ? 0.15 : 0.55,
-            ),
-          ),
+  Widget _glassBox({required Widget child, Color? accentColor}) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: (accentColor ?? Colors.white).withOpacity(
+        accentColor == null ? 0.10 : 0.12,
+      ),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: (accentColor ?? Colors.white).withOpacity(
+          accentColor == null ? 0.15 : 0.55,
         ),
-        child: child,
-      );
+      ),
+    ),
+    child: child,
+  );
 
   // ---------- 功能卡片 ----------
   Widget _sectionCard(ThemeData theme, List<Widget> children) => Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(children: children),
-      );
+    decoration: BoxDecoration(
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(children: children),
+  );
 
   Widget _divider() =>
       const Divider(height: 1, thickness: 1, indent: 56, endIndent: 0);
 
-  Widget _tile(ThemeData theme, IconData icon, Color tint, String label,
-      VoidCallback? onTap) {
+  Widget _tile(
+    ThemeData theme,
+    IconData icon,
+    Color tint,
+    String label,
+    VoidCallback? onTap,
+  ) {
     return ListTile(
       onTap: onTap,
       leading: Container(
@@ -609,10 +757,11 @@ class _AccountPageState extends ConsumerState<AccountPage> {
         ),
         child: Icon(icon, size: 19, color: tint),
       ),
-      title: Text(label,
-          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500)),
-      trailing:
-          Icon(Icons.chevron_right, size: 20, color: theme.hintColor),
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500),
+      ),
+      trailing: Icon(Icons.chevron_right, size: 20, color: theme.hintColor),
       dense: false,
     );
   }
