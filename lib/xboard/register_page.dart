@@ -2,14 +2,11 @@
 // 注册成功即自动登录,门控(XboardGate)会切到主界面,本页自动弹出。
 // 邮箱验证码:仅当你面板开启「邮箱验证」时必填;没开就留空。
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'xboard_api.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
-import 'registration_slider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -24,26 +21,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _pass = TextEditingController();
   final _pass2 = TextEditingController();
   final _invite = TextEditingController();
-  final _code = TextEditingController();
   final _companyWebsite = TextEditingController();
   bool _obscure = true;
   bool _busy = false;
-  bool _sending = false;
-  int _cooldown = 0;
-  Timer? _timer;
   String? _error;
-  // 是否需要邮箱验证码框:null=还在读后台配置(先不显示,避免闪现),
-  // true=后台开了邮箱验证→显示;false=后台关了→隐藏。
-  bool? _needCode;
-
-  @override
-  void initState() {
-    super.initState();
-    // 读后台通用配置(is_email_verify),决定要不要显示验证码框,而不是写死永远显示。
-    XboardApi(ttActiveBase).needEmailVerify().then((need) {
-      if (mounted) setState(() => _needCode = need);
-    });
-  }
 
   @override
   void dispose() {
@@ -51,82 +32,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _pass.dispose();
     _pass2.dispose();
     _invite.dispose();
-    _code.dispose();
     _companyWebsite.dispose();
-    _timer?.cancel();
     super.dispose();
-  }
-
-  Future<void> _sendCode() async {
-    final email = _email.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = '请先填写正确的邮箱');
-      return;
-    }
-    setState(() {
-      _sending = true;
-      _error = null;
-    });
-    try {
-      await XboardApi(ttActiveBase).sendEmailVerify(email);
-      _startCooldown();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('验证码已发送,请查收邮箱')));
-      }
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  void _startCooldown() {
-    setState(() => _cooldown = 60);
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      setState(() => _cooldown--);
-      if (_cooldown <= 0) t.cancel();
-    });
-  }
-
-  Future<String?> _requestSliderToken() async {
-    var dialogActive = true;
-    final token = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        title: const Text('安全验证'),
-        content: SizedBox(
-          width: 360,
-          child: RegistrationSlider(
-            baseUrl: ttActiveBase,
-            onVerified: (token) {
-              if (dialogActive && dialogContext.mounted) {
-                dialogActive = false;
-                Navigator.of(dialogContext).pop(token);
-              }
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              dialogActive = false;
-              Navigator.of(dialogContext).pop();
-            },
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
-    dialogActive = false;
-    return token;
   }
 
   Future<void> _register() async {
@@ -140,15 +47,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       _error = null;
     });
     try {
-      final sliderToken = await _requestSliderToken();
-      if (!mounted || sliderToken == null) return;
-      final mihomoUrl = await ref.read(xboardAuthProvider.notifier).register(
+      final mihomoUrl = await ref
+          .read(xboardAuthProvider.notifier)
+          .register(
             panelUrl: ttActiveBase,
             email: _email.text.trim(),
             password: _pass.text,
             inviteCode: _invite.text.trim(),
-            emailCode: _code.text.trim(),
-            sliderToken: sliderToken,
+            emailCode: null,
+            sliderToken: null,
             companyWebsite: _companyWebsite.text,
           );
       if (mihomoUrl != null) await importXboardSubscription(mihomoUrl);
@@ -199,9 +106,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscure
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
@@ -220,40 +129,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     validator: (v) =>
                         (v == null || v.isEmpty) ? '请再次输入密码' : null,
                   ),
-                  // 仅当后台开启「邮箱验证」时才显示验证码框(_needCode==true);
-                  // 后台关闭、或配置还没读到时不显示,不再写死永远显示。
-                  if (_needCode == true) ...[
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _code,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: '邮箱验证码',
-                              prefixIcon: Icon(Icons.verified_outlined),
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? '请输入邮箱验证码'
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          height: 56,
-                          child: OutlinedButton(
-                            onPressed:
-                                (_sending || _cooldown > 0) ? null : _sendCode,
-                            child: Text(_cooldown > 0
-                                ? '${_cooldown}s'
-                                : (_sending ? '发送中' : '发送验证码')),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                   const SizedBox(height: 14),
                   TextFormField(
                     controller: _invite,
@@ -268,26 +143,28 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     child: TextFormField(
                       controller: _companyWebsite,
                       autofillHints: null,
-                      decoration: const InputDecoration(
-                        labelText: '公司网站',
-                      ),
+                      decoration: const InputDecoration(labelText: '公司网站'),
                     ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!,
-                        style: TextStyle(color: theme.colorScheme.error)),
+                    Text(
+                      _error!,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
                   ],
                   const SizedBox(height: 20),
                   FilledButton(
                     onPressed: _busy ? null : _register,
                     style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                     child: _busy
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('注册并登录'),
                   ),
                   const SizedBox(height: 12),

@@ -7,15 +7,7 @@
 //     v10 的 read/write/delete 用法与 v9 相同,本文件无需改动)。
 //   - 非敏感的展示用字段(面板地址、邮箱、订阅地址)→ shared_preferences 明文即可。
 //
-// 关于「登出」:这里的 logout() 只清本地存储,不调用服务端接口把 token 吊销掉。
-// 这是刻意的——核实过 Xboard 当前的会话 API(AuthService::generateAuthData()),
-// 客户端拿到的 auth_data 是 Sanctum token 去掉了数据库 id 前缀的部分,而服务端
-// removeSession($id) 要按 id 匹配、getSessions() 也不返回“这是不是当前设备”的标记。
-// 也就是说客户端根本不知道该吊销哪一条会话——瞎猜着调用只会伤到别的在线设备,
-// 比不调用更危险,所以没有做。如果需要真正的服务端登出,需要 Xboard 自身加一个
-// 按当前 token 吊销的专用接口后再接入。
-// 另外:Xboard 服务端把 token 有效期设成整整一年(now()->addYear()),意味着一旦
-// token 泄露,在没有服务端强制失效手段的情况下会长期有效——务必配合加密存储使用。
+// 登出会调用 TianTi Core 的当前会话吊销接口，再清理本机安全存储。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -35,10 +27,10 @@ const String kDefaultPanelUrl = 'https://pafslnnalksdf.xyz';
 /// 探测失败/域名没解析时保持默认 = 现有行为,安全降级。
 String ttActiveBase = kDefaultPanelUrl;
 
-const _kPanelUrl = 'xb_panel_url';
-const _kEmail = 'xb_email';
-const _kAuth = 'xb_auth_data';
-const _kSub = 'xb_subscribe_url';
+const _kPanelUrl = 'tianti_api_base';
+const _kEmail = 'tianti_email';
+const _kAuth = 'tianti_auth_token';
+const _kSub = 'tianti_subscribe_url';
 
 class XboardAuthState {
   final bool restored; // 是否已从磁盘读过(避免启动闪现登录页)
@@ -119,7 +111,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     String? subscribeUrl;
     try {
       final sub = await api.getSubscribe(res.authData);
-      subscribeUrl = XboardApi.rebaseSubscribeUrl(sub.subscribeUrl, panelUrl);
+      subscribeUrl = sub.subscribeUrl;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
     } on XboardApiException {
@@ -167,7 +159,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     String? subscribeUrl;
     try {
       final sub = await api.getSubscribe(res.authData);
-      subscribeUrl = XboardApi.rebaseSubscribeUrl(sub.subscribeUrl, panelUrl);
+      subscribeUrl = sub.subscribeUrl;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
     } on XboardApiException {
@@ -189,10 +181,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     final auth = state.authData;
     if (auth == null) return null;
     final sub = await XboardApi(state.panelUrl).getSubscribe(auth);
-    final subscribeUrl = XboardApi.rebaseSubscribeUrl(
-      sub.subscribeUrl,
-      state.panelUrl,
-    );
+    final subscribeUrl = sub.subscribeUrl;
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kSub, subscribeUrl);
     state = state.copyWith(subscribeUrl: subscribeUrl);
@@ -207,10 +196,9 @@ class XboardAuth extends Notifier<XboardAuthState> {
     if (b.isEmpty || b == state.panelUrl) return;
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kPanelUrl, b);
-    final oldSubscribeUrl = state.subscribeUrl;
-    final subscribeUrl = oldSubscribeUrl == null
-        ? null
-        : XboardApi.rebaseSubscribeUrl(oldSubscribeUrl, b);
+    // 通信域名和订阅域名必须隔离。切换 API 地址时不能改写订阅 URL 的 Host，
+    // 否则 TianTi Core 的订阅域名白名单会按设计返回 404。
+    final subscribeUrl = state.subscribeUrl;
     if (subscribeUrl != null) {
       await sp.setString(_kSub, subscribeUrl);
     }
@@ -218,9 +206,22 @@ class XboardAuth extends Notifier<XboardAuthState> {
   }
 
   Future<void> logout() async {
+    final auth = state.authData;
+    if (auth != null && auth.isNotEmpty) {
+      try {
+        await XboardApi(state.panelUrl).logout(auth);
+      } catch (_) {
+        // 本地退出不能被短暂网络故障阻塞；服务端会话仍有固定有效期。
+      }
+    }
     final sp = await SharedPreferences.getInstance();
     await _secureStorage.delete(key: _kAuth);
     await sp.remove(_kSub);
-    state = state.copyWith(loggedIn: false, authData: null, subscribeUrl: null);
+    state = XboardAuthState(
+      restored: true,
+      loggedIn: false,
+      panelUrl: state.panelUrl,
+      email: state.email,
+    );
   }
 }

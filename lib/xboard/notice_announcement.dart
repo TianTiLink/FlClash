@@ -2,9 +2,7 @@
 // 有内容就弹「最新一条」;没有就不弹。【每个进程只弹一次】:最小化/切后台再回来
 // 不重弹,关闭软件重新启动才会再弹(用户要求,勿改回"切前台也弹")。
 //
-// 与 notice_watcher.dart 是两套、互不影响:
-//   notice_watcher   → 插件发通知(/api/v1/reseller/notices),只弹比"看过的"新的那条、每条一次。
-//   本文件           → Xboard 原生公告(/api/v1/user/notice/fetch),每次冷启动弹最新一条。
+// 公告统一来自 TianTi Core；每次冷启动只展示最新一条。
 //
 // 接入(只在 xboard_gate.dart 的首帧回调里调用;不要加到 didChangeAppLifecycleState):
 //   maybeShowLatestAnnouncement(context, ref);
@@ -39,7 +37,10 @@ String _htmlToText(String s) {
   return t.trim();
 }
 
-Future<void> maybeShowLatestAnnouncement(BuildContext context, WidgetRef ref) async {
+Future<void> maybeShowLatestAnnouncement(
+  BuildContext context,
+  WidgetRef ref,
+) async {
   if (_announcing || _announcedThisLaunch) return;
   final auth = ref.read(xboardAuthProvider);
   final token = auth.authData;
@@ -50,8 +51,10 @@ Future<void> maybeShowLatestAnnouncement(BuildContext context, WidgetRef ref) as
   List data;
   try {
     final resp = await http
-        .get(Uri.parse('$base/api/v1/user/notice/fetch'),
-            headers: {'Accept': 'application/json', 'Authorization': token})
+        .get(
+          Uri.parse('$base/api/v1/unified-admin/customer/notices'),
+          headers: {'Accept': 'application/json', 'Authorization': token},
+        )
         .timeout(const Duration(seconds: 15));
     final body = jsonDecode(utf8.decode(resp.bodyBytes));
     final d = body is Map ? body['data'] : null;
@@ -80,8 +83,9 @@ Future<void> maybeShowLatestAnnouncement(BuildContext context, WidgetRef ref) as
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('我知道了')),
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('我知道了'),
+          ),
         ],
       ),
     );

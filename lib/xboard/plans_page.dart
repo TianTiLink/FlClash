@@ -102,28 +102,42 @@ class _PlansPageState extends ConsumerState<PlansPage> {
   // ---------- 购买流程 ----------
 
   Future<void> _buy(
-      Map<String, dynamic> plan, String periodKey, int priceCents) async {
+    Map<String, dynamic> plan,
+    String periodKey,
+    int priceCents,
+  ) async {
     final a = _auth();
     if (a == null) return;
     final api = XboardApi(a.url);
     final planId = _toInt(plan['id']);
     final planName = plan['name']?.toString() ?? '套餐';
-    final periodLabel =
-        _periods.firstWhere((p) => p.$1 == periodKey, orElse: () => (periodKey, periodKey)).$2;
+    final periodLabel = _periods
+        .firstWhere(
+          (p) => p.$1 == periodKey,
+          orElse: () => (periodKey, periodKey),
+        )
+        .$2;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('确认购买'),
-        content: Text('$planName · $periodLabel\n金额:¥${(priceCents / 100).toStringAsFixed(2)}'),
+        content: Text(
+          '$planName · $periodLabel\n金额:¥${(priceCents / 100).toStringAsFixed(2)}',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
           FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _kIndigo, foregroundColor: Colors.white),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('去支付')),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kIndigo,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('去支付'),
+          ),
         ],
       ),
     );
@@ -132,7 +146,11 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     _showBlockingLoader('正在创建订单…');
     String tradeNo;
     try {
-      tradeNo = await api.createOrder(a.token, planId: planId, period: periodKey);
+      tradeNo = await api.createOrder(
+        a.token,
+        planId: planId,
+        period: periodKey,
+      );
     } on XboardApiException catch (e) {
       _dismissLoader();
       _snack(e.message); // 常见:已有未支付订单 → 提示去「我的订单」
@@ -188,22 +206,24 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     }
     // type 1 外部URL / type 0 二维码 → 进等待页轮询
     if (!mounted) return;
-    final paid = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => _PayWaitPage(
-        panelUrl: a.url,
-        token: a.token,
-        tradeNo: tradeNo,
-        payType: res.type,
-        payData: res.data,
+    final paid = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => _PayWaitPage(
+          panelUrl: a.url,
+          token: a.token,
+          tradeNo: tradeNo,
+          payType: res.type,
+          payData: res.data,
+        ),
       ),
-    ));
+    );
     if (paid == true) await _onPaid();
   }
 
   Future<int?> _pickMethod(List<Map<String, dynamic>> methods) {
     return showDialog<int>(
       context: context,
-        builder: (ctx) => SimpleDialog(
+      builder: (ctx) => SimpleDialog(
         title: const Text('选择支付方式'),
         children: [
           for (final m in methods)
@@ -223,7 +243,9 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     // 支付成功:刷新订阅让新套餐生效,然后回账户页。
     _showBlockingLoader('支付成功,正在更新订阅…');
     try {
-      final url = await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
+      final url = await ref
+          .read(xboardAuthProvider.notifier)
+          .refreshSubscribe();
       if (url != null) await importXboardSubscription(url);
     } catch (_) {}
     _dismissLoader();
@@ -251,9 +273,10 @@ class _PlansPageState extends ConsumerState<PlansPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.4)),
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
                   const SizedBox(width: 16),
                   Text(text),
                 ],
@@ -286,8 +309,9 @@ class _PlansPageState extends ConsumerState<PlansPage> {
         title: const Text('充值 / 购买套餐'),
         actions: [
           IconButton(
-              onPressed: _loading ? null : _load,
-              icon: const Icon(Icons.refresh)),
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: _body(),
@@ -303,7 +327,11 @@ class _PlansPageState extends ConsumerState<PlansPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+              const Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
@@ -315,8 +343,10 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     }
     if (_plans.isEmpty) {
       return Center(
-        child: Text('暂无可购套餐',
-            style: TextStyle(color: Theme.of(context).hintColor)),
+        child: Text(
+          '暂无可购套餐',
+          style: TextStyle(color: Theme.of(context).hintColor),
+        ),
       );
     }
     return RefreshIndicator(
@@ -331,7 +361,6 @@ class _PlansPageState extends ConsumerState<PlansPage> {
   }
 
   Widget _planCard(Map<String, dynamic> plan) {
-    final theme = Theme.of(context);
     final name = plan['name']?.toString() ?? '套餐';
     final transferGb = _toInt(plan['transfer_enable']).toDouble();
     final desc = _stripHtml(plan['content']?.toString() ?? '');
@@ -358,32 +387,47 @@ class _PlansPageState extends ConsumerState<PlansPage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.workspace_premium_outlined,
-                  color: _kAmber, size: 22),
+              const Icon(
+                Icons.workspace_premium_outlined,
+                color: _kAmber,
+                size: 22,
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               if (transferGb > 0)
-                Text('${transferGb.toStringAsFixed(0)} GB',
-                    style: const TextStyle(color: _kAmber, fontWeight: FontWeight.w600)),
+                Text(
+                  '${transferGb.toStringAsFixed(0)} GB',
+                  style: const TextStyle(
+                    color: _kAmber,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
             ],
           ),
           if (desc.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(desc,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+            Text(
+              desc,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+            ),
           ],
           const SizedBox(height: 14),
           if (available.isEmpty)
-            const Text('该套餐暂未开放购买',
-                style: TextStyle(color: Colors.white54, fontSize: 12))
+            const Text(
+              '该套餐暂未开放购买',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            )
           else
             Wrap(
               spacing: 10,
@@ -399,7 +443,11 @@ class _PlansPageState extends ConsumerState<PlansPage> {
   }
 
   Widget _periodButton(
-      Map<String, dynamic> plan, String key, String label, int cents) {
+    Map<String, dynamic> plan,
+    String key,
+    String label,
+    int cents,
+  ) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => _buy(plan, key, cents),
@@ -413,20 +461,29 @@ class _PlansPageState extends ConsumerState<PlansPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label,
-                style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
             const SizedBox(height: 2),
-            Text('¥${(cents / 100).toStringAsFixed(2)}',
-                style: const TextStyle(
-                    color: _kAmber, fontSize: 15, fontWeight: FontWeight.bold)),
+            Text(
+              '¥${(cents / 100).toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: _kAmber,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  String _stripHtml(String s) =>
-      s.replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  String _stripHtml(String s) => s
+      .replaceAll(RegExp(r'<[^>]*>'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }
 
 // ============================ 支付等待页(轮询到账) ============================
@@ -482,8 +539,9 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
     if (_checking) return false;
     if (!silent) setState(() => _checking = true);
     try {
-      final status =
-          await XboardApi(widget.panelUrl).checkOrderStatus(widget.token, widget.tradeNo);
+      final status = await XboardApi(
+        widget.panelUrl,
+      ).checkOrderStatus(widget.token, widget.tradeNo);
       // 0 待支付 / 1 开通中 / 2 已取消 / 3 已完成 / 4 已折抵
       if (status == 1 || status == 3 || status == 4) {
         _autoStopped = true;
@@ -493,20 +551,23 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
       if (status == 2) {
         _autoStopped = true;
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('订单已取消')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('订单已取消')));
           Navigator.of(context).pop(false);
         }
         return true;
       }
       if (!silent && mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('尚未收到支付,请完成支付后再试')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('尚未收到支付,请完成支付后再试')));
       }
     } catch (e) {
       if (!silent && mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('查询失败:$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('查询失败:$e')));
       }
     } finally {
       if (!silent && mounted) setState(() => _checking = false);
@@ -532,8 +593,10 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (widget.payType == 0) ...[
-                const Text('请用支付宝/微信扫码支付',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  '请用支付宝/微信扫码支付',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -546,9 +609,11 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
               ] else ...[
                 const Icon(Icons.open_in_browser, size: 48, color: _kIndigo),
                 const SizedBox(height: 16),
-                const Text('已在浏览器打开收银台,请完成支付',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  '已在浏览器打开收银台,请完成支付',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 10),
                 TextButton.icon(
                   onPressed: _openPay,
@@ -561,12 +626,15 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2)),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                   const SizedBox(width: 10),
-                  Text('正在等待支付结果…',
-                      style: TextStyle(color: theme.hintColor, fontSize: 13)),
+                  Text(
+                    '正在等待支付结果…',
+                    style: TextStyle(color: theme.hintColor, fontSize: 13),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -574,24 +642,30 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                      backgroundColor: _kIndigo,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                    backgroundColor: _kIndigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   onPressed: _checking ? null : () => _checkOnce(),
                   child: _checking
                       ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text('我已完成支付'),
                 ),
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: Text('稍后支付(去我的订单)',
-                    style: TextStyle(color: theme.hintColor)),
+                child: Text(
+                  '稍后支付(去我的订单)',
+                  style: TextStyle(color: theme.hintColor),
+                ),
               ),
             ],
           ),

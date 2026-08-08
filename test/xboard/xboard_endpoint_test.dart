@@ -34,13 +34,13 @@ void main() {
     expect(result.hasUpdate, isFalse);
   });
 
-  test('subscription URL follows the currently reachable API base', () {
+  test('subscription URL keeps the dedicated subscription host', () {
     expect(
       XboardApi.rebaseSubscribeUrl(
         'https://blocked.example/s/token123?flag=meta',
         'https://186.244.223.118',
       ),
-      'https://186.244.223.118/s/token123?flag=meta',
+      'https://blocked.example/s/token123?flag=meta',
     );
   });
 

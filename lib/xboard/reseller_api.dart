@@ -1,5 +1,4 @@
-// Reseller 分销插件 —— 客户端 API。
-// 对接后端 plugins/Reseller 的接口(全部前缀 /api/v1/reseller):
+// TianTi Core 推广与提现 API。旧文件名仅为兼容现有页面导入路径。
 //   GET  /summary             身份+余额+汇总(需登录)
 //   GET  /downlines?level&page 某层下线(需登录)
 //   GET  /records?type&page    收益明细(需登录)
@@ -19,27 +18,49 @@ class ResellerApi {
   final String? authData; // "Bearer xxx";popup 接口可为 null
   final Duration timeout;
 
-  ResellerApi(this.baseUrl, {this.authData, this.timeout = const Duration(seconds: 20)});
+  ResellerApi(
+    this.baseUrl, {
+    this.authData,
+    this.timeout = const Duration(seconds: 20),
+  });
 
-  Uri _u(String path) => Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path');
+  Uri _u(String path) =>
+      Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path');
 
   Map<String, String> get _headers => {
-        'Accept': 'application/json',
-        if (authData != null && authData!.isNotEmpty) 'Authorization': authData!,
-      };
+    'Accept': 'application/json',
+    if (authData != null && authData!.isNotEmpty) 'Authorization': authData!,
+  };
 
-  Future<Map<String, dynamic>> summary() => _get('/api/v1/reseller/summary');
+  Future<Map<String, dynamic>> summary() =>
+      _get('/api/v1/unified-admin/customer/referrals/summary');
 
   Future<Map<String, dynamic>> downlines({int level = 1, int page = 1}) =>
-      _get('/api/v1/reseller/downlines?level=$level&page=$page');
+      _get(
+        '/api/v1/unified-admin/customer/referrals/downlines?level=$level&page=$page',
+      ).then((data) {
+        final list = data['list'];
+        if (list is List) {
+          for (final item in list) {
+            if (item is Map && item['contribution'] is Map) {
+              (item['contribution'] as Map)['type'] = 'cash';
+            }
+          }
+        }
+        return data;
+      });
 
-  Future<Map<String, dynamic>> records({String type = 'commission', int page = 1}) =>
-      _get('/api/v1/reseller/records?type=$type&page=$page');
+  Future<Map<String, dynamic>> records({
+    String type = 'commission',
+    int page = 1,
+  }) => _get('/api/v1/unified-admin/customer/referrals/commissions?page=$page');
 
   Future<Map<String, dynamic>> withdrawHistory({int page = 1}) =>
-      _get('/api/v1/reseller/withdraw/history?page=$page');
+      _get('/api/v1/unified-admin/customer/referrals/withdrawals?page=$page');
 
-  Future<Map<String, dynamic>> popup() => _get('/api/v1/reseller/popup');
+  Future<Map<String, dynamic>> popup() async => <String, dynamic>{
+    'enable': false,
+  };
 
   /// 提交提现。amount 单位 USDT;address 为 TRC20 地址。成功返回 data,失败抛 XboardApiException(带后端提示语)。
   Future<Map<String, dynamic>> submitWithdraw({
@@ -48,7 +69,7 @@ class ResellerApi {
   }) async {
     final resp = await http
         .post(
-          _u('/api/v1/reseller/withdraw'),
+          _u('/api/v1/unified-admin/customer/referrals/withdrawals'),
           headers: {..._headers, 'Content-Type': 'application/json'},
           body: jsonEncode({'amount': amount, 'usdt_address': address}),
         )

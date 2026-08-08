@@ -15,7 +15,6 @@ import 'xboard_auth.dart';
 import 'xboard_endpoint.dart';
 import 'login_page.dart';
 import 'app_popup.dart';
-import 'notice_watcher.dart';
 import 'notice_announcement.dart';
 
 class XboardGate extends ConsumerStatefulWidget {
@@ -74,8 +73,7 @@ class _XboardGateState extends ConsumerState<XboardGate> {
     _noticeStarted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        maybeShowNewNotices(context, ref); // 插件新通知:有比"看过的"更新的才弹,每进程一次
-        maybeShowLatestAnnouncement(context, ref); // 原生公告:有内容就弹最新一条,每进程一次
+        maybeShowLatestAnnouncement(context, ref); // TianTi Core 公告,每进程一次
       }
     });
   }
@@ -94,9 +92,7 @@ class _XboardGateState extends ConsumerState<XboardGate> {
 
     if (!auth.restored) {
       // 会话恢复中:极简 splash,避免闪现登录页。
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!auth.loggedIn) {
       return const LoginPage();

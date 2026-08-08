@@ -1,10 +1,6 @@
 // 原生「工单/客服」—— 列表 + 对话详情 + 回复 + 新建。替代原来会崩的 webview。
 // 接口:
-//   列表   GET  /api/v1/user/ticket/fetch            data 为数组
-//   详情   GET  /api/v1/user/ticket/fetch?id=<id>    data 为对象,含 message 数组
-//   新建   POST /api/v1/user/ticket/save  {subject,level,message}
-//   回复   POST /api/v1/user/ticket/reply {id,message}
-//   关闭   POST /api/v1/user/ticket/close {id}
+//   列表 / 详情 / 新建 / 回复 / 关闭均走 TianTi Core customer/support/tickets。
 // message.is_me=true 是本人发的,false 是客服回复;时间为 unix 秒。
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -132,7 +128,7 @@ class _TicketsPageState extends ConsumerState<TicketsPage> {
 
   Widget _ticketCard(Map<String, dynamic> t) {
     final theme = Theme.of(context);
-    final id = (t['id'] as num?)?.toInt() ?? 0;
+    final id = t['id']?.toString() ?? '';
     final subject = t['subject']?.toString() ?? '(无主题)';
     final closed = ((t['status'] as num?)?.toInt() ?? 0) == 1;
     final replied = ((t['reply_status'] as num?)?.toInt() ?? 0) == 1;
@@ -140,8 +136,11 @@ class _TicketsPageState extends ConsumerState<TicketsPage> {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () async {
-        await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => TicketDetailPage(id: id, subject: subject)));
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TicketDetailPage(id: id, subject: subject),
+          ),
+        );
         _load(); // 回来刷新状态
       },
       child: Container(
@@ -159,31 +158,37 @@ class _TicketsPageState extends ConsumerState<TicketsPage> {
                 color: _kAmber.withOpacity(0.14),
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: const Icon(Icons.support_agent_outlined,
-                  size: 19, color: _kAmber),
+              child: const Icon(
+                Icons.support_agent_outlined,
+                size: 19,
+                color: _kAmber,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(subject,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14.5)),
+                  Text(
+                    subject,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14.5,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(_date(t['created_at']),
-                      style:
-                          TextStyle(color: theme.hintColor, fontSize: 12)),
+                  Text(
+                    _date(t['created_at']),
+                    style: TextStyle(color: theme.hintColor, fontSize: 12),
+                  ),
                 ],
               ),
             ),
             _badge(
               closed ? '已关闭' : (replied ? '已回复' : '待回复'),
-              closed
-                  ? Colors.grey
-                  : (replied ? Colors.green : Colors.orange),
+              closed ? Colors.grey : (replied ? Colors.green : Colors.orange),
             ),
           ],
         ),
@@ -192,15 +197,16 @@ class _TicketsPageState extends ConsumerState<TicketsPage> {
   }
 
   Widget _badge(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.14),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(text,
-            style: TextStyle(
-                color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.14),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+    ),
+  );
 
   String _date(dynamic ts) {
     final t = (ts as num?)?.toInt() ?? 0;
@@ -214,7 +220,7 @@ class _TicketsPageState extends ConsumerState<TicketsPage> {
 // ============================ 详情/对话页 ============================
 
 class TicketDetailPage extends ConsumerStatefulWidget {
-  final int id;
+  final String id;
   final String subject;
   const TicketDetailPage({super.key, required this.id, required this.subject});
 
@@ -258,10 +264,12 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
       final msg = t['message'];
       final next = msg is List
           ? msg
-              .map((e) => e is Map<String, dynamic>
-                  ? e
-                  : Map<String, dynamic>.from(e as Map))
-              .toList()
+                .map(
+                  (e) => e is Map<String, dynamic>
+                      ? e
+                      : Map<String, dynamic>.from(e as Map),
+                )
+                .toList()
           : const <Map<String, dynamic>>[];
       final closed = ((t['status'] as num?)?.toInt() ?? 0) == 1;
       final changed = next.length != _messages.length;
@@ -313,10 +321,12 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
       setState(() {
         _messages = msg is List
             ? msg
-                .map((e) => e is Map<String, dynamic>
-                    ? e
-                    : Map<String, dynamic>.from(e as Map))
-                .toList()
+                  .map(
+                    (e) => e is Map<String, dynamic>
+                        ? e
+                        : Map<String, dynamic>.from(e as Map),
+                  )
+                  .toList()
             : const [];
         _closed = ((t['status'] as num?)?.toInt() ?? 0) == 1;
         _loading = false;
@@ -349,44 +359,51 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
       await _load();
     } on XboardApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('回复失败:$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('回复失败:$e')));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
   }
+
   Future<void> _pickAndSendImage() async {
     if (_sending) return;
     final a = _auth();
     if (a == null) return;
-    final XFile? x = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final XFile? x = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (x == null) return;
     setState(() => _sending = true);
     try {
-      final url = await xboardUploadImage(
+      await xboardUploadImage(
         panelBase: a.url,
-        endpoint: '/api/v1/reseller/upload/image',
+        endpoint:
+            '/api/v1/unified-admin/customer/support/tickets/${Uri.encodeComponent(widget.id)}/images',
         filePath: x.path,
         authData: a.token,
       );
-      await XboardApi(a.url).replyTicket(a.token, widget.id, '[img]$url');
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('发图失败:$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('发图失败:$e')));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
   }
+
   Future<void> _close() async {
     final a = _auth();
     if (a == null) return;
@@ -397,11 +414,13 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
         content: const Text('确定关闭这个工单吗?关闭后将无法再回复。'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('关闭')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('关闭'),
+          ),
         ],
       ),
     );
@@ -411,8 +430,9 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('关闭失败:$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('关闭失败:$e')));
       }
     }
   }
@@ -465,7 +485,8 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.74),
+          maxWidth: MediaQuery.of(context).size.width * 0.74,
+        ),
         decoration: BoxDecoration(
           color: isMe
               ? _kIndigo
@@ -473,16 +494,26 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
-            Text(isMe ? '我' : '客服',
-                style: TextStyle(
-                    fontSize: 11,
-                    color: isMe ? Colors.white70 : theme.hintColor)),
+            Text(
+              isMe ? '我' : '客服',
+              style: TextStyle(
+                fontSize: 11,
+                color: isMe ? Colors.white70 : theme.hintColor,
+              ),
+            ),
             const SizedBox(height: 3),
-            xboardMessageContent(text,
-                textColor: isMe ? Colors.white : theme.colorScheme.onSurface),
+            xboardMessageContent(
+              text,
+              textColor: isMe ? Colors.white : theme.colorScheme.onSurface,
+              headers: {
+                if ((ref.read(xboardAuthProvider).authData ?? '').isNotEmpty)
+                  'Authorization': ref.read(xboardAuthProvider).authData!,
+              },
+            ),
           ],
         ),
       ),
@@ -494,9 +525,11 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
-        child: Text('工单已关闭',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).hintColor)),
+        child: Text(
+          '工单已关闭',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Theme.of(context).hintColor),
+        ),
       );
     }
     return SafeArea(
@@ -518,8 +551,10 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                 decoration: InputDecoration(
                   hintText: '输入回复…',
                   filled: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
@@ -536,7 +571,10 @@ class _TicketDetailPageState extends ConsumerState<TicketDetailPage> {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.send, color: Colors.white),
             ),
           ],
@@ -572,8 +610,9 @@ class _NewTicketSheetState extends ConsumerState<_NewTicketSheet> {
     final subject = _subject.text.trim();
     final message = _message.text.trim();
     if (subject.isEmpty || message.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请填写主题和内容')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请填写主题和内容')));
       return;
     }
     final auth = ref.read(xboardAuthProvider);
@@ -581,18 +620,21 @@ class _NewTicketSheetState extends ConsumerState<_NewTicketSheet> {
     if (token == null) return;
     setState(() => _submitting = true);
     try {
-      await XboardApi(auth.panelUrl).createTicket(token,
-          subject: subject, message: message, level: _level);
+      await XboardApi(
+        auth.panelUrl,
+      ).createTicket(token, subject: subject, message: message, level: _level);
       if (mounted) Navigator.pop(context, true);
     } on XboardApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('提交失败:$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('提交失败:$e')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -603,18 +645,26 @@ class _NewTicketSheetState extends ConsumerState<_NewTicketSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+        16,
+        16,
+        16,
+        MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('新建工单',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const Text(
+            '新建工单',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 14),
           TextField(
             controller: _subject,
             decoration: const InputDecoration(
-                labelText: '主题', border: OutlineInputBorder()),
+              labelText: '主题',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -638,23 +688,29 @@ class _NewTicketSheetState extends ConsumerState<_NewTicketSheet> {
             minLines: 3,
             maxLines: 6,
             decoration: const InputDecoration(
-                labelText: '问题描述', border: OutlineInputBorder()),
+              labelText: '问题描述',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                  backgroundColor: _kIndigo,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
+                backgroundColor: _kIndigo,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
               onPressed: _submitting ? null : _submit,
               child: _submitting
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('提交'),
             ),
           ),
@@ -668,37 +724,42 @@ class _NewTicketSheetState extends ConsumerState<_NewTicketSheet> {
 
 class _CenterMsg {
   static Widget error(String msg, {required VoidCallback onRetry}) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
-              const SizedBox(height: 12),
-              Text(msg, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: onRetry, child: const Text('重试')),
-            ],
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+          const SizedBox(height: 12),
+          Text(msg, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: onRetry, child: const Text('重试')),
+        ],
+      ),
+    ),
+  );
 
   static Widget empty(String msg) => Builder(
-        builder: (context) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.inbox_outlined,
-                    size: 40, color: Theme.of(context).hintColor),
-                const SizedBox(height: 12),
-                Text(msg,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Theme.of(context).hintColor)),
-              ],
+    builder: (context) => Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 40,
+              color: Theme.of(context).hintColor,
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Theme.of(context).hintColor),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

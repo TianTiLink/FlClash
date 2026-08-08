@@ -1,14 +1,11 @@
-// Xboard 客户端 API —— 登录 + 取订阅。
-// 端点全部对照 cedar2025/Xboard 源码核实:
-//   登录   POST /api/v1/passport/auth/login   body {email,password} -> data.{auth_data,token}
-//   取订阅 GET  /api/v1/user/getSubscribe      header Authorization: <auth_data> -> data.subscribe_url
-//   下配置 GET  {subscribe_url}?flag=meta       -> mihomo/Clash.Meta YAML
+// TianTi Core 客户端 API —— 登录、套餐、订单、工单与订阅。
+// 文件名和部分类型名暂时保留旧迁移命名，以避免一次性改动 Flutter 页面导入路径；
+// 所有运行时请求均直接访问独立 TianTi Core，不再依赖 Xboard。
 //
 // 依赖:package:http(在 pubspec.yaml 的 dependencies 里加 `http: ^1.2.0`)。
 // 若想复用 FlClash 自带的 dio 请求器,可把下面 http 调用替换为它的 request。
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 class XboardApiException implements Exception {
@@ -26,28 +23,6 @@ class XboardLoginResult {
   final String token;
 
   XboardLoginResult(this.authData, this.token);
-}
-
-class XboardSliderChallenge {
-  final String challengeId;
-  final Uint8List background;
-  final Uint8List piece;
-  final double width;
-  final double height;
-  final double pieceWidth;
-  final double pieceHeight;
-  final double pieceY;
-
-  XboardSliderChallenge({
-    required this.challengeId,
-    required this.background,
-    required this.piece,
-    required this.width,
-    required this.height,
-    required this.pieceWidth,
-    required this.pieceHeight,
-    required this.pieceY,
-  });
 }
 
 class XboardSubscribe {
@@ -86,7 +61,7 @@ class XboardApi {
   Future<XboardLoginResult> login(String email, String password) async {
     final resp = await http
         .post(
-          _u('/api/v1/passport/auth/login'),
+          _u('/api/v1/unified-admin/customer/auth/login'),
           headers: const {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -103,9 +78,21 @@ class XboardApi {
     return XboardLoginResult(authData, token);
   }
 
+  Future<void> logout(String authData) async {
+    final resp = await http
+        .delete(
+          _u('/api/v1/unified-admin/customer/auth/session'),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
+        .timeout(timeout);
+    if (resp.statusCode >= 400 && resp.statusCode != 401) {
+      throw XboardApiException('退出登录失败');
+    }
+  }
+
   /// 注册并自动登录。email_code 仅当面板开启「邮箱验证」时必填;invite_code 仅当面板要求邀请码时必填。
   /// 成功返回 auth_data+token(与登录同);失败抛 XboardApiException(带后端提示语)。
-  /// 端点:POST /api/v1/passport/auth/register  body {email,password,invite_code?,email_code?}
+  /// 端点:POST /api/v1/unified-admin/customer/auth/register。
   Future<XboardLoginResult> register(
     String email,
     String password, {
@@ -115,17 +102,19 @@ class XboardApi {
     String? companyWebsite,
   }) async {
     final body = <String, dynamic>{'email': email, 'password': password};
-    if (inviteCode != null && inviteCode.isNotEmpty)
+    if (inviteCode != null && inviteCode.isNotEmpty) {
       body['invite_code'] = inviteCode;
-    if (emailCode != null && emailCode.isNotEmpty)
+    }
+    if (emailCode != null && emailCode.isNotEmpty) {
       body['email_code'] = emailCode;
+    }
     if (sliderToken != null && sliderToken.isNotEmpty) {
       body['slider_token'] = sliderToken;
     }
     body['company_website'] = companyWebsite ?? '';
     final resp = await http
         .post(
-          _u('/api/v1/passport/auth/register'),
+          _u('/api/v1/unified-admin/customer/auth/register'),
           headers: const {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -142,107 +131,13 @@ class XboardApi {
     return XboardLoginResult(authData, token);
   }
 
-  Future<XboardSliderChallenge> fetchRegistrationChallenge() async {
-    final resp = await http
-        .get(
-          _u('/api/v1/reseller/guest/register-guard/challenge'),
-          headers: const {'Accept': 'application/json'},
-        )
-        .timeout(timeout);
-    final data = _unwrap(resp, badAuthMsg: '验证图片加载失败');
-    return XboardSliderChallenge(
-      challengeId: data['challenge_id']?.toString() ?? '',
-      background: _decodeDataImage(data['background']),
-      piece: _decodeDataImage(data['piece']),
-      width: _double(data['width']),
-      height: _double(data['height']),
-      pieceWidth: _double(data['piece_width']),
-      pieceHeight: _double(data['piece_height']),
-      pieceY: _double(data['piece_y']),
-    );
-  }
-
-  Future<String> verifyRegistrationSlider(
-    String challengeId,
-    double offset,
-    List<Map<String, num>> track,
-  ) async {
-    final resp = await http
-        .post(
-          _u('/api/v1/reseller/guest/register-guard/verify'),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode({
-            'challenge_id': challengeId,
-            'offset': offset,
-            'track': track,
-          }),
-        )
-        .timeout(timeout);
-    final data = _unwrap(resp, badAuthMsg: '滑块验证失败');
-    final token = data['slider_token']?.toString();
-    if (token == null || token.isEmpty) {
-      throw XboardApiException('滑块验证响应异常');
-    }
-    return token;
-  }
-
-  /// 发送邮箱验证码(面板开启「邮箱验证」时用)。端点:POST /api/v1/passport/comm/sendEmailVerify {email}。
-  Future<void> sendEmailVerify(String email) async {
-    final resp = await http
-        .post(
-          _u('/api/v1/passport/comm/sendEmailVerify'),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode({'email': email}),
-        )
-        .timeout(timeout);
-    if (resp.statusCode == 429) {
-      throw XboardApiException('发送过于频繁,请稍后再试');
-    }
-    dynamic body;
-    try {
-      body = jsonDecode(utf8.decode(resp.bodyBytes));
-    } catch (_) {
-      throw XboardApiException('发送验证码失败(检查面板地址)');
-    }
-    // 成功 data:true;失败给 message。
-    if (body is Map && (body['data'] == true || body['data'] == 1)) return;
-    final msg = (body is Map ? body['message'] : null) ?? '发送验证码失败';
-    throw XboardApiException(msg.toString());
-  }
-
-  /// 注册页据此决定是否显示「邮箱验证码」输入框:读后台通用配置的 is_email_verify。
-  /// 端点:GET /api/v1/guest/comm/config(免登录)。返回 true=后台开了邮箱验证→显示验证码框。
-  /// 拉取失败时保守返回 true(宁可多显示,也不要「后台要求验证却无处输入」把注册卡死)。
-  Future<bool> needEmailVerify() async {
-    try {
-      final resp = await http
-          .get(
-            _u('/api/v1/guest/comm/config'),
-            headers: const {'Accept': 'application/json'},
-          )
-          .timeout(timeout);
-      final body = jsonDecode(utf8.decode(resp.bodyBytes));
-      final data = body is Map ? body['data'] : null;
-      final v = data is Map ? data['is_email_verify'] : null;
-      return v == 1 || v == true || v == '1';
-    } catch (_) {
-      return true;
-    }
-  }
-
   /// 读取后台实时配置的 Telegram 群地址。
   ///
   /// 未配置、关闭或返回了非 Telegram HTTPS 地址时返回 null，客户端据此隐藏入口。
   Future<String?> getTelegramGroupUrl() async {
     final resp = await http
         .get(
-          _u('/api/v1/reseller/guest/plans'),
+          _u('/api/v1/unified-admin/public/catalog'),
           headers: const {'Accept': 'application/json'},
         )
         .timeout(timeout);
@@ -281,7 +176,7 @@ class XboardApi {
   Future<XboardSubscribe> getSubscribe(String authData) async {
     final resp = await http
         .get(
-          _u('/api/v1/user/getSubscribe'),
+          _u('/api/v1/unified-admin/customer/account'),
           headers: {'Authorization': authData, 'Accept': 'application/json'},
         )
         .timeout(timeout);
@@ -301,73 +196,64 @@ class XboardApi {
     );
   }
 
-  /// 取当前用户的邀请码(推广码)。没有则自动生成一个再取。返回邀请码字符串。
-  /// 邀请链接由调用方拼:"<面板>/#/register?code=<邀请码>"。
-  /// 端点对照 Xboard 原生:GET /api/v1/user/invite/fetch(data.codes[].code)、
-  ///           GET  /api/v1/user/invite/save(生成一个;⚠ 必须 GET,用 POST 会 405 且不创建)。
+  /// 取当前用户的邀请码。TianTi Core 在注册时已为每个账号生成唯一邀请码。
   Future<String> fetchInviteCode(String authData) async {
-    final headers = {'Authorization': authData, 'Accept': 'application/json'};
-    String? pick(Map<String, dynamic> data) {
-      final codes = data['codes'];
-      if (codes is List && codes.isNotEmpty) {
-        final first = codes.first;
-        final c = first is Map ? first['code']?.toString() : null;
-        if (c != null && c.isNotEmpty) return c;
-      }
-      return null;
-    }
-
-    var resp = await http
-        .get(_u('/api/v1/user/invite/fetch'), headers: headers)
+    final resp = await http
+        .get(
+          _u('/api/v1/unified-admin/customer/account'),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
         .timeout(timeout);
-    var code = pick(_unwrap(resp, badAuthMsg: '登录已过期,请重新登录'));
-    if (code != null) return code;
-
-    // 还没有邀请码 → 生成一个。⚠ Xboard 的 invite/save 是 GET 路由(UserRoute.php),
-    // 用 POST 会 405、邀请码根本不创建,导致下面 refetch 仍为空、永远卡在「正在生成推广链接」。必须 GET。
-    final saveResp = await http
-        .get(_u('/api/v1/user/invite/save'), headers: headers)
-        .timeout(timeout);
-    _expectTrue(saveResp, failMsg: '生成邀请码失败'); // 生成上限等失败会抛后端提示
-    resp = await http
-        .get(_u('/api/v1/user/invite/fetch'), headers: headers)
-        .timeout(timeout);
-    code = pick(_unwrap(resp, badAuthMsg: '登录已过期,请重新登录'));
-    if (code != null) return code;
+    final data = _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
+    final code = data['invite_code']?.toString().trim();
+    if (code != null && code.isNotEmpty) return code;
     throw XboardApiException('未能获取邀请码');
   }
 
   // ============ 订单 / 套餐 / 工单 / 支付(全部原生,替代会崩的 webview)============
 
-  /// 我的订单列表。GET /api/v1/user/order/fetch(data 为数组)。金额字段单位=分。
+  /// 我的订单列表。金额字段单位=分。
   Future<List<Map<String, dynamic>>> fetchOrders(String authData) =>
-      _getList('/api/v1/user/order/fetch', authData);
+      _getList('/api/v1/unified-admin/customer/orders', authData);
 
-  /// 可购套餐列表。GET /api/v1/user/plan/fetch(data 为数组)。价格字段单位=分。
+  /// 可购套餐列表。价格字段单位=分。
   Future<List<Map<String, dynamic>>> fetchPlans(String authData) =>
-      _getList('/api/v1/user/plan/fetch', authData);
+      _getList('/api/v1/unified-admin/customer/plans', authData);
 
-  /// 工单列表。GET /api/v1/user/ticket/fetch(不带参数,data 为数组)。
+  /// 工单列表。
   Future<List<Map<String, dynamic>>> fetchTickets(String authData) =>
-      _getList('/api/v1/user/ticket/fetch', authData);
+      _getList('/api/v1/unified-admin/customer/support/tickets', authData);
 
-  /// 单个工单详情(含对话)。GET /api/v1/user/ticket/fetch?id=<id>(data 为对象,含 message 数组)。
+  /// 单个工单详情（含对话）。
   Future<Map<String, dynamic>> fetchTicketDetail(
     String authData,
-    int id,
+    String id,
   ) async {
     final resp = await http
         .get(
           _u(
-            '/api/v1/user/ticket/fetch',
-          ).replace(queryParameters: {'id': '$id'}),
+            '/api/v1/unified-admin/customer/support/tickets/${Uri.encodeComponent(id)}',
+          ),
           headers: {'Authorization': authData, 'Accept': 'application/json'},
         )
         .timeout(timeout);
-    return _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
+    final data = _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
+    final messages = data['message'];
+    if (messages is List) {
+      for (final item in messages) {
+        if (item is! Map || item['type'] != 'image') continue;
+        final path = item['attachment_url']?.toString() ?? '';
+        if (path.isEmpty) continue;
+        final url = path.startsWith('http')
+            ? path
+            : '${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path';
+        item['message'] = '[img]$url';
+      }
+    }
+    return data;
   }
 
-  /// 新建工单。POST /api/v1/user/ticket/save {subject,level(0|1|2),message}。
+  /// 新建工单。
   Future<void> createTicket(
     String authData, {
     required String subject,
@@ -376,7 +262,7 @@ class XboardApi {
   }) async {
     final resp = await http
         .post(
-          _u('/api/v1/user/ticket/save'),
+          _u('/api/v1/unified-admin/customer/support/tickets'),
           headers: _jsonAuth(authData),
           body: jsonEncode({
             'subject': subject,
@@ -388,31 +274,35 @@ class XboardApi {
     _expectTrue(resp, failMsg: '工单创建失败');
   }
 
-  /// 回复工单。POST /api/v1/user/ticket/reply {id,message}。已关闭/需等待客服回复会报错。
-  Future<void> replyTicket(String authData, int id, String message) async {
+  /// 回复工单。已关闭时 Core 会返回业务错误。
+  Future<void> replyTicket(String authData, String id, String message) async {
     final resp = await http
         .post(
-          _u('/api/v1/user/ticket/reply'),
+          _u(
+            '/api/v1/unified-admin/customer/support/tickets/${Uri.encodeComponent(id)}/reply',
+          ),
           headers: _jsonAuth(authData),
-          body: jsonEncode({'id': id, 'message': message}),
+          body: jsonEncode({'message': message}),
         )
         .timeout(timeout);
     _expectTrue(resp, failMsg: '回复失败');
   }
 
-  /// 关闭工单。POST /api/v1/user/ticket/close {id}。
-  Future<void> closeTicket(String authData, int id) async {
+  /// 关闭工单。
+  Future<void> closeTicket(String authData, String id) async {
     final resp = await http
         .post(
-          _u('/api/v1/user/ticket/close'),
+          _u(
+            '/api/v1/unified-admin/customer/support/tickets/${Uri.encodeComponent(id)}/close',
+          ),
           headers: _jsonAuth(authData),
-          body: jsonEncode({'id': id}),
+          body: '{}',
         )
         .timeout(timeout);
     _expectTrue(resp, failMsg: '关闭工单失败');
   }
 
-  /// 下单。POST /api/v1/user/order/save {plan_id,period}。period 传价格键,如 'month_price'。
+  /// 下单。period 传价格键，如 month_price。
   /// 返回 trade_no(data 为字符串)。若已有未支付订单会抛错。
   Future<String> createOrder(
     String authData, {
@@ -421,19 +311,24 @@ class XboardApi {
   }) async {
     final resp = await http
         .post(
-          _u('/api/v1/user/order/save'),
+          _u('/api/v1/unified-admin/customer/orders'),
           headers: _jsonAuth(authData),
           body: jsonEncode({'plan_id': planId, 'period': period}),
         )
         .timeout(timeout);
-    return _unwrapScalar(resp, badAuthMsg: '登录已过期,请重新登录').toString();
+    final data = _unwrap(resp, badAuthMsg: '登录已过期,请重新登录');
+    final tradeNo = data['trade_no']?.toString();
+    if (tradeNo == null || tradeNo.isEmpty) {
+      throw XboardApiException('下单响应缺少订单号');
+    }
+    return tradeNo;
   }
 
-  /// 支付方式列表。GET /api/v1/user/order/getPaymentMethod(data 为数组:{id,name,payment,...})。
+  /// 支付方式列表。
   Future<List<Map<String, dynamic>>> getPaymentMethods(String authData) =>
-      _getList('/api/v1/user/order/getPaymentMethod', authData);
+      _getList('/api/v1/unified-admin/customer/payment-methods', authData);
 
-  /// 结账。POST /api/v1/user/order/checkout {trade_no,method}。
+  /// 结账。
   /// 返回裸 {type,data}(不带 envelope):type=1 外部支付URL(浏览器打开);
   /// type=0 二维码串(原生渲染);type=-1 免费订单已支付(data=true)。
   Future<({int type, String data})> checkout(
@@ -443,7 +338,7 @@ class XboardApi {
   ) async {
     final resp = await http
         .post(
-          _u('/api/v1/user/order/checkout'),
+          _u('/api/v1/unified-admin/customer/orders/checkout'),
           headers: _jsonAuth(authData),
           body: jsonEncode({'trade_no': tradeNo, 'method': method}),
         )
@@ -462,21 +357,22 @@ class XboardApi {
         (body is Map ? body['message'] : null)?.toString() ?? '结账失败',
       );
     }
-    if (body is Map && body.containsKey('type')) {
-      return (type: _int(body['type']), data: (body['data'] ?? '').toString());
+    final data = body is Map ? body['data'] : null;
+    if (data is Map && data.containsKey('type')) {
+      return (type: _int(data['type']), data: (data['data'] ?? '').toString());
     }
     throw XboardApiException(
       (body is Map ? body['message'] : null)?.toString() ?? '结账失败',
     );
   }
 
-  /// 轮询订单状态。GET /api/v1/user/order/check?trade_no=(data 为整数)。
+  /// 轮询订单状态（data 为整数）。
   /// 0 待支付 / 1 开通中 / 2 已取消 / 3 已完成 / 4 已折抵。
   Future<int> checkOrderStatus(String authData, String tradeNo) async {
     final resp = await http
         .get(
           _u(
-            '/api/v1/user/order/check',
+            '/api/v1/unified-admin/customer/orders/check',
           ).replace(queryParameters: {'trade_no': tradeNo}),
           headers: {'Authorization': authData, 'Accept': 'application/json'},
         )
@@ -484,7 +380,7 @@ class XboardApi {
     return _int(_unwrapScalar(resp, badAuthMsg: '登录已过期,请重新登录'));
   }
 
-  /// 给订阅地址补上 ?flag=meta,强制 Xboard 输出 mihomo/Clash.Meta 格式,
+  /// 给订阅地址补上 ?flag=meta，强制 TianTi Core 输出 mihomo/Clash.Meta YAML，
   /// 不受客户端 User-Agent 影响。
   static String toMihomoUrl(String subscribeUrl) {
     final uri = Uri.parse(subscribeUrl);
@@ -500,43 +396,10 @@ class XboardApi {
     return 0;
   }
 
-  /// Keep the subscription path/token but move it to the API base that the
-  /// endpoint resolver has actually proved reachable.
+  /// 保留兼容调用签名，但绝不把订阅专用域名改写为 API 通信域名。
+  /// TianTi Core 会严格校验订阅 Host，改写后按设计会返回 404。
   static String rebaseSubscribeUrl(String subscribeUrl, String baseUrl) {
-    final source = Uri.tryParse(subscribeUrl);
-    final base = Uri.tryParse(baseUrl);
-    if (source == null ||
-        base == null ||
-        !source.hasAbsolutePath ||
-        base.scheme != 'https' ||
-        base.host.isEmpty) {
-      return subscribeUrl;
-    }
-    return Uri(
-      scheme: base.scheme,
-      host: base.host,
-      port: base.hasPort ? base.port : null,
-      path: source.path,
-      query: source.hasQuery ? source.query : null,
-      fragment: source.hasFragment ? source.fragment : null,
-    ).toString();
-  }
-
-  static double _double(dynamic value) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0;
-    return 0;
-  }
-
-  static Uint8List _decodeDataImage(dynamic value) {
-    final text = value?.toString() ?? '';
-    final comma = text.indexOf(',');
-    final encoded = comma >= 0 ? text.substring(comma + 1) : text;
-    try {
-      return base64Decode(encoded);
-    } catch (_) {
-      throw XboardApiException('验证图片格式异常');
-    }
+    return subscribeUrl;
   }
 
   Map<String, dynamic> _unwrap(

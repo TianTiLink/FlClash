@@ -6,7 +6,7 @@
 
 [**English**](README.md)
 
-[![License](https://img.shields.io/github/license/TianTiLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-tiantilink.com-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://tiantilink.com)
+[![License](https://img.shields.io/github/license/TianTiLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-tianticom.xyz-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://tianticom.xyz)
 
 **高速 VPN · 梯子 · 代理加速器 · 一键科学上网,低延迟稳定不掉线、安全加密、无广告。**
 
@@ -14,7 +14,7 @@
 
 ## 📥 下载
 
-- 🌐 **官网直下(推荐)**:**https://tiantilink.com** — Android / Windows / macOS 一键下载
+- 🌐 **官网直下(推荐)**:**https://tianticom.xyz** — Android / Windows / macOS 一键下载
 - 📱 **iOS**:前往 [tiantiweb.xyz/dl/app.html](https://tiantiweb.xyz/dl/app.html) **一键导入订阅**(免费客户端,加到主屏即用)
 - 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 

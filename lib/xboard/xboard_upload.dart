@@ -10,11 +10,13 @@ Future<String> xboardUploadImage({
   required String endpoint,
   required String filePath,
   String? authData,
+  Map<String, String> extraHeaders = const {},
 }) async {
   final base = panelBase.replaceAll(RegExp(r'/+$'), '');
   final req = http.MultipartRequest('POST', Uri.parse('$base$endpoint'));
   req.headers['Accept'] = 'application/json';
   if (authData != null) req.headers['Authorization'] = authData;
+  req.headers.addAll(extraHeaders);
   req.files.add(await http.MultipartFile.fromPath('file', filePath));
   final streamed = await req.send().timeout(const Duration(seconds: 60));
   final resp = await http.Response.fromStream(streamed);
@@ -26,13 +28,25 @@ Future<String> xboardUploadImage({
     throw (body is Map ? body['message'] : null)?.toString() ??
         '上传失败(${resp.statusCode})';
   }
-  final path = (body is Map && body['data'] is Map) ? body['data']['path'] : null;
+  final data = body is Map && body['data'] is Map ? body['data'] as Map : null;
+  final attachment = data?['attachment'];
+  final message = data?['message'];
+  final path =
+      data?['path'] ??
+      data?['attachment_url'] ??
+      (attachment is Map ? attachment['url'] : null) ??
+      (message is Map ? message['attachment_url'] : null);
   if (path == null) throw '上传返回异常';
-  return '$base$path';
+  final value = path.toString();
+  return value.startsWith('http') ? value : '$base$value';
 }
 
-/// 聊天气泡内容:以 [img]<url> 开头则渲染成图片(限 http/https),否则普通文字。
-Widget xboardMessageContent(String text, {required Color textColor}) {
+/// 聊天气泡内容:以 `[img]<url>` 开头则渲染成图片(限 http/https),否则普通文字。
+Widget xboardMessageContent(
+  String text, {
+  required Color textColor,
+  Map<String, String>? headers,
+}) {
   const p = '[img]';
   if (text.startsWith(p)) {
     final url = text.substring(p.length);
@@ -43,8 +57,9 @@ Widget xboardMessageContent(String text, {required Color textColor}) {
           constraints: const BoxConstraints(maxWidth: 220, maxHeight: 220),
           child: Image.network(
             url,
+            headers: headers,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 Text('[图片加载失败]', style: TextStyle(color: textColor)),
           ),
         ),

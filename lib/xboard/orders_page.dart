@@ -1,6 +1,6 @@
 // 原生「我的订单」页 —— 替代原来会崩的 webview。模式对齐 account_page/agent_center_page:
 // ConsumerStatefulWidget + xboardAuthProvider + initState 调 XboardApi + loading/error/empty/list。
-// 接口:GET /api/v1/user/order/fetch(金额单位=分,时间 unix 秒)。
+// 接口:GET /api/v1/unified-admin/customer/orders(金额单位=分,时间 unix 秒)。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,7 +103,13 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
     final amount = ((o['total_amount'] as num?)?.toDouble() ?? 0) / 100; // 分->元
     final s = ((o['status'] as num?)?.toInt() ?? 0).clamp(0, 4);
     final labels = ['待支付', '开通中', '已取消', '已完成', '已折抵'];
-    final colors = [Colors.orange, _kIndigo, Colors.grey, Colors.green, Colors.green];
+    final colors = [
+      Colors.orange,
+      _kIndigo,
+      Colors.grey,
+      Colors.green,
+      Colors.green,
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -123,27 +129,36 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                   color: _kAmber.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.receipt_long_outlined,
-                    size: 19, color: _kAmber),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  size: 19,
+                  color: _kAmber,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(planName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 15)),
+                child: Text(
+                  planName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: colors[s].withOpacity(0.14),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(labels[s],
-                    style: TextStyle(
-                        color: colors[s],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
+                child: Text(
+                  labels[s],
+                  style: TextStyle(
+                    color: colors[s],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
@@ -157,49 +172,55 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
   }
 
   Widget _kv(String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(k,
-                style:
-                    TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
-            Flexible(
-              child: Text(v,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 13)),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          k,
+          style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13),
         ),
-      );
-
-  Widget _errorView(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
-              const SizedBox(height: 12),
-              Text(msg, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: _load, child: const Text('重试')),
-            ],
+        Flexible(
+          child: Text(
+            v,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 13),
           ),
         ),
-      );
+      ],
+    ),
+  );
+
+  Widget _errorView(String msg) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+          const SizedBox(height: 12),
+          Text(msg, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _load, child: const Text('重试')),
+        ],
+      ),
+    ),
+  );
 
   Widget _emptyView(String msg) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_outlined,
-                size: 40, color: Theme.of(context).hintColor),
-            const SizedBox(height: 12),
-            Text(msg, style: TextStyle(color: Theme.of(context).hintColor)),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.inbox_outlined,
+          size: 40,
+          color: Theme.of(context).hintColor,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(msg, style: TextStyle(color: Theme.of(context).hintColor)),
+      ],
+    ),
+  );
 
   String _date(dynamic ts) {
     final t = (ts as num?)?.toInt() ?? 0;

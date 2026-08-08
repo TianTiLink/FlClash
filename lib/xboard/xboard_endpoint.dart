@@ -13,7 +13,8 @@ const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';
 const String _kOfficialDomainsCache = 'tt_official_domains';
 const String _kEmergencyApiBase = 'https://186.244.223.118';
-const String _kBootstrapUrl = '$_kEmergencyApiBase/api/v1/reseller/bootstrap';
+const String _kBootstrapUrl =
+    '$_kEmergencyApiBase/api/v1/unified-admin/public/bootstrap';
 const String _kBootstrapBrand = 'tianti';
 const String _kBootstrapPublicKey =
     'xuExWLhJahYP7i2GXhjdzFsvYmc9Sx4KSO9NWzwpMBY=';
@@ -42,6 +43,10 @@ class TtEndpointResult {
       : 'pwa';
 
   String? get latestVersion {
+    final unifiedVersion = config['client_version']?.toString().trim();
+    if (unifiedVersion != null && unifiedVersion.isNotEmpty) {
+      return unifiedVersion;
+    }
     final versions = config['versions'];
     if (versions is! Map) return null;
     final value = versions[_platformKey];
@@ -49,6 +54,25 @@ class TtEndpointResult {
   }
 
   String? get downloadUrl {
+    final unifiedDownloads = config['client_downloads'];
+    if (unifiedDownloads is List) {
+      final wanted = Platform.isAndroid
+          ? 'android'
+          : Platform.isWindows
+          ? 'windows'
+          : Platform.isMacOS
+          ? 'macos'
+          : 'ios';
+      for (final item in unifiedDownloads) {
+        if (item is! Map) continue;
+        final platform = item['platform']?.toString().toLowerCase() ?? '';
+        if (platform != wanted) continue;
+        final path = item['download_url']?.toString().trim() ?? '';
+        if (path.isEmpty) continue;
+        if (path.startsWith('http')) return path;
+        return activeBase.replaceAll(RegExp(r'/+$'), '') + path;
+      }
+    }
     final downloads = config['downloads'];
     if (downloads is! Map) return null;
     final key = Platform.isAndroid
@@ -225,7 +249,7 @@ Future<List<String>> _candidates() async {
 }
 
 Future<Map<String, dynamic>> _probe(String base, Duration timeout) async {
-  final uri = Uri.parse('$base/api/v1/reseller/appconfig');
+  final uri = Uri.parse('$base/api/v1/unified-admin/public/app-config');
   final response = await http
       .get(uri, headers: {'Accept': 'application/json'})
       .timeout(timeout);
