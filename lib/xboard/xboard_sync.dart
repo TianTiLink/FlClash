@@ -81,7 +81,12 @@ Future<int> clearTianTiSubscriptionProfiles({String? subscribeUrl}) async {
             isTianTiManagedSubscription(profile, subscribeUrl: subscribeUrl),
       )
       .toList();
-  if (removed.isEmpty) return 0;
+  if (removed.isEmpty) {
+    c.read(groupsProvider.notifier).value = [];
+    c.read(delayDataSourceProvider.notifier).value = {};
+    await c.read(setupActionProvider.notifier).updateStatus(false);
+    return 0;
+  }
 
   final activeId = c.read(currentProfileIdProvider);
   final removedActive = removed.any((profile) => profile.id == activeId);
@@ -92,12 +97,12 @@ Future<int> clearTianTiSubscriptionProfiles({String? subscribeUrl}) async {
   final remaining = c.read(profilesProvider);
   if (remaining.isEmpty) {
     c.read(currentProfileIdProvider.notifier).value = null;
-    c.read(groupsProvider.notifier).value = [];
-    c.read(delayDataSourceProvider.notifier).value = {};
-    await c.read(setupActionProvider.notifier).updateStatus(false);
   } else if (removedActive) {
-    await c.read(setupActionProvider.notifier).applyProfile(force: true);
+    c.read(currentProfileIdProvider.notifier).value = null;
   }
+  c.read(groupsProvider.notifier).value = [];
+  c.read(delayDataSourceProvider.notifier).value = {};
+  await c.read(setupActionProvider.notifier).updateStatus(false);
   return removed.length;
 }
 

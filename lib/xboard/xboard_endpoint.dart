@@ -17,7 +17,7 @@ const String _kBootstrapUrl =
     '$_kEmergencyApiBase/api/v1/unified-admin/public/bootstrap';
 const String _kBootstrapBrand = 'tianti';
 const String _kBootstrapPublicKey =
-    'xuExWLhJahYP7i2GXhjdzFsvYmc9Sx4KSO9NWzwpMBY=';
+    'KSNvx4XAw+mDcAeD6xHuwng0CEdTFc/EqO05tibyYkI=';
 
 const List<String> _kSeedApiHosts = <String>['https://pafslnnalksdf.xyz'];
 

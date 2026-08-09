@@ -85,7 +85,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     }
   }
 
-  List<Widget> _buildActions(BuildContext context) {
+  List<Widget> _buildActions(BuildContext context, {required bool noPlan}) {
     final appLocalizations = context.appLocalizations;
     return [
       // 刷新订阅:从面板重拉最新节点。
@@ -101,7 +101,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
             : const Icon(Icons.sync),
       ),
       // 延迟测试:从悬浮按钮改到顶栏标题右侧。
-      if (_isTab)
+      if (_isTab && !noPlan)
         IconButton(
           tooltip: appLocalizations.delayTest,
           onPressed: _testingDelay ? null : _testCurrentGroupDelay,
@@ -113,7 +113,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
                 )
               : const Icon(Icons.network_ping),
         ),
-      if (_isTab)
+      if (_isTab && !noPlan)
         IconButton(
           onPressed: () {
             _proxiesTabKey.currentState?.scrollToGroupSelected();
@@ -214,17 +214,18 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     );
     final isLoading = ref.watch(loadingProvider(LoadingTag.proxies));
     final auth = ref.watch(xboardAuthProvider);
+    final noPlan = auth.loggedIn && auth.subscribeUrl == null;
     return CommonScaffold(
       key: _scaffoldKey,
       isLoading: isLoading,
       resizeToAvoidBottomInset: false,
       floatingActionButton: null,
-      actions: _buildActions(context),
+      actions: _buildActions(context, noPlan: noPlan),
       title: context.appLocalizations.proxies,
       searchState: AppBarSearchState(onSearch: _onSearch),
       body: Column(
         children: [
-          if (auth.loggedIn && auth.subscribeUrl == null)
+          if (noPlan)
             Container(
               width: double.infinity,
               margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -242,13 +243,96 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
               ),
             ),
           Expanded(
-            child: switch (proxiesType) {
-              ProxiesType.tab => ProxiesTabView(key: _proxiesTabKey),
-              ProxiesType.list => const ProxiesListView(),
-            },
+            child: noPlan
+                ? const _NoPlanNodePlaceholder()
+                : switch (proxiesType) {
+                    ProxiesType.tab => ProxiesTabView(key: _proxiesTabKey),
+                    ProxiesType.list => const ProxiesListView(),
+                  },
           ),
-          const ProxiesConnectBar(),
+          ProxiesConnectBar(enabled: !noPlan),
         ],
+      ),
+    );
+  }
+}
+
+class _NoPlanNodePlaceholder extends StatelessWidget {
+  const _NoPlanNodePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.38,
+          ),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.55)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(Icons.lock_outline_rounded, color: theme.hintColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '暂无可用节点',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '当前账号没有有效套餐',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    '此卡片仅用于提示，不能连接，也不会执行延迟检测。购买套餐后点击右上角刷新节点。',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '不可连接',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.hintColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

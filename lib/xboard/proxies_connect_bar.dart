@@ -28,15 +28,18 @@ const String _kGlobalTip =
     '会受境内无落地节点的网速影响。该模式建议仅当访问未包含进规则的网络请求导致没经过节点时启用。';
 
 class ProxiesConnectBar extends ConsumerWidget {
-  const ProxiesConnectBar({super.key});
+  final bool enabled;
+
+  const ProxiesConnectBar({super.key, this.enabled = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isStart = ref.watch(isStartProvider);
     final mode = ref.watch(patchClashConfigProvider.select((s) => s.mode));
-    final tunEnable =
-        ref.watch(patchClashConfigProvider.select((s) => s.tun.enable));
+    final tunEnable = ref.watch(
+      patchClashConfigProvider.select((s) => s.tun.enable),
+    );
 
     return SafeArea(
       top: false,
@@ -45,7 +48,7 @@ class ProxiesConnectBar extends ConsumerWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(
-            top: BorderSide(color: theme.dividerColor.withOpacity(0.4)),
+            top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
           ),
         ),
         child: Column(
@@ -55,13 +58,16 @@ class ProxiesConnectBar extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.circle,
-                    size: 9, color: isStart ? _kGreen : theme.hintColor),
+                Icon(
+                  Icons.circle,
+                  size: 9,
+                  color: isStart ? _kGreen : theme.hintColor,
+                ),
                 const SizedBox(width: 6),
                 Text(
-                  isStart ? '已连接' : '未连接',
+                  !enabled ? '当前无套餐，连接已禁用' : (isStart ? '已连接' : '未连接'),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: isStart ? _kGreen : theme.hintColor,
+                    color: enabled && isStart ? _kGreen : theme.hintColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -72,55 +78,89 @@ class ProxiesConnectBar extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  _seg(context, '智能', _kSmartTip, mode == Mode.rule,
-                      () => ref.read(setupActionProvider.notifier).changeMode(Mode.rule)),
-                  _seg(context, '全局', _kGlobalTip, mode == Mode.global, () {
-                    // 全局跟随你选中的节点:把 mihomo 的 GLOBAL 组指向你的主节点组,
-                    // 这样 GLOBAL → 你的组 → 你当前选的节点(以后换节点也自动跟随)。
-                    final others = ref
-                        .read(groupsProvider)
-                        .where((g) => g.name != GroupName.GLOBAL.name)
-                        .toList();
-                    if (others.isNotEmpty) {
-                      final primary = others.first.name;
-                      ref
-                          .read(profilesActionProvider.notifier)
-                          .updateCurrentSelectedMap(GroupName.GLOBAL.name, primary);
-                      ref
-                          .read(proxiesActionProvider.notifier)
-                          .changeProxyDebounce(GroupName.GLOBAL.name, primary);
-                    }
-                    ref.read(setupActionProvider.notifier).changeMode(Mode.global);
-                  }),
+                  _seg(
+                    context,
+                    '智能',
+                    _kSmartTip,
+                    mode == Mode.rule,
+                    enabled
+                        ? () => ref
+                              .read(setupActionProvider.notifier)
+                              .changeMode(Mode.rule)
+                        : null,
+                  ),
+                  _seg(
+                    context,
+                    '全局',
+                    _kGlobalTip,
+                    mode == Mode.global,
+                    enabled
+                        ? () {
+                            // 全局跟随你选中的节点:把 mihomo 的 GLOBAL 组指向你的主节点组,
+                            // 这样 GLOBAL → 你的组 → 你当前选的节点(以后换节点也自动跟随)。
+                            final others = ref
+                                .read(groupsProvider)
+                                .where((g) => g.name != GroupName.GLOBAL.name)
+                                .toList();
+                            if (others.isNotEmpty) {
+                              final primary = others.first.name;
+                              ref
+                                  .read(profilesActionProvider.notifier)
+                                  .updateCurrentSelectedMap(
+                                    GroupName.GLOBAL.name,
+                                    primary,
+                                  );
+                              ref
+                                  .read(proxiesActionProvider.notifier)
+                                  .changeProxyDebounce(
+                                    GroupName.GLOBAL.name,
+                                    primary,
+                                  );
+                            }
+                            ref
+                                .read(setupActionProvider.notifier)
+                                .changeMode(Mode.global);
+                          }
+                        : null,
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 10),
             // 服务模式(虚拟网卡 / TUN)
-            _serviceModeRow(context, ref, tunEnable),
+            _serviceModeRow(context, ref, tunEnable, enabled),
             const SizedBox(height: 10),
             // 连接 / 断开
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: () =>
-                    ref.read(commonActionProvider.notifier).updateStart(),
+                onPressed: enabled
+                    ? () =>
+                          ref.read(commonActionProvider.notifier).updateStart()
+                    : null,
                 icon: Icon(
-                    isStart ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                  isStart ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                ),
                 label: Text(
-                  isStart ? '断开' : '连接',
-                  style:
-                      const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  !enabled ? '购买套餐后可连接' : (isStart ? '断开' : '连接'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isStart ? _kRed : _kGreen,
+                  disabledBackgroundColor:
+                      theme.colorScheme.surfaceContainerHighest,
+                  disabledForegroundColor: theme.hintColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -134,12 +174,17 @@ class ProxiesConnectBar extends ConsumerWidget {
     );
   }
 
-  Widget _serviceModeRow(BuildContext context, WidgetRef ref, bool enable) {
+  Widget _serviceModeRow(
+    BuildContext context,
+    WidgetRef ref,
+    bool enable,
+    bool controlsEnabled,
+  ) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -149,31 +194,44 @@ class ProxiesConnectBar extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('服务模式',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                Text('TUN模式支持所有应用,无视应用是否有代理功能',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.hintColor)),
+                Text(
+                  '服务模式',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'TUN模式支持所有应用,无视应用是否有代理功能',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.hintColor,
+                  ),
+                ),
               ],
             ),
           ),
           Switch(
             value: enable,
-            activeColor: _kIndigo,
-            onChanged: (value) {
-              ref
-                  .read(patchClashConfigProvider.notifier)
-                  .update((state) => state.copyWith.tun(enable: value));
-            },
+            activeThumbColor: _kIndigo,
+            onChanged: controlsEnabled
+                ? (value) {
+                    ref
+                        .read(patchClashConfigProvider.notifier)
+                        .update((state) => state.copyWith.tun(enable: value));
+                  }
+                : null,
           ),
         ],
       ),
     );
   }
 
-  Widget _seg(BuildContext context, String label, String tip, bool active,
-      VoidCallback onTap) {
+  Widget _seg(
+    BuildContext context,
+    String label,
+    String tip,
+    bool active,
+    VoidCallback? onTap,
+  ) {
     final theme = Theme.of(context);
     return Expanded(
       child: Tooltip(

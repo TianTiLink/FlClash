@@ -123,8 +123,9 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已复制推广链接')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已复制推广链接')));
     }
   }
 
@@ -141,7 +142,12 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('代理中心'),
-          actions: [IconButton(onPressed: _loadSummary, icon: const Icon(Icons.refresh))],
+          actions: [
+            IconButton(
+              onPressed: _loadSummary,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
         ),
         body: _errorView(_error ?? '加载失败'),
       );
@@ -157,7 +163,8 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
       _overview(),
       _DownlinesTab(api: api, isAgent: isAgent),
       _RecordsTab(api: api, isAgent: isAgent),
-      if (isAgent) _WithdrawTab(api: api, summary: _summary!, onChanged: _loadSummary),
+      if (isAgent)
+        _WithdrawTab(api: api, summary: _summary!, onChanged: _loadSummary),
     ];
 
     return DefaultTabController(
@@ -165,7 +172,12 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('代理中心'),
-          actions: [IconButton(onPressed: _loadSummary, icon: const Icon(Icons.refresh))],
+          actions: [
+            IconButton(
+              onPressed: _loadSummary,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
           bottom: TabBar(tabs: tabs, isScrollable: true),
         ),
         body: TabBarView(children: views),
@@ -174,20 +186,20 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
   }
 
   Widget _errorView(String msg) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
-              const SizedBox(height: 12),
-              Text(msg, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: _loadSummary, child: const Text('重试')),
-            ],
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+          const SizedBox(height: 12),
+          Text(msg, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _loadSummary, child: const Text('重试')),
+        ],
+      ),
+    ),
+  );
 
   Widget _overview() {
     final s = _summary!;
@@ -204,13 +216,19 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(isAgent ? Icons.workspace_premium : Icons.person_outline,
-                      color: isAgent ? Colors.amber : null),
-                  const SizedBox(width: 8),
-                  Text(isAgent ? '代理' : '普通用户',
-                      style: Theme.of(context).textTheme.titleMedium),
-                ]),
+                Row(
+                  children: [
+                    Icon(
+                      isAgent ? Icons.workspace_premium : Icons.person_outline,
+                      color: isAgent ? Colors.amber : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isAgent ? '代理' : '普通用户',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
                 const Divider(height: 24),
                 if (isAgent) ...[
                   _kv('可提现余额', '${bal.toStringAsFixed(2)} USDT', big: true),
@@ -236,7 +254,7 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
     final theme = Theme.of(context);
     final link = _inviteLink;
     final tip = isAgent
-        ? '你是【代理】:好友通过你的链接注册后,他每次充值,你都按层级比例拿【现金佣金(USDT)】,支持三层返佣,余额满额可提现。三层下线越多,赚得越多。'
+        ? '你是【代理】:好友通过你的链接注册并完成支付后,你按后台层级比例获得 USDT 佣金。USDT 订单按实际到账金额计算；人民币支付订单按后台结算汇率换算成 USDT。佣金钱包和 TRC20 提现始终使用 USDT。'
         : '好友通过你的链接注册后,他充值时按比例返【可用流量】给你(仅直属一级)。想改成拿【现金佣金】+ 多级返佣?联系客服升级为代理。';
     final tipColor = isAgent ? Colors.amber : theme.colorScheme.primary;
     return Card(
@@ -245,11 +263,13 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              const Icon(Icons.card_giftcard, color: Colors.amber),
-              const SizedBox(width: 8),
-              Text('我的推广', style: theme.textTheme.titleMedium),
-            ]),
+            Row(
+              children: [
+                const Icon(Icons.card_giftcard, color: Colors.amber),
+                const SizedBox(width: 8),
+                Text('我的推广', style: theme.textTheme.titleMedium),
+              ],
+            ),
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -270,9 +290,10 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2)),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                       SizedBox(width: 10),
                       Text('正在生成推广链接…'),
                     ],
@@ -288,9 +309,11 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
                     children: [
                       const Icon(Icons.link_off, color: Colors.redAccent),
                       const SizedBox(height: 8),
-                      Text(_inviteError ?? '暂时无法生成推广链接',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodySmall),
+                      Text(
+                        _inviteError ?? '暂时无法生成推广链接',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall,
+                      ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
                         onPressed: _inviteLoading ? null : _loadInvite,
@@ -304,14 +327,18 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
             else ...[
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: theme.dividerColor),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: SelectableText(link,
-                    style: const TextStyle(fontSize: 12.5)),
+                child: SelectableText(
+                  link,
+                  style: const TextStyle(fontSize: 12.5),
+                ),
               ),
               const SizedBox(height: 10),
               SizedBox(
@@ -340,9 +367,12 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
               ),
               const SizedBox(height: 8),
               Center(
-                child: Text('好友扫码或用链接注册,即成为你的下线',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.hintColor)),
+                child: Text(
+                  '好友扫码或用链接注册,即成为你的下线',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.hintColor,
+                  ),
+                ),
               ),
             ],
           ],
@@ -352,18 +382,20 @@ class _AgentCenterPageState extends ConsumerState<AgentCenterPage> {
   }
 
   Widget _kv(String k, String v, {bool big = false}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(k, style: TextStyle(color: Theme.of(context).hintColor)),
-            Text(v,
-                style: big
-                    ? Theme.of(context).textTheme.titleLarge
-                    : Theme.of(context).textTheme.bodyLarge),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(k, style: TextStyle(color: Theme.of(context).hintColor)),
+        Text(
+          v,
+          style: big
+              ? Theme.of(context).textTheme.titleLarge
+              : Theme.of(context).textTheme.bodyLarge,
         ),
-      );
+      ],
+    ),
+  );
 
   String _usdt(dynamic cents) {
     final c = (cents as num?)?.toDouble() ?? 0;
@@ -427,30 +459,35 @@ class _DownlinesTabState extends State<_DownlinesTab> {
         if (widget.isAgent)
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(children: [
-              const Text('层级 '),
-              DropdownButton<int>(
-                value: _level,
-                items: [
-                  for (var i = 1; i <= _maxVisibleAgentLevel; i++)
-                    DropdownMenuItem(value: i, child: Text('第 $i 层')),
-                ],
-                onChanged: (v) {
-                  if (v != null) {
-                    setState(() {
-                      _level = v;
-                      _page = 1;
-                    });
-                    _load();
-                  }
-                },
-              ),
-              const Spacer(),
-              Text('共 $total 人'),
-            ]),
+            child: Row(
+              children: [
+                const Text('层级 '),
+                DropdownButton<int>(
+                  value: _level,
+                  items: [
+                    for (var i = 1; i <= _maxVisibleAgentLevel; i++)
+                      DropdownMenuItem(value: i, child: Text('第 $i 层')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() {
+                        _level = v;
+                        _page = 1;
+                      });
+                      _load();
+                    }
+                  },
+                ),
+                const Spacer(),
+                Text('共 $total 人'),
+              ],
+            ),
           )
         else
-          const Padding(padding: EdgeInsets.all(12), child: Text('普通用户只显示直属(第 1 层)下线')),
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('普通用户只显示直属(第 1 层)下线'),
+          ),
         Expanded(child: _body(list)),
         _pager(total),
       ],
@@ -474,14 +511,19 @@ class _DownlinesTabState extends State<_DownlinesTab> {
         return ListTile(
           leading: CircleAvatar(child: Text('${m['level'] ?? 1}')),
           title: Text('${m['email'] ?? '—'}'),
-          subtitle: Text([
-            '注册 ${_date(m['created_at'])}',
-            if (m['is_agent'] == true) '代理',
-            if ('${m['plan_name'] ?? ''}'.isNotEmpty) '${m['plan_name']}',
-            if ('${m['telegram_username'] ?? ''}'.isNotEmpty) '@${m['telegram_username']}',
-          ].join(' · ')),
+          subtitle: Text(
+            [
+              '注册 ${_date(m['created_at'])}',
+              if (m['is_agent'] == true) '代理',
+              if ('${m['plan_name'] ?? ''}'.isNotEmpty) '${m['plan_name']}',
+              if ('${m['telegram_username'] ?? ''}'.isNotEmpty)
+                '@${m['telegram_username']}',
+            ].join(' · '),
+          ),
           trailing: Text(
-            isCash ? '+${cv.toStringAsFixed(2)} USDT' : '+${cv.toStringAsFixed(2)} GB',
+            isCash
+                ? '+${cv.toStringAsFixed(2)} USDT'
+                : '+${cv.toStringAsFixed(2)} GB',
             style: const TextStyle(color: Colors.green),
           ),
         );
@@ -494,15 +536,30 @@ class _DownlinesTabState extends State<_DownlinesTab> {
     final lastPage = total == 0 ? 1 : ((total + perPage - 1) ~/ perPage);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        IconButton(
-            onPressed: _page > 1 ? () { setState(() => _page--); _load(); } : null,
-            icon: const Icon(Icons.chevron_left)),
-        Text('$_page / $lastPage'),
-        IconButton(
-            onPressed: _page < lastPage ? () { setState(() => _page++); _load(); } : null,
-            icon: const Icon(Icons.chevron_right)),
-      ]),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: _page > 1
+                ? () {
+                    setState(() => _page--);
+                    _load();
+                  }
+                : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Text('$_page / $lastPage'),
+          IconButton(
+            onPressed: _page < lastPage
+                ? () {
+                    setState(() => _page++);
+                    _load();
+                  }
+                : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
     );
   }
 
@@ -510,11 +567,16 @@ class _DownlinesTabState extends State<_DownlinesTab> {
     DateTime? parsed;
     if (value is num) {
       final raw = value.toInt();
-      if (raw > 0) parsed = DateTime.fromMillisecondsSinceEpoch(raw < 100000000000 ? raw * 1000 : raw);
+      if (raw > 0)
+        parsed = DateTime.fromMillisecondsSinceEpoch(
+          raw < 100000000000 ? raw * 1000 : raw,
+        );
     } else {
       final raw = value?.toString().trim() ?? '';
       if (raw.isNotEmpty) {
-        final normalized = RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(raw) ? raw : '${raw.replaceFirst(' ', 'T')}Z';
+        final normalized = RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(raw)
+            ? raw
+            : '${raw.replaceFirst(' ', 'T')}Z';
         parsed = DateTime.tryParse(normalized)?.toLocal();
       }
     }
@@ -605,7 +667,11 @@ class _WithdrawTab extends StatefulWidget {
   final ResellerApi api;
   final Map<String, dynamic> summary;
   final VoidCallback onChanged;
-  const _WithdrawTab({required this.api, required this.summary, required this.onChanged});
+  const _WithdrawTab({
+    required this.api,
+    required this.summary,
+    required this.onChanged,
+  });
   @override
   State<_WithdrawTab> createState() => _WithdrawTabState();
 }
@@ -678,7 +744,8 @@ class _WithdrawTabState extends State<_WithdrawTab> {
     setState(() => _submitting = true);
     try {
       final r = await widget.api.submitWithdraw(amount: amt, address: addr);
-      if (r['submitted'] != true) throw XboardApiException('提现申请未被服务器确认，请刷新后重试');
+      if (r['submitted'] != true)
+        throw XboardApiException('提现申请未被服务器确认，请刷新后重试');
       _toast('提现申请已提交，金额已冻结并等待后台审核');
       _amount.clear();
       widget.onChanged(); // 刷新余额
@@ -704,50 +771,74 @@ class _WithdrawTabState extends State<_WithdrawTab> {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('可提现余额', style: TextStyle(color: Theme.of(context).hintColor)),
-              const SizedBox(height: 4),
-              Text('${bal.toStringAsFixed(2)} USDT',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 4),
-              Text('最低提现 ${_minimum.toStringAsFixed(2)} USDT',
-                  style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _amount,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '可提现余额',
+                  style: TextStyle(color: Theme.of(context).hintColor),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${bal.toStringAsFixed(2)} USDT',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '最低提现 ${_minimum.toStringAsFixed(2)} USDT',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _amount,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
                     labelText: '提现金额（USDT）',
                     helperText: '最低 ${_minimum.toStringAsFixed(2)}，不能超过当前可提现余额',
-                    border: const OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _address,
-                decoration: const InputDecoration(
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _address,
+                  decoration: const InputDecoration(
                     labelText: 'USDT(TRC20)收款地址',
                     hintText: 'T 开头的 34 位地址',
-                    border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('提交提现申请'),
-              ),
-              const SizedBox(height: 8),
-              Text('提交后余额立即冻结,等管理员审核打款;驳回则退回余额。',
-                  style: Theme.of(context).textTheme.bodySmall),
-            ]),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('提交提现申请'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '提交后余额立即冻结,等管理员审核打款;驳回则退回余额。',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
         Text('提现记录', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (_loadingHistory)
-          const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          )
         else if (_history.isEmpty)
           const Padding(padding: EdgeInsets.all(16), child: Text('暂无提现记录'))
         else
@@ -762,17 +853,36 @@ class _WithdrawTabState extends State<_WithdrawTab> {
     final color = [Colors.orange, Colors.green, Colors.red][status.clamp(0, 2)];
     return Card(
       child: ListTile(
-        title: Text('${((m['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)} USDT'),
-        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${m['usdt_address'] ?? ''}',
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-          if (m['tx_hash'] != null && '${m['tx_hash']}'.isNotEmpty)
-            Text('tx: ${m['tx_hash']}',
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
-          if (m['admin_remark'] != null && '${m['admin_remark']}'.isNotEmpty)
-            Text('备注: ${m['admin_remark']}', style: const TextStyle(fontSize: 11)),
-        ]),
-        trailing: Text('${m['status_text'] ?? ''}', style: TextStyle(color: color, fontSize: 12)),
+        title: Text(
+          '${((m['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)} USDT',
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${m['usdt_address'] ?? ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+            if (m['tx_hash'] != null && '${m['tx_hash']}'.isNotEmpty)
+              Text(
+                'tx: ${m['tx_hash']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11),
+              ),
+            if (m['admin_remark'] != null && '${m['admin_remark']}'.isNotEmpty)
+              Text(
+                '备注: ${m['admin_remark']}',
+                style: const TextStyle(fontSize: 11),
+              ),
+          ],
+        ),
+        trailing: Text(
+          '${m['status_text'] ?? ''}',
+          style: TextStyle(color: color, fontSize: 12),
+        ),
       ),
     );
   }
