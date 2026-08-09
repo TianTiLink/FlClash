@@ -56,6 +56,62 @@ class XboardSubscribe {
   }
 }
 
+class XboardCheckout {
+  final int type;
+  final String data;
+  final String? payment;
+  final String? network;
+  final String? address;
+  final String? amount;
+  final DateTime? expiresAt;
+  final String? instructions;
+
+  const XboardCheckout({
+    required this.type,
+    required this.data,
+    this.payment,
+    this.network,
+    this.address,
+    this.amount,
+    this.expiresAt,
+    this.instructions,
+  });
+
+  factory XboardCheckout.fromMap(Map<dynamic, dynamic> data) {
+    String? optional(String key) {
+      final value = data[key]?.toString().trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    return XboardCheckout(
+      type: parseInt(data['type']),
+      data: (data['data'] ?? '').toString(),
+      payment: optional('payment'),
+      network: optional('network'),
+      address: optional('address'),
+      amount: optional('amount'),
+      expiresAt: DateTime.tryParse(optional('expires_at') ?? '')?.toUtc(),
+      instructions: optional('instructions'),
+    );
+  }
+
+  bool get isUsdt => payment == 'usdt_trc20';
+  String get qrData => address ?? data;
+
+  Duration remainingAt(DateTime now) {
+    final expiry = expiresAt;
+    if (expiry == null) return Duration.zero;
+    final remaining = expiry.difference(now.toUtc());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+}
+
 class XboardApi {
   /// 面板地址,如 https://panel.example.com
   final String baseUrl;
@@ -339,7 +395,7 @@ class XboardApi {
   /// 结账。
   /// 返回裸 {type,data}(不带 envelope):type=1 外部支付URL(浏览器打开);
   /// type=0 二维码串(原生渲染);type=-1 免费订单已支付(data=true)。
-  Future<({int type, String data})> checkout(
+  Future<XboardCheckout> checkout(
     String authData,
     String tradeNo,
     int method,
@@ -367,7 +423,7 @@ class XboardApi {
     }
     final data = body is Map ? body['data'] : null;
     if (data is Map && data.containsKey('type')) {
-      return (type: _int(data['type']), data: (data['data'] ?? '').toString());
+      return XboardCheckout.fromMap(data);
     }
     throw XboardApiException(
       (body is Map ? body['message'] : null)?.toString() ?? '结账失败',

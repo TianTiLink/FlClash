@@ -8,8 +8,11 @@
 //
 // 依赖:qr_flutter(已用于代理中心,pubspec 已有)。openExternal 来自 web_page.dart。
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'xboard_api.dart';
@@ -185,7 +188,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
 
     // 结账
     _showBlockingLoader('正在发起支付…');
-    ({int type, String data}) res;
+    XboardCheckout res;
     try {
       res = await api.checkout(a.token, tradeNo, _toInt(selectedMethod['id']));
       _dismissLoader();
@@ -212,8 +215,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
           panelUrl: a.url,
           token: a.token,
           tradeNo: tradeNo,
-          payType: res.type,
-          payData: res.data,
+          checkout: res,
           paymentName: selectedMethod['name']?.toString().trim() ?? '所选支付方式',
         ),
       ),
@@ -495,16 +497,14 @@ class _PayWaitPage extends ConsumerStatefulWidget {
   final String panelUrl;
   final String token;
   final String tradeNo;
-  final int payType; // 1 外部URL / 0 二维码
-  final String payData;
+  final XboardCheckout checkout;
   final String paymentName;
 
   const _PayWaitPage({
     required this.panelUrl,
     required this.token,
     required this.tradeNo,
-    required this.payType,
-    required this.payData,
+    required this.checkout,
     required this.paymentName,
   });
 
@@ -516,22 +516,61 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
   bool _checking = false;
   bool _autoStopped = false;
   int _tries = 0;
+  Timer? _countdownTimer;
+  Duration _remaining = Duration.zero;
+
+  bool get _expired =>
+      widget.checkout.expiresAt != null && _remaining == Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    if (widget.payType == 1) {
+    _updateRemaining();
+    if (widget.checkout.expiresAt != null) {
+      _countdownTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _updateRemaining(),
+      );
+    }
+    if (widget.checkout.type == 1) {
       // 外部支付:自动拉起系统浏览器
       WidgetsBinding.instance.addPostFrameCallback((_) => _openPay());
     }
     _autoPoll();
   }
 
-  Future<void> _openPay() => openExternal(widget.payData);
+  Future<void> _openPay() => openExternal(widget.checkout.data);
+
+  void _updateRemaining() {
+    final remaining = widget.checkout.remainingAt(DateTime.now());
+    if (!mounted) return;
+    if (_remaining != remaining) setState(() => _remaining = remaining);
+    if (remaining == Duration.zero && widget.checkout.expiresAt != null) {
+      _autoStopped = true;
+      _countdownTimer?.cancel();
+    }
+  }
+
+  String _countdownText() {
+    final seconds = _remaining.inSeconds;
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    final rest = seconds % 60;
+    final prefix = hours > 0 ? '${hours.toString().padLeft(2, '0')}:' : '';
+    return '$prefix${minutes.toString().padLeft(2, '0')}:${rest.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _copy(String value, String label) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label已复制')));
+  }
 
   // 每 3 秒自动查一次,最多 ~40 次(2 分钟);也可手动点「我已支付」。
   Future<void> _autoPoll() async {
-    while (mounted && !_autoStopped && _tries < 40) {
+    while (mounted && !_autoStopped && !_expired && _tries < 40) {
       await Future.delayed(const Duration(seconds: 3));
       if (!mounted || _autoStopped) return;
       _tries++;
@@ -542,6 +581,14 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
 
   Future<bool> _checkOnce({bool silent = false}) async {
     if (_checking) return false;
+    if (_expired) {
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('支付订单已超时，请返回订单重新获取支付信息')));
+      }
+      return false;
+    }
     if (!silent) setState(() => _checking = true);
     try {
       final status = await XboardApi(
@@ -583,7 +630,187 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
   @override
   void dispose() {
     _autoStopped = true;
+    _countdownTimer?.cancel();
     super.dispose();
+  }
+
+  Widget _qrCard(String data, {double size = 210}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: QrImageView(
+        data: data,
+        version: QrVersions.auto,
+        size: size,
+        backgroundColor: Colors.white,
+        errorCorrectionLevel: QrErrorCorrectLevel.M,
+      ),
+    );
+  }
+
+  Widget _usdtPayment(ThemeData theme) {
+    final checkout = widget.checkout;
+    final address = checkout.address ?? checkout.data;
+    final amount = checkout.amount ?? '--';
+    final network = checkout.network ?? 'TRC20';
+    final instructions = checkout.instructions;
+    final colors = theme.colorScheme;
+
+    return Column(
+      children: [
+        const Text(
+          'USDT 支付',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '仅支持 $network 网络，请按下面的精确金额转账',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: colors.onSurfaceVariant),
+        ),
+        const SizedBox(height: 18),
+        _qrCard(address),
+        const SizedBox(height: 12),
+        Text(
+          '扫描二维码获取收款地址',
+          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '精确支付金额',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$amount USDT',
+                style: const TextStyle(
+                  color: _kAmber,
+                  fontSize: 27,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '收款地址 · $network',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              SelectionArea(
+                child: Text(
+                  address,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _copy(address, '收款地址'),
+                    icon: const Icon(Icons.copy_rounded, size: 17),
+                    label: const Text('复制地址'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _copy(amount, '精确金额'),
+                    icon: const Icon(Icons.copy_rounded, size: 17),
+                    label: const Text('复制金额'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            color: _expired
+                ? colors.errorContainer
+                : _kAmber.withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _expired ? Icons.timer_off_outlined : Icons.timer_outlined,
+                color: _expired ? colors.onErrorContainer : _kAmber,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _expired ? '订单已超时，请返回订单重新获取支付信息' : '支付剩余时间',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (!_expired)
+                Text(
+                  _countdownText(),
+                  style: const TextStyle(
+                    fontFeatures: [FontFeature.tabularFigures()],
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '请务必使用 $network 网络，并支付完全一致的金额；少付、多付或使用其他网络都无法自动开通。',
+          textAlign: TextAlign.left,
+          style: TextStyle(
+            color: colors.onSurfaceVariant,
+            fontSize: 12.5,
+            height: 1.5,
+          ),
+        ),
+        if (instructions != null && instructions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            instructions,
+            textAlign: TextAlign.left,
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12.5),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -597,21 +824,18 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.payType == 0) ...[
-                Text(
-                  '请使用${widget.paymentName}完成支付',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+              if (widget.checkout.type == 0) ...[
+                if (widget.checkout.isUsdt)
+                  _usdtPayment(theme)
+                else ...[
+                  Text(
+                    '请使用${widget.paymentName}完成支付',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  child: QrImageView(data: widget.payData, size: 220),
-                ),
+                  const SizedBox(height: 16),
+                  _qrCard(widget.checkout.qrData, size: 220),
+                ],
               ] else ...[
                 const Icon(Icons.open_in_browser, size: 48, color: _kIndigo),
                 const SizedBox(height: 16),
@@ -631,14 +855,16 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 10),
+                  if (!_expired) ...[
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
                   Text(
-                    '正在等待支付结果…',
+                    _expired ? '本次支付信息已失效' : '正在等待支付结果…',
                     style: TextStyle(color: theme.hintColor, fontSize: 13),
                   ),
                 ],
@@ -652,7 +878,7 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  onPressed: _checking ? null : () => _checkOnce(),
+                  onPressed: _checking || _expired ? null : () => _checkOnce(),
                   child: _checking
                       ? const SizedBox(
                           width: 20,
@@ -662,7 +888,7 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('我已完成支付'),
+                      : Text(_expired ? '支付已超时' : '我已完成支付'),
                 ),
               ),
               const SizedBox(height: 8),
