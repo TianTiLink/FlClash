@@ -86,9 +86,6 @@ class ResellerApi {
     if (resp.statusCode == 401 || resp.statusCode == 403) {
       throw XboardApiException('登录已过期或无权限,请重新登录');
     }
-    if (resp.statusCode >= 500) {
-      throw XboardApiException('服务器错误(${resp.statusCode})');
-    }
     dynamic body;
     try {
       body = jsonDecode(utf8.decode(resp.bodyBytes));
@@ -98,7 +95,7 @@ class ResellerApi {
     if (body is! Map) {
       throw XboardApiException('请求失败');
     }
-    if (body['status'] == 'fail') {
+    if (resp.statusCode >= 400 || body['status'] == 'fail') {
       throw XboardApiException((body['message'] ?? '请求失败').toString());
     }
     final d = body['data'];

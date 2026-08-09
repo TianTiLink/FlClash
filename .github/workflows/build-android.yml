@@ -110,6 +110,11 @@ jobs:
           flutter --version
           flutter pub get
 
+      - name: Client static analysis and automated tests
+        run: |
+          flutter analyze --no-fatal-infos
+          flutter test
+
       # 注意:不是 `flutter build apk`,而是 FlClash 的编排脚本(它会先编 Go 内核、再用
       # 仓库内自带的 flutter_distributor 打包)。--env stable 对应正式发布 tag。
       - name: 构建 APK(所有 ABI,split-per-abi)

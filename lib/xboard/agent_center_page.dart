@@ -474,8 +474,12 @@ class _DownlinesTabState extends State<_DownlinesTab> {
         return ListTile(
           leading: CircleAvatar(child: Text('${m['level'] ?? 1}')),
           title: Text('${m['email'] ?? '—'}'),
-          subtitle: Text(
-              '注册 ${_date(m['created_at'])}${(m['is_agent'] == true) ? ' · 代理' : ''}'),
+          subtitle: Text([
+            '注册 ${_date(m['created_at'])}',
+            if (m['is_agent'] == true) '代理',
+            if ('${m['plan_name'] ?? ''}'.isNotEmpty) '${m['plan_name']}',
+            if ('${m['telegram_username'] ?? ''}'.isNotEmpty) '@${m['telegram_username']}',
+          ].join(' · ')),
           trailing: Text(
             isCash ? '+${cv.toStringAsFixed(2)} USDT' : '+${cv.toStringAsFixed(2)} GB',
             style: const TextStyle(color: Colors.green),
@@ -502,10 +506,20 @@ class _DownlinesTabState extends State<_DownlinesTab> {
     );
   }
 
-  String _date(dynamic ts) {
-    final t = (ts as num?)?.toInt() ?? 0;
-    if (t == 0) return '—';
-    final d = DateTime.fromMillisecondsSinceEpoch(t * 1000);
+  String _date(dynamic value) {
+    DateTime? parsed;
+    if (value is num) {
+      final raw = value.toInt();
+      if (raw > 0) parsed = DateTime.fromMillisecondsSinceEpoch(raw < 100000000000 ? raw * 1000 : raw);
+    } else {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isNotEmpty) {
+        final normalized = RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(raw) ? raw : '${raw.replaceFirst(' ', 'T')}Z';
+        parsed = DateTime.tryParse(normalized)?.toLocal();
+      }
+    }
+    if (parsed == null) return '—';
+    final d = parsed;
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 }
@@ -603,6 +617,18 @@ class _WithdrawTabState extends State<_WithdrawTab> {
   List _history = [];
   bool _loadingHistory = true;
 
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  double get _minimum {
+    final rules = widget.summary['rules'];
+    return rules is Map ? _number(rules['usdt_withdraw_min']) : 0;
+  }
+
+  double get _balance => _number(widget.summary['commission_balance_display']);
+
   @override
   void initState() {
     super.initState();
@@ -637,14 +663,23 @@ class _WithdrawTabState extends State<_WithdrawTab> {
       _toast('请输入正确的提现金额');
       return;
     }
-    if (addr.isEmpty) {
-      _toast('请输入 USDT(TRC20)收款地址');
+    if (amt < _minimum) {
+      _toast('最低提现金额为 ${_minimum.toStringAsFixed(2)} USDT');
+      return;
+    }
+    if (amt > _balance) {
+      _toast('提现金额不能超过可提现余额 ${_balance.toStringAsFixed(2)} USDT');
+      return;
+    }
+    if (!RegExp(r'^T[1-9A-HJ-NP-Za-km-z]{33}$').hasMatch(addr)) {
+      _toast('请输入有效的 USDT（TRC20）收款地址');
       return;
     }
     setState(() => _submitting = true);
     try {
       final r = await widget.api.submitWithdraw(amount: amt, address: addr);
-      _toast(r['message']?.toString() ?? '提交成功');
+      if (r['submitted'] != true) throw XboardApiException('提现申请未被服务器确认，请刷新后重试');
+      _toast('提现申请已提交，金额已冻结并等待后台审核');
       _amount.clear();
       widget.onChanged(); // 刷新余额
       await _loadHistory();
@@ -662,7 +697,7 @@ class _WithdrawTabState extends State<_WithdrawTab> {
 
   @override
   Widget build(BuildContext context) {
-    final bal = (widget.summary['commission_balance_display'] as num?)?.toDouble() ?? 0;
+    final bal = _balance;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -674,12 +709,17 @@ class _WithdrawTabState extends State<_WithdrawTab> {
               const SizedBox(height: 4),
               Text('${bal.toStringAsFixed(2)} USDT',
                   style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 4),
+              Text('最低提现 ${_minimum.toStringAsFixed(2)} USDT',
+                  style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 16),
               TextField(
                 controller: _amount,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: '提现金额(USDT)', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                    labelText: '提现金额（USDT）',
+                    helperText: '最低 ${_minimum.toStringAsFixed(2)}，不能超过当前可提现余额',
+                    border: const OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(

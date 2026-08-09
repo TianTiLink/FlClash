@@ -30,6 +30,15 @@ void main() {
     expect(isTianTiManagedSubscription(item), isTrue);
   });
 
+  test('recognizes a branded TianTi profile saved with the old Core path', () {
+    final item = profile(
+      label: 'TianTi',
+      url: 'https://api.example/api/v1/client/subscribe?token=legacy',
+    );
+
+    expect(isTianTiManagedSubscription(item), isTrue);
+  });
+
   test('does not classify an unrelated subscription as TianTi managed', () {
     final item = profile(
       label: '我的其他订阅',

@@ -63,13 +63,10 @@ bool isTianTiManagedSubscription(Profile profile, {String? subscribeUrl}) {
 
   final label = profile.label.trim().toLowerCase().replaceAll(' ', '');
   const labels = <String>{'tianti', 'tiantilink', '天梯', '天梯link'};
-  if (!labels.contains(label)) return false;
-  final uri = Uri.tryParse(profile.url);
-  return uri != null &&
-      uri.scheme == 'https' &&
-      uri.pathSegments.length >= 2 &&
-      uri.pathSegments.first == 's' &&
-      uri.pathSegments[1].isNotEmpty;
+  // 只有在服务端已经明确返回“无有效套餐”后才会进入清理，因此品牌名本身就是
+  // 最可靠的迁移标识。旧客户端曾保存 /api/v1/client/subscribe、/s/ 等多种路径；
+  // 再限定新路径会漏掉旧版 TianTi profile，界面便继续显示已经失效的历史节点。
+  return labels.contains(label);
 }
 
 /// 清除已经失效的天梯订阅和内核里残留的旧节点。

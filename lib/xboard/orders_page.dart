@@ -99,9 +99,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
   Widget _orderCard(Map<String, dynamic> o) {
     final theme = Theme.of(context);
     final plan = o['plan'];
-    final planName = plan is Map ? (plan['name']?.toString() ?? '套餐') : '套餐';
-    final amount = ((o['total_amount'] as num?)?.toDouble() ?? 0) / 100; // 分->元
-    final s = ((o['status'] as num?)?.toInt() ?? 0).clamp(0, 4);
+    final planName = plan is Map
+        ? (plan['name']?.toString() ?? o['plan_name']?.toString() ?? '套餐')
+        : (o['plan_name']?.toString() ?? '套餐');
+    final amount = _number(o['total_amount'] ?? o['amount']) / 100; // 分->元
+    final s = _statusIndex(o['status'], o['status_key']);
     final labels = ['待支付', '开通中', '已取消', '已完成', '已折抵'];
     final colors = [
       Colors.orange,
@@ -165,6 +167,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
           const Divider(height: 20),
           _kv('订单号', '${o['trade_no'] ?? '—'}'),
           _kv('金额', '¥${amount.toStringAsFixed(2)}'),
+          _kv('支付方式', '${o['payment_name'] ?? '尚未选择'}'),
           _kv('下单时间', _date(o['created_at'])),
         ],
       ),
@@ -222,10 +225,31 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
     ),
   );
 
-  String _date(dynamic ts) {
-    final t = (ts as num?)?.toInt() ?? 0;
-    if (t == 0) return '—';
-    final d = DateTime.fromMillisecondsSinceEpoch(t * 1000);
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  int _statusIndex(dynamic value, dynamic key) {
+    if (value is num) return value.toInt().clamp(0, 4).toInt();
+    final raw = (key ?? value)?.toString().toLowerCase();
+    return const {'pending': 0, 'processing': 1, 'cancelled': 2, 'paid': 3, 'credited': 4}[raw] ?? 0;
+  }
+
+  String _date(dynamic value) {
+    DateTime? parsed;
+    if (value is num) {
+      final raw = value.toInt();
+      if (raw > 0) parsed = DateTime.fromMillisecondsSinceEpoch(raw < 100000000000 ? raw * 1000 : raw);
+    } else {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isNotEmpty) {
+        final normalized = RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(raw) ? raw : '${raw.replaceFirst(' ', 'T')}Z';
+        parsed = DateTime.tryParse(normalized)?.toLocal();
+      }
+    }
+    if (parsed == null) return '—';
+    final d = parsed;
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
         '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }

@@ -6,6 +6,8 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/list.dart';
 import 'package:fl_clash/widgets/scaffold.dart';
+import 'package:fl_clash/xboard/xboard_api.dart';
+import 'package:fl_clash/xboard/xboard_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,8 +24,32 @@ class Contributor {
   });
 }
 
-class AboutView extends StatelessWidget {
+class AboutView extends ConsumerStatefulWidget {
   const AboutView({super.key});
+
+  @override
+  ConsumerState<AboutView> createState() => _AboutViewState();
+}
+
+class _AboutViewState extends ConsumerState<AboutView> {
+  String? _telegramGroupUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadTelegramGroup());
+  }
+
+  Future<void> _loadTelegramGroup() async {
+    String? url;
+    try {
+      final auth = ref.read(xboardAuthProvider);
+      url = await XboardApi(auth.panelUrl).getTelegramGroupUrl();
+    } catch (_) {
+      url = null;
+    }
+    if (mounted) setState(() => _telegramGroupUrl = url);
+  }
 
   Future<void> _checkUpdate(BuildContext context) async {
     final data = await globalState.safeRun<Map<String, dynamic>?>(
@@ -47,13 +73,12 @@ class AboutView extends StatelessWidget {
             _checkUpdate(context);
           },
         ),
-        ListItem(
-          title: const Text('Telegram'),
-          onTap: () {
-            globalState.openUrl('https://t.me/DBglobal1');
-          },
-          trailing: const Icon(Icons.launch),
-        ),
+        if (_telegramGroupUrl != null)
+          ListItem(
+            title: const Text('Telegram 官方群'),
+            onTap: () => globalState.openUrl(_telegramGroupUrl!),
+            trailing: const Icon(Icons.launch),
+          ),
       ],
     );
   }
