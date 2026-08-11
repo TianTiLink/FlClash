@@ -15,7 +15,7 @@
 ## 📥 下载
 
 - 🌐 **官网直下(推荐)**:**https://tianticom.xyz** — Android / Windows / macOS 一键下载
-- 📱 **iOS**:前往 [tiantiweb.xyz/dl/app.html](https://tiantiweb.xyz/dl/app.html) **一键导入订阅**(免费客户端,加到主屏即用)
+- 📱 **iOS**:前往 [tianticom.xyz/dl/app.html](https://tianticom.xyz/dl/app.html) **一键导入订阅**(免费客户端,加到主屏即用)
 - 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 
 ## 🤝 推广赚钱

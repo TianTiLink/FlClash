@@ -34,6 +34,25 @@ void main() {
     expect(result.hasUpdate, isFalse);
   });
 
+  test('endpoint result reads the Core force-update switch', () {
+    final enabled = TtEndpointResult(
+      'https://example.com',
+      true,
+      {'client_version': '0.8.110', 'update_force': true},
+      currentVersion: '0.8.109',
+    );
+    final disabled = TtEndpointResult(
+      'https://example.com',
+      true,
+      {'client_version': '0.8.110', 'update_force': false},
+      currentVersion: '0.8.109',
+    );
+
+    expect(enabled.hasUpdate, isTrue);
+    expect(enabled.updateForce, isTrue);
+    expect(disabled.updateForce, isFalse);
+  });
+
   test('subscription URL keeps the dedicated subscription host', () {
     expect(
       XboardApi.rebaseSubscribeUrl(

@@ -367,7 +367,13 @@ class _PlansPageState extends ConsumerState<PlansPage> {
 
   Widget _planCard(Map<String, dynamic> plan) {
     final name = plan['name']?.toString() ?? '套餐';
-    final transferGb = _toInt(plan['transfer_enable']).toDouble();
+    final transferValue = _toInt(plan['transfer_enable']);
+    final transferBytes = _toInt(plan['transfer_enable_bytes']);
+    final transferGb = transferBytes > 0
+        ? transferBytes / (1024 * 1024 * 1024)
+        : (transferValue > 1024 * 1024
+              ? transferValue / (1024 * 1024 * 1024)
+              : transferValue.toDouble());
     final desc = _stripHtml(plan['content']?.toString() ?? '');
 
     // 可购周期(价格非空的)
@@ -568,7 +574,7 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
     ).showSnackBar(SnackBar(content: Text('$label已复制')));
   }
 
-  // 每 3 秒自动查一次,最多 ~40 次(2 分钟);也可手动点「我已支付」。
+  // 每 3 秒自动查一次,最多 ~40 次(2 分钟);也可手动点「我已支付，检查到账」。
   Future<void> _autoPoll() async {
     while (mounted && !_autoStopped && !_expired && _tries < 40) {
       await Future.delayed(const Duration(seconds: 3));
@@ -888,7 +894,7 @@ class _PayWaitPageState extends ConsumerState<_PayWaitPage> {
                             color: Colors.white,
                           ),
                         )
-                      : Text(_expired ? '支付已超时' : '我已完成支付'),
+                      : Text(_expired ? '支付已超时' : '我已支付，检查到账'),
                 ),
               ),
               const SizedBox(height: 8),

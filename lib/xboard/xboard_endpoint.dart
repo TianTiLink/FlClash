@@ -367,5 +367,5 @@ Future<String> officialSiteBase() async {
       }
     }
   } catch (_) {}
-  return 'https://tiantiweb.xyz';
+  return 'https://tianticom.xyz';
 }
