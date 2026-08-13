@@ -179,7 +179,7 @@ void main() {
   });
 
   group('CurrentPageLabel provider', () {
-    test('default is proxies for the TianTiLink client', () {
+    test('default is proxies for the TianT.co client', () {
       expect(container.read(currentPageLabelProvider), PageLabel.proxies);
     });
 

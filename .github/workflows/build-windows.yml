@@ -276,6 +276,6 @@ jobs:
           Copy-Item TianTiLink-windows-x64-portable.zip release/TianTiLink-windows-portable.zip -Force
           Get-FileHash release/* -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content release/SHA256SUMS-windows.txt
           gh release view $releaseTag -R $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create $releaseTag -R $env:GITHUB_REPOSITORY --title "TianTiLink $version" --notes '客户端自动构建发布。' }
+          if ($LASTEXITCODE -ne 0) { gh release create $releaseTag -R $env:GITHUB_REPOSITORY --title "TianT.co $version" --notes '客户端自动构建发布。' }
           $assets = Get-ChildItem release -File | ForEach-Object { $_.FullName }
           gh release upload $releaseTag -R $env:GITHUB_REPOSITORY $assets --clobber

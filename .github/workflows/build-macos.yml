@@ -151,5 +151,5 @@ jobs:
           fi
           cp "TianTiLink-macos-${{ matrix.arch }}.zip" "release/$target"
           sha256sum "release/$target" > "release/SHA256SUMS-macos-${{ matrix.arch }}.txt"
-          gh release view "$release_tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$release_tag" -R "$GITHUB_REPOSITORY" --title "TianTiLink ${version}" --notes '客户端自动构建发布。' || true
+          gh release view "$release_tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$release_tag" -R "$GITHUB_REPOSITORY" --title "TianT.co ${version}" --notes '客户端自动构建发布。' || true
           gh release upload "$release_tag" -R "$GITHUB_REPOSITORY" release/* --clobber

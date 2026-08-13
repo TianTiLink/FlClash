@@ -26,7 +26,7 @@ class DAVClient {
     }
   }
 
-  String get root => '/$appName';
+  String get root => '/$appStorageNamespace';
 
   String get backupFile => '$root/$fileName';
 

@@ -10,7 +10,6 @@ class Navigation {
 
   List<NavigationItem> getItems({
     bool openLogs = false,
-    bool hasProxies = false,
   }) {
     return [
       // 保留:仪表盘(首页/连接)
@@ -27,9 +26,7 @@ class Navigation {
         label: PageLabel.proxies,
         builder: (_) =>
             const ProxiesView(key: GlobalObjectKey(PageLabel.proxies)),
-        modes: hasProxies
-            ? [NavigationItemMode.mobile, NavigationItemMode.desktop]
-            : [],
+        modes: [NavigationItemMode.mobile, NavigationItemMode.desktop],
       ),
       // ↓↓↓ 用户用不上的,全部隐藏(modes: []) ↓↓↓
       NavigationItem(

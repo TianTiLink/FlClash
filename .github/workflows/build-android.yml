@@ -142,7 +142,7 @@ jobs:
           cp "$(find dist -type f -name '*armeabi-v7a.apk' -print -quit)" release/TianTiLink-android-armeabi-v7a.apk
           cp "$(find dist -type f -name '*x86_64.apk' -print -quit)" release/TianTiLink-android-x86_64.apk
           sha256sum release/* > release/SHA256SUMS-android.txt
-          gh release view "$release_tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$release_tag" -R "$GITHUB_REPOSITORY" --title "TianTiLink ${version}" --notes '客户端自动构建发布。' || true
+          gh release view "$release_tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$release_tag" -R "$GITHUB_REPOSITORY" --title "TianT.co ${version}" --notes '客户端自动构建发布。' || true
           gh release upload "$release_tag" -R "$GITHUB_REPOSITORY" release/* --clobber
 
 # 想同时出 Windows/macOS/Linux:照 FlClash 官方 build.yaml 的 matrix 加对应 job 即可
