@@ -256,9 +256,11 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     _dismissLoader();
     if (!mounted) return;
     _snack('购买成功,套餐已生效');
-    Navigator.of(context).pop(); // 回账户页
+    // The payment wait page has already returned to this page. Do not pop this
+    // page too: desktop navigation can be rebuilt while the subscription is
+    // imported, and popping a rebuilt nested navigator leaves a black window.
+    await _load();
   }
-
   // ---------- loader / snack ----------
 
   bool _loaderShown = false;
