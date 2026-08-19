@@ -1,3 +1,11 @@
+## v0.8.114
+
+- Fix smart routing so mainland and LAN traffic can connect directly.
+
+- Make Android service mode control the real system VPN service and restart an active connection safely.
+
+- Keep desktop service mode mapped to Mihomo TUN.
+
 ## v0.8.94
 
 - Fix macos performance issue

@@ -276,6 +276,40 @@ class SetupAction extends _$SetupAction {
     }
   }
 
+  /// The customer-facing service-mode switch maps to Android's real
+  /// VpnService and to Mihomo TUN on desktop. Android chooses between
+  /// CommonService and VpnService only when the listener starts, so an active
+  /// connection must be restarted after this setting changes.
+  Future<void> changeServiceMode(
+    bool enable, {
+    bool? androidOverride,
+  }) async {
+    final useAndroidVpn = androidOverride ?? system.isAndroid;
+    if (!useAndroidVpn) {
+      ref
+          .read(patchClashConfigProvider.notifier)
+          .update((state) => state.copyWith.tun(enable: enable));
+      return;
+    }
+
+    final current = ref.read(vpnSettingProvider);
+    if (current.enable == enable) return;
+    final next = current.copyWith(enable: enable);
+    globalState.lastVpnState = ref
+        .read(vpnStateProvider)
+        .copyWith(vpnProps: next);
+    ref.read(vpnSettingProvider.notifier).update((_) => next);
+    if (system.isAndroid) {
+      final sharedState = ref.read(sharedStateProvider);
+      await preferences.saveShareState(sharedState);
+      await service?.syncState(sharedState.needSyncSharedState);
+    }
+
+    if (!ref.read(isStartProvider)) return;
+    await handleStop();
+    await updateStatus(true);
+  }
+
   void autoApplyProfile() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       applyProfile();

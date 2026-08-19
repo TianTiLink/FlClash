@@ -61,6 +61,35 @@ void main() {
       expect(container.read(isUpdatingProvider(key)), false);
     });
   });
+
+  group('SetupAction service mode', () {
+    test('Android service mode controls the real VPN setting', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(container.read(vpnSettingProvider).enable, true);
+      expect(container.read(patchClashConfigProvider).tun.enable, false);
+
+      await container
+          .read(setupActionProvider.notifier)
+          .changeServiceMode(false, androidOverride: true);
+
+      expect(container.read(vpnSettingProvider).enable, false);
+      expect(container.read(patchClashConfigProvider).tun.enable, false);
+    });
+
+    test('desktop service mode controls Mihomo TUN', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await container
+          .read(setupActionProvider.notifier)
+          .changeServiceMode(true, androidOverride: false);
+
+      expect(container.read(patchClashConfigProvider).tun.enable, true);
+      expect(container.read(vpnSettingProvider).enable, true);
+    });
+  });
 }
 
 class _TestProfiles extends Profiles {

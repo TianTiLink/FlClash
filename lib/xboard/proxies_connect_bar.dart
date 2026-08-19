@@ -6,10 +6,12 @@
 // provider 全来自 providers barrel,无需新增依赖:
 //   isStartProvider / commonActionProvider.updateStart()
 //   patchClashConfigProvider.mode / setupActionProvider.changeMode(Mode)
-//   patchClashConfigProvider.tun.enable(服务模式开关)
+//   Android: vpnSettingProvider.enable(真实 VpnService)
+//   Desktop: patchClashConfigProvider.tun.enable(Mihomo TUN)
 //
 // 注入方式见文件末尾(改 lib/views/proxies/proxies.dart 一处 body;若已注入过就无需再动)。
 
+import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart'; // Mode { rule, global, direct }
 import 'package:fl_clash/providers/providers.dart';
 import 'package:flutter/material.dart';
@@ -37,9 +39,11 @@ class ProxiesConnectBar extends ConsumerWidget {
     final theme = Theme.of(context);
     final isStart = ref.watch(isStartProvider);
     final mode = ref.watch(patchClashConfigProvider.select((s) => s.mode));
-    final tunEnable = ref.watch(
-      patchClashConfigProvider.select((s) => s.tun.enable),
-    );
+    final tunEnable = system.isAndroid
+        ? ref.watch(vpnSettingProvider.select((s) => s.enable))
+        : ref.watch(
+            patchClashConfigProvider.select((s) => s.tun.enable),
+          );
 
     return SafeArea(
       top: false,
@@ -215,8 +219,8 @@ class ProxiesConnectBar extends ConsumerWidget {
             onChanged: controlsEnabled
                 ? (value) {
                     ref
-                        .read(patchClashConfigProvider.notifier)
-                        .update((state) => state.copyWith.tun(enable: value));
+                        .read(setupActionProvider.notifier)
+                        .changeServiceMode(value);
                   }
                 : null,
           ),
