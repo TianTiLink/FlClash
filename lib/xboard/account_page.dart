@@ -36,6 +36,8 @@ class AccountPage extends ConsumerStatefulWidget {
 
 class _AccountPageState extends ConsumerState<AccountPage> {
   XboardSubscribe? _info;
+  XboardRegistrationTrial? _registrationTrial;
+  bool _claimingRegistrationTrial = false;
   String? _telegramGroupUrl;
   String? _error;
   bool _loading = true;
@@ -54,7 +56,111 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   }
 
   Future<void> _reload() async {
-    await Future.wait<void>([_load(), _loadTelegramGroup()]);
+    await Future.wait<void>([_load(), _loadTelegramGroup(), _loadRegistrationTrial()]);
+  }
+
+  Future<void> _loadRegistrationTrial() async {
+    final auth = ref.read(xboardAuthProvider);
+    final token = auth.authData;
+    if (token == null) return;
+    try {
+      final trial = await XboardApi(auth.panelUrl).fetchRegistrationTrial(token);
+      if (mounted) setState(() => _registrationTrial = trial);
+    } catch (_) {}
+  }
+
+  Future<void> _claimRegistrationTrial() async {
+    if (_claimingRegistrationTrial) return;
+    final auth = ref.read(xboardAuthProvider);
+    final token = auth.authData;
+    if (token == null) return;
+    setState(() => _claimingRegistrationTrial = true);
+    try {
+      final claimed = await XboardApi(
+        auth.panelUrl,
+      ).claimRegistrationTrial(token);
+      final url = await ref.read(xboardAuthProvider.notifier).refreshSubscribe();
+      if (url != null) await importXboardSubscription(url);
+      await _load();
+      if (!mounted) return;
+      setState(() => _registrationTrial = claimed);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('注册试用 ${_trialDays(claimed.durationDays)} 已到账')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _claimingRegistrationTrial = false);
+    }
+  }
+
+  String _trialDays(double days) =>
+      days == days.roundToDouble() ? '${days.toInt()}天' : '${days.toStringAsFixed(1)}天';
+
+  Widget _registrationTrialCard(ThemeData theme) {
+    final trial = _registrationTrial;
+    if (trial == null || (!trial.enabled && !trial.claimed)) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kIndigo.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kIndigo.withOpacity(0.24)),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            backgroundColor: _kIndigo,
+            foregroundColor: Colors.white,
+            child: Icon(Icons.redeem_outlined),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trial.claimed
+                      ? '已领取试用'
+                      : (trial.durationDays == 1
+                            ? '领取注册试用一天'
+                            : '领取注册试用${_trialDays(trial.durationDays)}'),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  trial.claimed
+                      ? '每个账号限领一次'
+                      : '免费赠送 ${_trialDays(trial.durationDays)}，可与其他权益叠加',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.hintColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          FilledButton(
+            onPressed: trial.claimed || _claimingRegistrationTrial
+                ? null
+                : _claimRegistrationTrial,
+            child: Text(
+                  trial.claimed
+                      ? '已领取试用'
+                      : (_claimingRegistrationTrial
+                        ? '领取中…'
+                        : '立即领取'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadTelegramGroup() async {
@@ -328,6 +434,11 @@ class _AccountPageState extends ConsumerState<AccountPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(
                 children: [
+                  _registrationTrialCard(theme),
+                  if (_registrationTrial != null &&
+                      (_registrationTrial!.enabled ||
+                          _registrationTrial!.claimed))
+                    const SizedBox(height: 14),
                   _promoHomeCard(theme),
                   const SizedBox(height: 14),
                   _sectionCard(theme, [

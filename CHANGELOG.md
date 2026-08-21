@@ -1,3 +1,9 @@
+## v0.8.116
+
+- Native registration now sends and requires a six-digit email verification code.
+- The My page now offers the independently configured one-time registration trial and changes to “已领取试用” after a successful claim.
+- Claimed trial entitlements refresh and apply the latest subscription immediately.
+
 ## v0.8.115
 
 - Windows 自动更新固定下载正式 Inno 安装版，不再误选免安装 ZIP。

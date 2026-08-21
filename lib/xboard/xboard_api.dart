@@ -56,6 +56,28 @@ class XboardSubscribe {
   }
 }
 
+class XboardRegistrationTrial {
+  final bool enabled;
+  final bool claimed;
+  final double durationDays;
+  final String label;
+
+  const XboardRegistrationTrial({
+    required this.enabled,
+    required this.claimed,
+    required this.durationDays,
+    required this.label,
+  });
+
+  factory XboardRegistrationTrial.fromMap(Map<dynamic, dynamic> data) =>
+      XboardRegistrationTrial(
+        enabled: data['enabled'] == true || data['enabled'] == 1,
+        claimed: data['claimed'] == true || data['claimed'] == 1,
+        durationDays: double.tryParse(data['duration_days']?.toString() ?? '') ?? 1,
+        label: data['label']?.toString() ?? '领取注册试用1天',
+      );
+}
+
 class XboardCheckout {
   final int type;
   final String data;
@@ -152,6 +174,20 @@ class XboardApi {
     if (resp.statusCode >= 400 && resp.statusCode != 401) {
       throw XboardApiException('退出登录失败');
     }
+  }
+
+  Future<void> sendRegistrationEmailCode(String email) async {
+    final resp = await http
+        .post(
+          _u('/api/v1/unified-admin/customer/auth/email-code'),
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(timeout);
+    _unwrap(resp, badAuthMsg: '验证码发送失败');
   }
 
   /// 注册并自动登录。email_code 仅当面板开启「邮箱验证」时必填;invite_code 仅当面板要求邀请码时必填。
@@ -272,6 +308,35 @@ class XboardApi {
     final code = data['invite_code']?.toString().trim();
     if (code != null && code.isNotEmpty) return code;
     throw XboardApiException('未能获取邀请码');
+  }
+
+  Future<XboardRegistrationTrial> fetchRegistrationTrial(
+    String authData,
+  ) async {
+    final resp = await http
+        .get(
+          _u('/api/v1/unified-admin/customer/registration-trial'),
+          headers: {'Authorization': authData, 'Accept': 'application/json'},
+        )
+        .timeout(timeout);
+    return XboardRegistrationTrial.fromMap(
+      _unwrap(resp, badAuthMsg: '登录已过期,请重新登录'),
+    );
+  }
+
+  Future<XboardRegistrationTrial> claimRegistrationTrial(
+    String authData,
+  ) async {
+    final resp = await http
+        .post(
+          _u('/api/v1/unified-admin/customer/registration-trial/claim'),
+          headers: _jsonAuth(authData),
+          body: '{}',
+        )
+        .timeout(timeout);
+    return XboardRegistrationTrial.fromMap(
+      _unwrap(resp, badAuthMsg: '登录已过期,请重新登录'),
+    );
   }
 
   // ============ 订单 / 套餐 / 工单 / 支付(全部原生,替代会崩的 webview)============

@@ -2,11 +2,14 @@
 // 注册成功即自动登录,门控(XboardGate)会切到主界面,本页自动弹出。
 // 邮箱验证码:仅当你面板开启「邮箱验证」时必填;没开就留空。
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
+import 'xboard_api.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -21,9 +24,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _pass = TextEditingController();
   final _pass2 = TextEditingController();
   final _invite = TextEditingController();
+  final _emailCode = TextEditingController();
   final _companyWebsite = TextEditingController();
   bool _obscure = true;
   bool _busy = false;
+  bool _sendingCode = false;
+  int _resendSeconds = 0;
+  Timer? _resendTimer;
   String? _error;
 
   @override
@@ -32,8 +39,48 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _pass.dispose();
     _pass2.dispose();
     _invite.dispose();
+    _emailCode.dispose();
     _companyWebsite.dispose();
+    _resendTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _sendEmailCode() async {
+    final email = _email.text.trim();
+    if (!email.contains('@')) {
+      setState(() => _error = '请先输入有效邮箱');
+      return;
+    }
+    setState(() {
+      _sendingCode = true;
+      _error = null;
+    });
+    try {
+      await XboardApi(ttActiveBase).sendRegistrationEmailCode(email);
+      if (!mounted) return;
+      setState(() {
+        _resendSeconds = 60;
+        _sendingCode = false;
+      });
+      _resendTimer?.cancel();
+      _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return timer.cancel();
+        setState(() {
+          _resendSeconds--;
+          if (_resendSeconds <= 0) timer.cancel();
+        });
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('验证码已发送，请查收邮箱')),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _sendingCode = false;
+          _error = e.toString();
+        });
+      }
+    }
   }
 
   Future<void> _register() async {
@@ -55,7 +102,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             email: _email.text.trim(),
             password: _pass.text,
             inviteCode: _invite.text.trim(),
-            emailCode: null,
+            emailCode: _emailCode.text.trim(),
             sliderToken: null,
             companyWebsite: _companyWebsite.text,
           );
@@ -103,6 +150,45 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? '请输入邮箱'
                         : (!v.contains('@') ? '邮箱格式不正确' : null),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _emailCode,
+                          keyboardType: TextInputType.number,
+                          autofillHints: const [AutofillHints.oneTimeCode],
+                          maxLength: 6,
+                          decoration: const InputDecoration(
+                            counterText: '',
+                            labelText: '邮箱验证码',
+                            prefixIcon: Icon(Icons.mark_email_read_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (v) => RegExp(r'^\d{6}$').hasMatch(v ?? '')
+                              ? null
+                              : '请输入 6 位验证码',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        height: 56,
+                        child: OutlinedButton(
+                          onPressed: _sendingCode || _resendSeconds > 0
+                              ? null
+                              : _sendEmailCode,
+                          child: Text(
+                            _sendingCode
+                                ? '发送中…'
+                                : (_resendSeconds > 0
+                                      ? '${_resendSeconds}s'
+                                      : '发送验证码'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 14),
                   TextFormField(

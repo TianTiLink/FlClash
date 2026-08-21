@@ -83,4 +83,33 @@ void main() {
       );
     });
   });
+
+  group('Registration trial', () {
+    test('parses enabled and claimed state without exposing traffic', () {
+      final trial = XboardRegistrationTrial.fromMap({
+        'enabled': true,
+        'claimed': false,
+        'duration_days': 1,
+        'label': '领取注册试用一天',
+        'transfer_gb': 3,
+      });
+
+      expect(trial.enabled, isTrue);
+      expect(trial.claimed, isFalse);
+      expect(trial.durationDays, 1);
+      expect(trial.label, '领取注册试用一天');
+    });
+
+    test('parses the post-claim label', () {
+      final trial = XboardRegistrationTrial.fromMap({
+        'enabled': true,
+        'claimed': true,
+        'duration_days': 1,
+        'label': '已领取试用',
+      });
+
+      expect(trial.claimed, isTrue);
+      expect(trial.label, '已领取试用');
+    });
+  });
 }
