@@ -101,11 +101,19 @@ class _AccountPageState extends ConsumerState<AccountPage> {
   String _trialDays(double days) =>
       days == days.roundToDouble() ? '${days.toInt()}天' : '${days.toStringAsFixed(1)}天';
 
-  Widget _registrationTrialCard(ThemeData theme) {
+  Widget _freeBenefitsCard(ThemeData theme) {
     final trial = _registrationTrial;
-    if (trial == null || (!trial.enabled && !trial.claimed)) {
+    final showTrial = trial != null && (trial.enabled || trial.claimed);
+    final showTelegram = _telegramGroupUrl != null;
+    if (!showTrial && !showTelegram) {
       return const SizedBox.shrink();
     }
+    final title = showTrial && showTelegram ? '两种免费权益' : '免费权益';
+    final copy = showTrial && showTelegram
+        ? '加TG群领取7天VPN；客户端“我的”直接领取试用套餐${_trialDays(trial!.durationDays)}。'
+        : showTelegram
+        ? '加TG群领取7天VPN，点击下方按钮直接进入官方群。'
+        : '客户端“我的”直接领取试用套餐${_trialDays(trial!.durationDays)}。';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -114,50 +122,99 @@ class _AccountPageState extends ConsumerState<AccountPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kIndigo.withOpacity(0.24)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(
-            backgroundColor: _kIndigo,
-            foregroundColor: Colors.white,
-            child: Icon(Icons.redeem_outlined),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 4),
+          Text(
+            copy,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          ),
+          if (showTelegram) ...[
+            const SizedBox(height: 14),
+            Row(
               children: [
-                Text(
-                  trial.claimed
-                      ? '已领取试用'
-                      : (trial.durationDays == 1
-                            ? '领取注册试用一天'
-                            : '领取注册试用${_trialDays(trial.durationDays)}'),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                const CircleAvatar(
+                  backgroundColor: Color(0xFF229ED9),
+                  foregroundColor: Colors.white,
+                  child: Icon(Icons.send_rounded),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  trial.claimed
-                      ? '每个账号限领一次'
-                      : '免费赠送 ${_trialDays(trial.durationDays)}，可与其他权益叠加',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.hintColor,
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '加TG群领取7天VPN',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      SizedBox(height: 3),
+                      Text('点击直接进入TG官方群，加群后按群内指引确认领取'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () => openExternal(_telegramGroupUrl!),
+                  child: const Text('进入TG群'),
+                ),
+              ],
+            ),
+          ],
+          if (showTelegram && showTrial) ...[
+            const SizedBox(height: 12),
+            Divider(height: 1, color: theme.dividerColor),
+          ],
+          if (showTrial) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: _kIndigo,
+                  foregroundColor: Colors.white,
+                  child: Icon(Icons.redeem_outlined),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        trial!.claimed
+                            ? '试用套餐${_trialDays(trial!.durationDays)}已领取'
+                            : '直接领取试用套餐${_trialDays(trial!.durationDays)}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        trial!.claimed
+                            ? '每个账号限领一次'
+                            : '天数按后台设置，可与加群权益叠加',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: trial!.claimed || _claimingRegistrationTrial
+                      ? null
+                      : _claimRegistrationTrial,
+                  child: Text(
+                    trial!.claimed
+                        ? '已领取'
+                        : (_claimingRegistrationTrial ? '领取中…' : '直接领取'),
                   ),
                 ),
               ],
             ),
-          ),
-          FilledButton(
-            onPressed: trial.claimed || _claimingRegistrationTrial
-                ? null
-                : _claimRegistrationTrial,
-            child: Text(
-                  trial.claimed
-                      ? '已领取试用'
-                      : (_claimingRegistrationTrial
-                        ? '领取中…'
-                        : '立即领取'),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -434,10 +491,11 @@ class _AccountPageState extends ConsumerState<AccountPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(
                 children: [
-                  _registrationTrialCard(theme),
-                  if (_registrationTrial != null &&
-                      (_registrationTrial!.enabled ||
-                          _registrationTrial!.claimed))
+                  _freeBenefitsCard(theme),
+                  if (_telegramGroupUrl != null ||
+                      (_registrationTrial != null &&
+                          (_registrationTrial!.enabled ||
+                              _registrationTrial!.claimed)))
                     const SizedBox(height: 14),
                   _promoHomeCard(theme),
                   const SizedBox(height: 14),

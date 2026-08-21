@@ -1,3 +1,9 @@
+## v0.8.118
+
+- The My page now clearly separates the two free benefits: join the Telegram group for the seven-day VPN, or claim the independently configured registration trial directly in the client.
+- Registration-trial wording and displayed duration now follow the current server configuration.
+- The Telegram benefit opens the configured official group link directly from the My page.
+
 ## v0.8.117
 
 - Native registration now sends and requires a six-digit email verification code.
