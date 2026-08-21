@@ -1,6 +1,7 @@
-## v0.8.116
+## v0.8.117
 
 - Native registration now sends and requires a six-digit email verification code.
+- Sending the email code now requires an in-app security challenge first.
 - The My page now offers the independently configured one-time registration trial and changes to “已领取试用” after a successful claim.
 - Claimed trial entitlements refresh and apply the latest subscription immediately.
 

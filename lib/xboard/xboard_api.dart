@@ -134,6 +134,13 @@ class XboardCheckout {
   }
 }
 
+class RegistrationCaptcha {
+  final String id;
+  final String question;
+
+  const RegistrationCaptcha({required this.id, required this.question});
+}
+
 class XboardApi {
   /// 面板地址,如 https://panel.example.com
   final String baseUrl;
@@ -176,7 +183,31 @@ class XboardApi {
     }
   }
 
-  Future<void> sendRegistrationEmailCode(String email) async {
+  Future<RegistrationCaptcha> fetchRegistrationCaptcha() async {
+    final resp = await http
+        .post(
+          _u('/api/v1/unified-admin/customer/auth/captcha'),
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: '{}',
+        )
+        .timeout(timeout);
+    final data = _unwrap(resp, badAuthMsg: '安全验证码获取失败');
+    final id = data['challenge_id'] as String?;
+    final question = data['question'] as String?;
+    if (id == null || question == null) {
+      throw XboardApiException('安全验证码响应不完整');
+    }
+    return RegistrationCaptcha(id: id, question: question);
+  }
+
+  Future<void> sendRegistrationEmailCode(
+    String email, {
+    required String captchaId,
+    required String captchaAnswer,
+  }) async {
     final resp = await http
         .post(
           _u('/api/v1/unified-admin/customer/auth/email-code'),
@@ -184,7 +215,11 @@ class XboardApi {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
-          body: jsonEncode({'email': email}),
+          body: jsonEncode({
+            'email': email,
+            'captcha_id': captchaId,
+            'captcha_answer': captchaAnswer,
+          }),
         )
         .timeout(timeout);
     _unwrap(resp, badAuthMsg: '验证码发送失败');

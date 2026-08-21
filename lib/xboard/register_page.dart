@@ -51,12 +51,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       setState(() => _error = '请先输入有效邮箱');
       return;
     }
-    setState(() {
-      _sendingCode = true;
-      _error = null;
-    });
+    setState(() => _error = null);
     try {
-      await XboardApi(ttActiveBase).sendRegistrationEmailCode(email);
+      final api = XboardApi(ttActiveBase);
+      final captcha = await api.fetchRegistrationCaptcha();
+      if (!mounted) return;
+      final answer = await _showCaptchaDialog(api, captcha);
+      if (answer == null || !mounted) return;
+      setState(() => _sendingCode = true);
+      await api.sendRegistrationEmailCode(
+        email,
+        captchaId: answer.$1,
+        captchaAnswer: answer.$2,
+      );
       if (!mounted) return;
       setState(() {
         _resendSeconds = 60;
@@ -81,6 +88,75 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         });
       }
     }
+  }
+
+  Future<(String, String)?> _showCaptchaDialog(
+    XboardApi api,
+    RegistrationCaptcha initial,
+  ) async {
+    var challenge = initial;
+    final answer = TextEditingController();
+    final result = await showDialog<(String, String)>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('安全验证'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('验证成功后才会发送邮箱验证码。'),
+              const SizedBox(height: 16),
+              Text('请计算：${challenge.question}'),
+              const SizedBox(height: 10),
+              TextField(
+                controller: answer,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                maxLength: 3,
+                decoration: const InputDecoration(
+                  counterText: '',
+                  labelText: '计算结果',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  final replacement = await api.fetchRegistrationCaptcha();
+                  answer.clear();
+                  setDialogState(() => challenge = replacement);
+                } catch (error) {
+                  if (!dialogContext.mounted) return;
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(error.toString())),
+                  );
+                }
+              },
+              child: const Text('换一个'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = answer.text.trim();
+                if (!RegExp(r'^\d{1,3}$').hasMatch(value)) return;
+                Navigator.pop(dialogContext, (challenge.id, value));
+              },
+              child: const Text('验证并发送'),
+            ),
+          ],
+        ),
+      ),
+    );
+    answer.dispose();
+    return result;
   }
 
   Future<void> _register() async {
