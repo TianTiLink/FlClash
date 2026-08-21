@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:fl_clash/xboard/xboard_endpoint.dart';
 import 'package:fl_clash/xboard/xboard_api.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +53,104 @@ void main() {
     expect(enabled.hasUpdate, isTrue);
     expect(enabled.updateForce, isTrue);
     expect(disabled.updateForce, isFalse);
+  });
+
+  group('platform update artifact selection', () {
+    final config = <String, dynamic>{
+      'downloads': {
+        'android': '/dl/TianTiLink-android.apk?v=0.8.115',
+        'android_v7a': '/dl/TianTiLink-android-armeabi-v7a.apk?v=0.8.115',
+        'android_x86': '/dl/TianTiLink-android-x86_64.apk?v=0.8.115',
+        'windows': '/dl/TianTiLink-windows.exe?v=0.8.115',
+        'windows_portable': '/dl/TianTiLink-windows-portable.zip?v=0.8.115',
+        'macos': '/dl/TianTiLink-macos.zip?v=0.8.115',
+        'macos_intel': '/dl/TianTiLink-macos-intel.zip?v=0.8.115',
+      },
+      // Deliberately use the former alphabetical order. Exact keyed downloads
+      // must win over the first same-platform item in this list.
+      'client_downloads': [
+        {
+          'name': 'TianTiLink-android-armeabi-v7a.apk',
+          'platform': 'Android',
+          'download_url': '/wrong-v7a.apk',
+        },
+        {
+          'name': 'TianTiLink-windows-portable.zip',
+          'platform': 'Windows',
+          'download_url': '/wrong-portable.zip',
+        },
+        {
+          'name': 'TianTiLink-macos-intel.zip',
+          'platform': 'macOS',
+          'download_url': '/wrong-intel.zip',
+        },
+      ],
+    };
+
+    String select(String platform, Abi abi) => selectClientDownloadUrl(
+      config: config,
+      activeBase: 'https://api.example.com',
+      platform: platform,
+      abi: abi,
+    )!;
+
+    test('Windows always selects the Inno installer', () {
+      expect(
+        select('windows', Abi.windowsX64),
+        'https://api.example.com/dl/TianTiLink-windows.exe?v=0.8.115',
+      );
+    });
+
+    test('Android selects the package matching its CPU ABI', () {
+      expect(
+        select('android', Abi.androidArm64),
+        endsWith('/dl/TianTiLink-android.apk?v=0.8.115'),
+      );
+      expect(
+        select('android', Abi.androidArm),
+        endsWith('/dl/TianTiLink-android-armeabi-v7a.apk?v=0.8.115'),
+      );
+      expect(
+        select('android', Abi.androidX64),
+        endsWith('/dl/TianTiLink-android-x86_64.apk?v=0.8.115'),
+      );
+    });
+
+    test('macOS separates Apple Silicon and Intel packages', () {
+      expect(
+        select('macos', Abi.macosArm64),
+        endsWith('/dl/TianTiLink-macos.zip?v=0.8.115'),
+      );
+      expect(
+        select('macos', Abi.macosX64),
+        endsWith('/dl/TianTiLink-macos-intel.zip?v=0.8.115'),
+      );
+    });
+
+    test('canonical filename fallback ignores wrong first platform item', () {
+      final fallback = Map<String, dynamic>.from(config)..remove('downloads');
+      fallback['client_downloads'] = [
+        {
+          'name': 'TianTiLink-windows-portable.zip',
+          'platform': 'Windows',
+          'download_url': '/wrong-portable.zip',
+        },
+        {
+          'name': 'TianTiLink-windows.exe',
+          'platform': 'Windows',
+          'download_url': '/dl/TianTiLink-windows.exe',
+        },
+      ];
+      expect(
+        selectClientDownloadUrl(
+          config: fallback,
+          activeBase: 'https://api.example.com',
+          platform: 'windows',
+          abi: Abi.windowsX64,
+        ),
+        'https://api.example.com/dl/TianTiLink-windows.exe',
+      );
+    });
   });
 
   test('subscription URL keeps the dedicated subscription host', () {

@@ -183,6 +183,9 @@ jobs:
           }
           if (-not $exe) { Write-Host "::warning::Release 里没有 exe,跳过安装包。"; exit 0 }
           Write-Host "应用 exe = $exe (BINARY_NAME=$app)"
+          $versionMatch = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+)')
+          if (-not $versionMatch.Success) { throw 'Cannot read installer version from pubspec.yaml' }
+          $version = $versionMatch.Groups[1].Value
           $relWin = (Resolve-Path $rel).Path
           $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "${env:ProgramFiles}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $iscc) {
@@ -197,7 +200,9 @@ jobs:
           $iss = @(
             '[Setup]',
             "AppName=$app",
-            'AppVersion=1.0.0',
+            "AppId=$app",
+            "AppVersion=$version",
+            "VersionInfoVersion=$version.0",
             "AppPublisher=$app",
             "DefaultDirName={autopf}\$app",
             "DefaultGroupName=$app",

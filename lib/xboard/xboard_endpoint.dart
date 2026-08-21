@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:cryptography/cryptography.dart';
@@ -18,6 +19,15 @@ const String _kBootstrapUrl =
 const String _kBootstrapBrand = 'tianti';
 const String _kBootstrapPublicKey =
     'KSNvx4XAw+mDcAeD6xHuwng0CEdTFc/EqO05tibyYkI=';
+
+const Map<String, String> _kCanonicalClientFiles = <String, String>{
+  'android': 'TianTiLink-android.apk',
+  'android_v7a': 'TianTiLink-android-armeabi-v7a.apk',
+  'android_x86': 'TianTiLink-android-x86_64.apk',
+  'windows': 'TianTiLink-windows.exe',
+  'macos': 'TianTiLink-macos.zip',
+  'macos_intel': 'TianTiLink-macos-intel.zip',
+};
 
 const List<String> _kSeedApiHosts = <String>['https://pafslnnalksdf.xyz'];
 
@@ -54,40 +64,12 @@ class TtEndpointResult {
   }
 
   String? get downloadUrl {
-    final unifiedDownloads = config['client_downloads'];
-    if (unifiedDownloads is List) {
-      final wanted = Platform.isAndroid
-          ? 'android'
-          : Platform.isWindows
-          ? 'windows'
-          : Platform.isMacOS
-          ? 'macos'
-          : 'ios';
-      for (final item in unifiedDownloads) {
-        if (item is! Map) continue;
-        final platform = item['platform']?.toString().toLowerCase() ?? '';
-        if (platform != wanted) continue;
-        final path = item['download_url']?.toString().trim() ?? '';
-        if (path.isEmpty) continue;
-        if (path.startsWith('http')) return path;
-        return activeBase.replaceAll(RegExp(r'/+$'), '') + path;
-      }
-    }
-    final downloads = config['downloads'];
-    if (downloads is! Map) return null;
-    final key = Platform.isAndroid
-        ? 'android'
-        : Platform.isWindows
-        ? 'windows'
-        : Platform.isMacOS
-        ? 'macos'
-        : 'ios';
-    final value = downloads[key];
-    if (value == null) return null;
-    final path = value.toString();
-    if (path.isEmpty) return null;
-    if (path.startsWith('http')) return path;
-    return activeBase.replaceAll(RegExp(r'/+$'), '') + path;
+    return selectClientDownloadUrl(
+      config: config,
+      activeBase: activeBase,
+      platform: _platformKey,
+      abi: Abi.current(),
+    );
   }
 
   bool get updateForce => config['update_force'] == true;
@@ -97,6 +79,69 @@ class TtEndpointResult {
     final version = latestVersion;
     return version != null && isRemoteVersionNewer(version, currentVersion);
   }
+}
+
+String clientDownloadKeyFor({required String platform, required Abi abi}) {
+  if (platform == 'android') {
+    if (abi == Abi.androidArm) return 'android_v7a';
+    if (abi == Abi.androidX64) return 'android_x86';
+    return 'android';
+  }
+  if (platform == 'windows') return 'windows';
+  if (platform == 'macos') {
+    return abi == Abi.macosX64 ? 'macos_intel' : 'macos';
+  }
+  return 'ios';
+}
+
+String? selectClientDownloadUrl({
+  required Map<String, dynamic> config,
+  required String activeBase,
+  required String platform,
+  required Abi abi,
+}) {
+  final key = clientDownloadKeyFor(platform: platform, abi: abi);
+  String resolve(String value) {
+    final path = value.trim();
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return activeBase.replaceAll(RegExp(r'/+$'), '') +
+        (path.startsWith('/') ? path : '/$path');
+  }
+
+  final downloads = config['downloads'];
+  if (downloads is Map) {
+    final path = downloads[key]?.toString().trim() ?? '';
+    if (path.isNotEmpty) return resolve(path);
+  }
+
+  final unifiedDownloads = config['client_downloads'];
+  if (unifiedDownloads is! List) return null;
+  final canonical = _kCanonicalClientFiles[key]?.toLowerCase();
+  if (canonical != null) {
+    for (final item in unifiedDownloads) {
+      if (item is! Map) continue;
+      final path = item['download_url']?.toString().trim() ?? '';
+      if (path.isEmpty) continue;
+      final declaredName = item['name']?.toString().trim().toLowerCase() ?? '';
+      final uri = Uri.tryParse(path);
+      final pathName = uri != null && uri.pathSegments.isNotEmpty
+          ? Uri.decodeComponent(uri.pathSegments.last).toLowerCase()
+          : '';
+      if (declaredName == canonical || pathName == canonical) {
+        return resolve(path);
+      }
+    }
+  }
+
+  final wantedPlatform = platform == 'pwa' ? 'ios' : platform;
+  for (final item in unifiedDownloads) {
+    if (item is! Map) continue;
+    final itemPlatform = item['platform']?.toString().toLowerCase() ?? '';
+    if (itemPlatform != wantedPlatform) continue;
+    final path = item['download_url']?.toString().trim() ?? '';
+    if (path.isNotEmpty) return resolve(path);
+  }
+  return null;
 }
 
 bool isRemoteVersionNewer(String remoteVersion, String currentVersion) {

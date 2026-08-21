@@ -1,3 +1,10 @@
+## v0.8.115
+
+- Windows 自动更新固定下载正式 Inno 安装版，不再误选免安装 ZIP。
+- Android 自动更新按 ARM64、ARMv7 与 x86_64 设备架构选择对应 APK。
+- macOS 自动更新区分 Apple Silicon 与 Intel 安装包。
+- Windows 安装器版本信息与客户端版本保持一致。
+
 ## v0.8.114
 
 - Fix smart routing so mainland and LAN traffic can connect directly.
