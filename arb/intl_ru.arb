@@ -552,5 +552,7 @@
   "secondsCount": "{count} секунд",
   "entriesCount": "{count} записей",
   "accountLoginSyncFailed": "Вход выполнен, но синхронизация узлов не удалась: {detail}",
-  "accountLoginImportFailed": "Вход выполнен, но импорт узлов не удался: {detail}. Повторите обновление узлов в разделе «Мой профиль»."
+  "accountLoginImportFailed": "Вход выполнен, но импорт узлов не удался: {detail}. Повторите обновление узлов в разделе «Мой профиль».",
+  "proxySwitched": "Переключено на {proxyName}",
+  "proxySwitchFailed": "Не удалось переключить узел: {detail}"
 }

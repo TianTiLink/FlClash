@@ -1,3 +1,8 @@
+## v0.8.120
+
+- Selecting another node while connected now switches the running proxy directly without stopping the VPN first.
+- The node page confirms a successful live switch and reports a failed switch without leaving a false selected state.
+
 ## v0.8.119
 
 - A successful account login is now kept even when the later subscription synchronization is temporarily unavailable.

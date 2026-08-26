@@ -79,7 +79,9 @@ class ProxyCard extends StatelessWidget {
           proxy.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     } else {
@@ -89,28 +91,60 @@ class ProxyCard extends StatelessWidget {
           proxy.name,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     }
   }
 
-  Future<void> _changeProxy(WidgetRef ref) async {
+  Future<void> _changeProxy(BuildContext context) async {
     final isComputedSelected = groupType.isComputedSelected;
     final isSelector = groupType == GroupType.Selector;
-    final ref = globalState.container;
+    final container = globalState.container;
     if (isComputedSelected || isSelector) {
-      final currentProxyName = ref.read(proxyNameProvider(groupName));
+      final currentProxyName = container.read(proxyNameProvider(groupName));
       final nextProxyName = switch (isComputedSelected) {
         true => currentProxyName == proxy.name ? '' : proxy.name,
         false => proxy.name,
       };
-      ref
+      if (nextProxyName == currentProxyName) return;
+      container
           .read(profilesActionProvider.notifier)
           .updateCurrentSelectedMap(groupName, nextProxyName);
-      ref
-          .read(proxiesActionProvider.notifier)
-          .changeProxyDebounce(groupName, nextProxyName);
+      try {
+        await container
+            .read(proxiesActionProvider.notifier)
+            .changeProxy(groupName: groupName, proxyName: nextProxyName);
+        container.read(proxiesActionProvider.notifier).updateGroupsDebounce();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  context.appLocalizations.proxySwitched(proxy.name),
+                ),
+              ),
+            );
+        }
+      } catch (error) {
+        container
+            .read(profilesActionProvider.notifier)
+            .updateCurrentSelectedMap(groupName, currentProxyName ?? '');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  context.appLocalizations.proxySwitchFailed(error.toString()),
+                ),
+              ),
+            );
+        }
+      }
       return;
     }
     globalState.showNotifier(currentAppLocalizations.notSelectedTip);
@@ -131,7 +165,7 @@ class ProxyCard extends StatelessWidget {
             return CommonCard(
               key: key,
               onPressed: () {
-                _changeProxy(ref);
+                _changeProxy(context);
               },
               isSelected: selectedProxyName == proxy.name,
               child: child!,
@@ -160,7 +194,6 @@ class ProxyCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        
                         //Flexible(
                         //  flex: 1,
                         //  child: TooltipText(

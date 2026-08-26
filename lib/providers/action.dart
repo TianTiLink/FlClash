@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../xboard/live_proxy_switch.dart';
+
 part 'generated/action.g.dart';
 
 /// Windows 开 TUN 前的友好确认:仅当确实需要提权(helper 服务没装/没在跑)时,
@@ -27,7 +29,8 @@ Future<bool> _confirmTunElevationIfNeeded() async {
   final confirmed = await globalState.showMessage(
     title: 'TUN 模式',
     message: const TextSpan(
-      text: '开启 TUN 模式需要安装一个网络服务,系统会弹出一次管理员授权窗口。'
+      text:
+          '开启 TUN 模式需要安装一个网络服务,系统会弹出一次管理员授权窗口。'
           '授权后即可接管全局流量,之后再开关 TUN 不会重复提示。是否继续?',
     ),
     confirmText: '继续',
@@ -280,10 +283,7 @@ class SetupAction extends _$SetupAction {
   /// VpnService and to Mihomo TUN on desktop. Android chooses between
   /// CommonService and VpnService only when the listener starts, so an active
   /// connection must be restarted after this setting changes.
-  Future<void> changeServiceMode(
-    bool enable, {
-    bool? androidOverride,
-  }) async {
+  Future<void> changeServiceMode(bool enable, {bool? androidOverride}) async {
     final useAndroidVpn = androidOverride ?? system.isAndroid;
     if (!useAndroidVpn) {
       ref
@@ -863,14 +863,20 @@ class ProxiesAction extends _$ProxiesAction {
     required String groupName,
     required String proxyName,
   }) async {
-    await coreController.changeProxy(
-      ChangeProxyParams(groupName: groupName, proxyName: proxyName),
+    await applyLiveProxySwitch(
+      changeProxy: () async {
+        await coreController.changeProxy(
+          ChangeProxyParams(groupName: groupName, proxyName: proxyName),
+        );
+      },
+      closeExistingConnections: ref.read(appSettingProvider).closeConnections,
+      closeConnections: () async {
+        await coreController.closeConnections();
+      },
+      resetConnections: () async {
+        await coreController.resetConnections();
+      },
     );
-    if (ref.read(appSettingProvider).closeConnections) {
-      await coreController.closeConnections();
-    } else {
-      await coreController.resetConnections();
-    }
     ref.read(checkIpNumProvider.notifier).add();
   }
 

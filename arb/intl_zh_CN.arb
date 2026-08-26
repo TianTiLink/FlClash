@@ -552,5 +552,7 @@
   "secondsCount": "{count} 秒",
   "entriesCount": "{count} 个条目",
   "accountLoginSyncFailed": "账号已登录，但节点同步失败：{detail}",
-  "accountLoginImportFailed": "账号已登录，但节点导入失败：{detail}。请进入“我的”重试刷新节点。"
+  "accountLoginImportFailed": "账号已登录，但节点导入失败：{detail}。请进入“我的”重试刷新节点。",
+  "proxySwitched": "已切换到 {proxyName}",
+  "proxySwitchFailed": "节点切换失败：{detail}"
 }

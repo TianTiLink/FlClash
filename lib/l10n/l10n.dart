@@ -4513,6 +4513,26 @@ class AppLocalizations {
       args: [detail],
     );
   }
+
+  /// `Switched to {proxyName}`
+  String proxySwitched(Object proxyName) {
+    return Intl.message(
+      'Switched to $proxyName',
+      name: 'proxySwitched',
+      desc: '',
+      args: [proxyName],
+    );
+  }
+
+  /// `Node switch failed: {detail}`
+  String proxySwitchFailed(Object detail) {
+    return Intl.message(
+      'Node switch failed: $detail',
+      name: 'proxySwitchFailed',
+      desc: '',
+      args: [detail],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

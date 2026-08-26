@@ -552,5 +552,7 @@
   "secondsCount": "{count} 秒",
   "entriesCount": "{count} エントリ",
   "accountLoginSyncFailed": "アカウントにはログインしましたが、ノード同期に失敗しました：{detail}",
-  "accountLoginImportFailed": "アカウントにはログインしましたが、ノードのインポートに失敗しました：{detail}。「マイ」からノードを再更新してください。"
+  "accountLoginImportFailed": "アカウントにはログインしましたが、ノードのインポートに失敗しました：{detail}。「マイ」からノードを再更新してください。",
+  "proxySwitched": "{proxyName} に切り替えました",
+  "proxySwitchFailed": "ノードの切り替えに失敗しました：{detail}"
 }

@@ -552,5 +552,7 @@
   "secondsCount": "{count} seconds",
   "entriesCount": "{count} entries",
   "accountLoginSyncFailed": "Account signed in, but node sync failed: {detail}",
-  "accountLoginImportFailed": "Account signed in, but node import failed: {detail}. Retry Refresh Nodes in My."
+  "accountLoginImportFailed": "Account signed in, but node import failed: {detail}. Retry Refresh Nodes in My.",
+  "proxySwitched": "Switched to {proxyName}",
+  "proxySwitchFailed": "Node switch failed: {detail}"
 }
