@@ -4493,6 +4493,26 @@ class AppLocalizations {
       args: [count],
     );
   }
+
+  /// `Account signed in, but node sync failed: {detail}`
+  String accountLoginSyncFailed(Object detail) {
+    return Intl.message(
+      'Account signed in, but node sync failed: $detail',
+      name: 'accountLoginSyncFailed',
+      desc: '',
+      args: [detail],
+    );
+  }
+
+  /// `Account signed in, but node import failed: {detail}. Retry Refresh Nodes in My.`
+  String accountLoginImportFailed(Object detail) {
+    return Intl.message(
+      'Account signed in, but node import failed: $detail. Retry Refresh Nodes in My.',
+      name: 'accountLoginImportFailed',
+      desc: '',
+      args: [detail],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

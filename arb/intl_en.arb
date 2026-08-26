@@ -550,5 +550,7 @@
   "geoSkipped": "{name} skipped",
   "geoUpdated": "{name} updated",
   "secondsCount": "{count} seconds",
-  "entriesCount": "{count} entries"
+  "entriesCount": "{count} entries",
+  "accountLoginSyncFailed": "Account signed in, but node sync failed: {detail}",
+  "accountLoginImportFailed": "Account signed in, but node import failed: {detail}. Retry Refresh Nodes in My."
 }

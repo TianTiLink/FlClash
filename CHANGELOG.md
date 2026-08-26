@@ -1,3 +1,9 @@
+## v0.8.119
+
+- A successful account login is now kept even when the later subscription synchronization is temporarily unavailable.
+- Subscription synchronization and local node-import failures are shown separately from invalid email or password errors.
+- Existing local TianTi nodes are retained on transient synchronization failures and can be refreshed again from My.
+
 ## v0.8.118
 
 - The My page now clearly separates the two free benefits: join the Telegram group for the seven-day VPN, or claim the independently configured registration trial directly in the client.

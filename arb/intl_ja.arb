@@ -550,5 +550,7 @@
   "geoSkipped": "{name} スキップ済み",
   "geoUpdated": "{name} 更新済み",
   "secondsCount": "{count} 秒",
-  "entriesCount": "{count} エントリ"
+  "entriesCount": "{count} エントリ",
+  "accountLoginSyncFailed": "アカウントにはログインしましたが、ノード同期に失敗しました：{detail}",
+  "accountLoginImportFailed": "アカウントにはログインしましたが、ノードのインポートに失敗しました：{detail}。「マイ」からノードを再更新してください。"
 }

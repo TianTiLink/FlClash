@@ -13,9 +13,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../common/app_localizations.dart';
 import 'xboard_api.dart';
 
 const _secureStorage = FlutterSecureStorage();
+
+typedef XboardApiFactory = XboardApi Function(String baseUrl);
+
+/// Test seam for authentication/subscription boundary behavior.
+XboardApiFactory xboardApiFactory = XboardApi.new;
 
 /// 客户端默认通信地址(硬编码兜底,也是默认参数用的常量)。登录页已隐藏地址输入框。
 /// 用 API 专用域名(和官网/导航分开:官网被举报封了不连累 App 登录/订阅)。
@@ -32,6 +38,13 @@ const _kEmail = 'tianti_email';
 const _kAuth = 'tianti_auth_token';
 const _kSub = 'tianti_subscribe_url';
 const _notProvided = Object();
+
+class XboardLoginOutcome {
+  final String? mihomoUrl;
+  final String? syncWarning;
+
+  const XboardLoginOutcome({this.mihomoUrl, this.syncWarning});
+}
 
 class XboardAuthState {
   final bool restored; // 是否已从磁盘读过(避免启动闪现登录页)
@@ -95,22 +108,29 @@ class XboardAuth extends Notifier<XboardAuthState> {
     );
   }
 
-  /// 登录:验证账号 -> 尝试取订阅地址 -> 持久化。
-  /// 返回 mihomo 订阅 URL 供导入;若账号还没有任何套餐(getSubscribe 失败),
-  /// 登录本身仍然算成功(账号密码是对的),只是没有订阅可导入——返回 null,
-  /// 由调用方(账户页/门控)引导用户去充值,而不是把用户挡在登录页外面。
-  Future<String?> login({
+  /// 登录先独立确认并持久化账号认证，再尝试同步订阅。
+  /// 后续账号/订阅接口临时失败不会被重新标记为密码错误，也不会把用户挡在登录页。
+  Future<XboardLoginOutcome> login({
     required String panelUrl,
     required String email,
     required String password,
   }) async {
-    final api = XboardApi(panelUrl);
+    final api = xboardApiFactory(panelUrl);
     final res = await api.login(email, password);
 
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kPanelUrl, panelUrl);
     await sp.setString(_kEmail, email);
     await _secureStorage.write(key: _kAuth, value: res.authData);
+    await sp.remove(_kSub);
+
+    state = state.copyWith(
+      loggedIn: true,
+      panelUrl: panelUrl,
+      email: email,
+      authData: res.authData,
+      subscribeUrl: null,
+    );
 
     String? mihomoUrl;
     String? subscribeUrl;
@@ -122,6 +142,13 @@ class XboardAuth extends Notifier<XboardAuthState> {
     } on XboardNoSubscriptionException {
       // 账号未购买套餐 / 暂无订阅:不算登录失败,让用户先进 App 再去充值。
       await sp.remove(_kSub);
+    } catch (error) {
+      final detail = error is XboardApiException
+          ? error.message
+          : '网络暂时不可用，请稍后重试';
+      return XboardLoginOutcome(
+        syncWarning: currentAppLocalizations.accountLoginSyncFailed(detail),
+      );
     }
 
     state = state.copyWith(
@@ -131,7 +158,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       authData: res.authData,
       subscribeUrl: subscribeUrl,
     );
-    return mihomoUrl;
+    return XboardLoginOutcome(mihomoUrl: mihomoUrl);
   }
 
   /// 注册并自动登录。与 login 一样持久化凭据、尝试拉订阅;新号一般还没套餐→返回 null,

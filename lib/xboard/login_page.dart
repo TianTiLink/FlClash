@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart'; // FlClash 已依赖;用于打开注册/充值页
 
+import '../common/common.dart';
 import 'xboard_auth.dart';
 import 'xboard_endpoint.dart';
 import 'xboard_sync.dart';
@@ -43,13 +44,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
+    final appLocalizations = context.appLocalizations;
     setState(() {
       _busy = true;
       _error = null;
     });
     final previousSubscription = ref.read(xboardAuthProvider).subscribeUrl;
     try {
-      final mihomoUrl = await ref
+      final outcome = await ref
           .read(xboardAuthProvider.notifier)
           .login(
             panelUrl: ttActiveBase,
@@ -59,11 +61,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // mihomoUrl 为 null 代表账号密码正确、但还没有可用套餐/订阅——
       // 仍然放行进主界面(门控会自动切换),让用户在账户页看到「去充值」提示,
       // 而不是把一个已注册但还没付费的用户挡在登录页外面。
-      if (mihomoUrl != null) {
-        await importXboardSubscription(mihomoUrl);
-      } else {
+      String? syncWarning = outcome.syncWarning;
+      if (outcome.mihomoUrl != null) {
+        try {
+          await importXboardSubscription(outcome.mihomoUrl!);
+        } catch (error) {
+          syncWarning = appLocalizations.accountLoginImportFailed(
+            error.toString(),
+          );
+        }
+      } else if (syncWarning == null) {
         await clearTianTiSubscriptionProfiles(
           subscribeUrl: previousSubscription,
+        );
+      }
+      if (syncWarning != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(syncWarning),
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
       // 登录态变化后,门控(XboardGate)会自动切到主界面,无需手动导航。
