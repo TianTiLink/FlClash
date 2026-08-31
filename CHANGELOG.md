@@ -1,4 +1,4 @@
-## v0.8.121
+## v0.8.122
 
 - Retry transient login service failures without misreporting correct credentials as invalid.
 - Preserve server-provided recovery messages when the authentication service is temporarily busy.

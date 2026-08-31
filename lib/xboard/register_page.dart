@@ -7,7 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../common/app_localizations.dart';
+import '../common/common.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
 import 'xboard_api.dart';
