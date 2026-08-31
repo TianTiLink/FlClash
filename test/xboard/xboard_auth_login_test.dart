@@ -9,15 +9,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeApi extends XboardApi {
   final Object? loginError;
+  final Object? registerError;
   final Object? subscribeError;
 
-  _FakeApi({this.loginError, this.subscribeError})
+  _FakeApi({this.loginError, this.registerError, this.subscribeError})
     : super('https://api.example.invalid');
 
   @override
   Future<XboardLoginResult> login(String email, String password) async {
     if (loginError != null) throw loginError!;
     return XboardLoginResult('auth-token', 'auth-token');
+  }
+
+  @override
+  Future<XboardLoginResult> register(
+    String email,
+    String password, {
+    String? inviteCode,
+    String? emailCode,
+    String? sliderToken,
+    String? companyWebsite,
+  }) async {
+    if (registerError != null) throw registerError!;
+    return XboardLoginResult('register-auth-token', 'register-auth-token');
   }
 
   @override
@@ -115,4 +129,55 @@ void main() {
       expect(outcome.syncWarning, isNull);
     },
   );
+
+  test(
+    'confirmed registration survives a subscription sync failure',
+    () async {
+      xboardApiFactory = (_) => _FakeApi(
+        subscribeError: XboardApiException(
+          'temporary registration sync failure',
+        ),
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final outcome = await container
+          .read(xboardAuthProvider.notifier)
+          .register(
+            panelUrl: 'https://api.example.invalid',
+            email: 'new@example.invalid',
+            password: 'Contract!2026',
+            emailCode: '123456',
+          );
+
+      final state = container.read(xboardAuthProvider);
+      expect(state.loggedIn, isTrue);
+      expect(state.email, 'new@example.invalid');
+      expect(state.authData, 'register-auth-token');
+      expect(state.subscribeUrl, isNull);
+      expect(outcome.mihomoUrl, isNull);
+      expect(outcome.syncWarning, contains('账号已登录'));
+      expect(outcome.syncWarning, contains('temporary registration sync failure'));
+    },
+  );
+
+  test('registration rejection remains a real registration failure', () async {
+    xboardApiFactory = (_) =>
+        _FakeApi(registerError: XboardApiException('邮箱验证码不正确'));
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container
+          .read(xboardAuthProvider.notifier)
+          .register(
+            panelUrl: 'https://api.example.invalid',
+            email: 'new@example.invalid',
+            password: 'Contract!2026',
+            emailCode: '000000',
+          ),
+      throwsA(isA<XboardApiException>()),
+    );
+    expect(container.read(xboardAuthProvider).loggedIn, isFalse);
+  });
 }

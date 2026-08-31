@@ -161,9 +161,9 @@ class XboardAuth extends Notifier<XboardAuthState> {
     return XboardLoginOutcome(mihomoUrl: mihomoUrl);
   }
 
-  /// 注册并自动登录。与 login 一样持久化凭据、尝试拉订阅;新号一般还没套餐→返回 null,
-  /// 由调用方引导去充值。emailCode/inviteCode 见面板配置(不需要就留空)。
-  Future<String?> register({
+  /// 注册并自动登录。认证成功后立即持久化凭据；后续订阅同步失败只作为警告返回，
+  /// 不能把已创建的账号重新显示成“注册失败”。
+  Future<XboardLoginOutcome> register({
     required String panelUrl,
     required String email,
     required String password,
@@ -172,7 +172,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     String? sliderToken,
     String? companyWebsite,
   }) async {
-    final api = XboardApi(panelUrl);
+    final api = xboardApiFactory(panelUrl);
     final res = await api.register(
       email,
       password,
@@ -186,6 +186,15 @@ class XboardAuth extends Notifier<XboardAuthState> {
     await sp.setString(_kPanelUrl, panelUrl);
     await sp.setString(_kEmail, email);
     await _secureStorage.write(key: _kAuth, value: res.authData);
+    await sp.remove(_kSub);
+
+    state = state.copyWith(
+      loggedIn: true,
+      panelUrl: panelUrl,
+      email: email,
+      authData: res.authData,
+      subscribeUrl: null,
+    );
 
     String? mihomoUrl;
     String? subscribeUrl;
@@ -196,6 +205,13 @@ class XboardAuth extends Notifier<XboardAuthState> {
       await sp.setString(_kSub, subscribeUrl);
     } on XboardNoSubscriptionException {
       await sp.remove(_kSub);
+    } catch (error) {
+      final detail = error is XboardApiException
+          ? error.message
+          : '网络暂时不可用，请稍后重试';
+      return XboardLoginOutcome(
+        syncWarning: currentAppLocalizations.accountLoginSyncFailed(detail),
+      );
     }
 
     state = state.copyWith(
@@ -205,7 +221,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       authData: res.authData,
       subscribeUrl: subscribeUrl,
     );
-    return mihomoUrl;
+    return XboardLoginOutcome(mihomoUrl: mihomoUrl);
   }
 
   /// 重新拉取订阅地址(套餐变更/续费后)。返回最新 mihomo 订阅 URL,失败返回 null。

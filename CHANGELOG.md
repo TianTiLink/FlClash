@@ -1,3 +1,9 @@
+## v0.8.121
+
+- Retry transient login service failures without misreporting correct credentials as invalid.
+- Preserve server-provided recovery messages when the authentication service is temporarily busy.
+- Keep a confirmed registration signed in when later subscription synchronization or local import fails.
+
 ## v0.8.120
 
 - Selecting another node while connected now switches the running proxy directly without stopping the VPN first.

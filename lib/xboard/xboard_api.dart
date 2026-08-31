@@ -151,17 +151,54 @@ class XboardApi {
   Uri _u(String path) =>
       Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path');
 
+  Future<http.Response> _postJson(
+    String path,
+    Map<String, dynamic> body, {
+    int transientRetries = 0,
+  }) async {
+    final retries = transientRetries < 0
+        ? 0
+        : (transientRetries > 2 ? 2 : transientRetries);
+    for (var attempt = 0; ; attempt++) {
+      http.Response response;
+      try {
+        response = await http
+            .post(
+              _u(path),
+              headers: const {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: jsonEncode(body),
+            )
+            .timeout(timeout);
+      } catch (_) {
+        if (attempt < retries) {
+          await Future<void>.delayed(
+            Duration(milliseconds: 700 * (attempt + 1)),
+          );
+          continue;
+        }
+        throw XboardApiException('无法连接服务器，请检查网络后重试');
+      }
+      if (
+          const {502, 503, 504}.contains(response.statusCode) &&
+          attempt < retries) {
+        await Future<void>.delayed(
+          Duration(milliseconds: 700 * (attempt + 1)),
+        );
+        continue;
+      }
+      return response;
+    }
+  }
+
   Future<XboardLoginResult> login(String email, String password) async {
-    final resp = await http
-        .post(
-          _u('/api/v1/unified-admin/customer/auth/login'),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode({'email': email, 'password': password}),
-        )
-        .timeout(timeout);
+    final resp = await _postJson(
+      '/api/v1/unified-admin/customer/auth/login',
+      {'email': email, 'password': password},
+      transientRetries: 2,
+    );
     final data = _unwrap(resp, badAuthMsg: '账号或密码错误');
     final authData = data['auth_data'] as String?;
     final token = data['token'] as String?;
@@ -247,16 +284,10 @@ class XboardApi {
       body['slider_token'] = sliderToken;
     }
     body['company_website'] = companyWebsite ?? '';
-    final resp = await http
-        .post(
-          _u('/api/v1/unified-admin/customer/auth/register'),
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode(body),
-        )
-        .timeout(timeout);
+    final resp = await _postJson(
+      '/api/v1/unified-admin/customer/auth/register',
+      body,
+    );
     final data = _unwrap(resp, badAuthMsg: '注册失败');
     final authData = data['auth_data'] as String?;
     final token = data['token'] as String?;
@@ -573,14 +604,22 @@ class XboardApi {
     if (resp.statusCode == 401 || resp.statusCode == 403) {
       throw XboardApiException(badAuthMsg);
     }
-    if (resp.statusCode >= 500) {
-      throw XboardApiException('服务器错误(${resp.statusCode})');
-    }
     dynamic body;
     try {
       body = jsonDecode(utf8.decode(resp.bodyBytes));
     } catch (_) {
+      if (resp.statusCode >= 500) {
+        throw XboardApiException('服务器暂时不可用(${resp.statusCode})，请稍后重试');
+      }
       throw XboardApiException('响应不是合法 JSON(检查面板地址是否正确)');
+    }
+    if (resp.statusCode >= 500) {
+      final message = body is Map ? body['message']?.toString().trim() : null;
+      throw XboardApiException(
+        message == null || message.isEmpty
+            ? '服务器暂时不可用(${resp.statusCode})，请稍后重试'
+            : message,
+      );
     }
     if (resp.statusCode >= 400) {
       throw XboardApiException(

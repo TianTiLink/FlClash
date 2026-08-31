@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../common/app_localizations.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
 import 'xboard_api.dart';
@@ -171,7 +172,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     });
     final previousSubscription = ref.read(xboardAuthProvider).subscribeUrl;
     try {
-      final mihomoUrl = await ref
+      final outcome = await ref
           .read(xboardAuthProvider.notifier)
           .register(
             panelUrl: ttActiveBase,
@@ -182,11 +183,28 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             sliderToken: null,
             companyWebsite: _companyWebsite.text,
           );
-      if (mihomoUrl != null) {
-        await importXboardSubscription(mihomoUrl);
-      } else {
-        await clearTianTiSubscriptionProfiles(
-          subscribeUrl: previousSubscription,
+      String? syncWarning = outcome.syncWarning;
+      if (outcome.mihomoUrl != null) {
+        try {
+          await importXboardSubscription(outcome.mihomoUrl!);
+        } catch (error) {
+          syncWarning = context.appLocalizations.accountLoginImportFailed(error);
+        }
+      } else if (syncWarning == null) {
+        try {
+          await clearTianTiSubscriptionProfiles(
+            subscribeUrl: previousSubscription,
+          );
+        } catch (error) {
+          syncWarning = context.appLocalizations.accountLoginSyncFailed(error);
+        }
+      }
+      if (syncWarning != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(syncWarning),
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
       // 注册即登录:弹掉本页,门控已切到主界面(新号无套餐会在「我的」页看到去充值提示)。
