@@ -1,3 +1,8 @@
+## v0.8.123
+
+- Automatically select the first concrete subscription node when connecting for the first time without a saved node choice.
+- Preserve an existing valid node selection and ignore direct, reject, global, empty, and nested-only entries.
+
 ## v0.8.122
 
 - Retry transient login service failures without misreporting correct credentials as invalid.

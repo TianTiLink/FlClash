@@ -10,11 +10,13 @@ import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/plugins/service.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../xboard/default_proxy_selection.dart';
 import '../xboard/live_proxy_switch.dart';
 
 part 'generated/action.g.dart';
@@ -150,6 +152,19 @@ class SetupAction extends _$SetupAction {
     return SetupParams(selectedMap: selectedMap, testUrl: testUrl);
   }
 
+  void _ensureDefaultProxySelection() {
+    final profile = ref.read(currentProfileProvider);
+    if (profile == null) return;
+    final selectedMap = withDefaultProxySelections(
+      groups: ref.read(groupsProvider),
+      selectedMap: profile.selectedMap,
+    );
+    if (mapEquals(selectedMap, profile.selectedMap)) return;
+    ref
+        .read(profilesProvider.notifier)
+        .put(profile.copyWith(selectedMap: selectedMap));
+  }
+
   void fullSetup() {
     if (!ref.read(initProvider)) return;
     ref.read(delayDataSourceProvider.notifier).value = {};
@@ -204,6 +219,7 @@ class SetupAction extends _$SetupAction {
 
   Future<void> updateStatus(bool isStart, {bool isInit = false}) async {
     if (isStart) {
+      _ensureDefaultProxySelection();
       if (!isInit) {
         final res = await ref
             .read(coreActionProvider.notifier)
@@ -812,7 +828,7 @@ class ProxiesAction extends _$ProxiesAction {
   Future<void> updateGroups() async {
     try {
       commonPrint.log('updateGroups');
-      ref.read(groupsProvider.notifier).value = await retry(
+      final groups = await retry(
         task: () async {
           final sortType = ref.read(
             proxiesStyleSettingProvider.select((state) => state.sortType),
@@ -833,6 +849,19 @@ class ProxiesAction extends _$ProxiesAction {
         },
         retryIf: (res) => res.isEmpty,
       );
+      ref.read(groupsProvider.notifier).value = groups;
+      final profile = ref.read(currentProfileProvider);
+      if (profile != null) {
+        final selectedMap = withDefaultProxySelections(
+          groups: groups,
+          selectedMap: profile.selectedMap,
+        );
+        if (!mapEquals(selectedMap, profile.selectedMap)) {
+          ref
+              .read(profilesProvider.notifier)
+              .put(profile.copyWith(selectedMap: selectedMap));
+        }
+      }
     } catch (e) {
       commonPrint.log('updateGroups error: $e');
       ref.read(groupsProvider.notifier).value = [];
