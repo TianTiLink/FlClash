@@ -53,6 +53,7 @@ class XboardAuthState {
   final String email;
   final String? authData;
   final String? subscribeUrl;
+  final List<String> subscribeUrls;
 
   const XboardAuthState({
     this.restored = false,
@@ -61,6 +62,7 @@ class XboardAuthState {
     this.email = '',
     this.authData,
     this.subscribeUrl,
+    this.subscribeUrls = const [],
   });
 
   XboardAuthState copyWith({
@@ -70,6 +72,7 @@ class XboardAuthState {
     String? email,
     Object? authData = _notProvided,
     Object? subscribeUrl = _notProvided,
+    List<String>? subscribeUrls,
   }) {
     return XboardAuthState(
       restored: restored ?? this.restored,
@@ -82,6 +85,7 @@ class XboardAuthState {
       subscribeUrl: identical(subscribeUrl, _notProvided)
           ? this.subscribeUrl
           : subscribeUrl as String?,
+      subscribeUrls: subscribeUrls ?? this.subscribeUrls,
     );
   }
 }
@@ -105,6 +109,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       email: sp.getString(_kEmail) ?? '',
       authData: auth,
       subscribeUrl: sp.getString(_kSub),
+      subscribeUrls: [if (sp.getString(_kSub) case final value?) value],
     );
   }
 
@@ -130,13 +135,16 @@ class XboardAuth extends Notifier<XboardAuthState> {
       email: email,
       authData: res.authData,
       subscribeUrl: null,
+      subscribeUrls: const [],
     );
 
     String? mihomoUrl;
     String? subscribeUrl;
+    List<String> subscribeUrls = const [];
     try {
       final sub = await api.getSubscribe(res.authData);
       subscribeUrl = sub.subscribeUrl;
+      subscribeUrls = sub.subscribeUrls;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
     } on XboardNoSubscriptionException {
@@ -157,6 +165,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       email: email,
       authData: res.authData,
       subscribeUrl: subscribeUrl,
+      subscribeUrls: subscribeUrls,
     );
     return XboardLoginOutcome(mihomoUrl: mihomoUrl);
   }
@@ -194,13 +203,16 @@ class XboardAuth extends Notifier<XboardAuthState> {
       email: email,
       authData: res.authData,
       subscribeUrl: null,
+      subscribeUrls: const [],
     );
 
     String? mihomoUrl;
     String? subscribeUrl;
+    List<String> subscribeUrls = const [];
     try {
       final sub = await api.getSubscribe(res.authData);
       subscribeUrl = sub.subscribeUrl;
+      subscribeUrls = sub.subscribeUrls;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
     } on XboardNoSubscriptionException {
@@ -220,6 +232,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       email: email,
       authData: res.authData,
       subscribeUrl: subscribeUrl,
+      subscribeUrls: subscribeUrls,
     );
     return XboardLoginOutcome(mihomoUrl: mihomoUrl);
   }
@@ -234,13 +247,13 @@ class XboardAuth extends Notifier<XboardAuthState> {
     } on XboardNoSubscriptionException {
       final sp = await SharedPreferences.getInstance();
       await sp.remove(_kSub);
-      state = state.copyWith(subscribeUrl: null);
+      state = state.copyWith(subscribeUrl: null, subscribeUrls: const []);
       rethrow;
     }
     final subscribeUrl = sub.subscribeUrl;
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kSub, subscribeUrl);
-    state = state.copyWith(subscribeUrl: subscribeUrl);
+    state = state.copyWith(subscribeUrl: subscribeUrl, subscribeUrls: sub.subscribeUrls);
     return XboardApi.toMihomoUrl(subscribeUrl);
   }
 
@@ -249,7 +262,20 @@ class XboardAuth extends Notifier<XboardAuthState> {
   Future<void> clearSubscription() async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_kSub);
-    state = state.copyWith(subscribeUrl: null);
+    state = state.copyWith(subscribeUrl: null, subscribeUrls: const []);
+  }
+
+  /// 记住本次真正下载成功的入口，下次优先复用，同时保留服务端候选顺序。
+  Future<void> markSubscriptionAvailable(String url) async {
+    final uri = Uri.parse(url);
+    final query = Map<String, String>.from(uri.queryParameters)
+      ..remove('flag')
+      ..remove('_');
+    final raw = uri.replace(queryParameters: query.isEmpty ? null : query).toString();
+    final candidates = <String>[raw, ...state.subscribeUrls.where((value) => value != raw)];
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kSub, raw);
+    state = state.copyWith(subscribeUrl: raw, subscribeUrls: candidates);
   }
 
   /// failover 探测到可用通信地址后,让当前会话也切过去(持久化)。
@@ -266,7 +292,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     if (subscribeUrl != null) {
       await sp.setString(_kSub, subscribeUrl);
     }
-    state = state.copyWith(panelUrl: b, subscribeUrl: subscribeUrl);
+    state = state.copyWith(panelUrl: b, subscribeUrl: subscribeUrl, subscribeUrls: state.subscribeUrls);
   }
 
   Future<void> logout() async {

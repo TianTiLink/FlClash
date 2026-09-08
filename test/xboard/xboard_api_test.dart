@@ -24,6 +24,22 @@ void main() {
       expect(subscription(2000000001).isExpiredAt(now), isFalse);
       expect(subscription(null).isExpiredAt(now), isFalse);
     });
+
+    test('keeps ordered domain candidates and removes duplicates', () {
+      final subscription = XboardSubscribe(
+        subscribeUrl: 'https://first.example/s/token',
+        subscribeUrls: const [
+          'https://first.example/s/token',
+          'https://second.example/s/token',
+          'https://186.244.223.118:45618/s/token',
+        ],
+      );
+      expect(subscription.subscribeUrls, const [
+        'https://first.example/s/token',
+        'https://second.example/s/token',
+        'https://186.244.223.118:45618/s/token',
+      ]);
+    });
   });
 
   group('Telegram group configuration', () {

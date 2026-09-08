@@ -19,6 +19,10 @@ import 'package:fl_clash/providers/app.dart'; // groupsProvider, delayDataSource
 import 'package:fl_clash/enum/enum.dart'; // Mode
 
 import 'xboard_api.dart';
+import 'xboard_auth.dart';
+
+List<String> orderedSubscriptionCandidates(String primary, Iterable<String> configured) =>
+    <String>{primary, ...configured}.where((value) => value.trim().isNotEmpty).toList();
 
 /// 两个订阅 URL 是否指向"同一份订阅"——忽略我们自己加的 flag 参数、以及查询参数的
 /// 先后顺序。只按裸字符串 `==` 比较太脆弱:面板如果哪天订阅链接的参数顺序变了、或
@@ -33,7 +37,11 @@ bool _sameSubscription(String a, String b) {
   } catch (_) {
     return a == b; // 解析失败就退化为原始比较,不崩
   }
-  if (ua.scheme != ub.scheme || ua.host != ub.host || ua.path != ub.path) {
+  final sameManagedToken = ua.scheme == 'https' &&
+      ub.scheme == 'https' &&
+      ua.path == ub.path &&
+      RegExp(r'^/s/[A-Za-z0-9_-]{43}$').hasMatch(ua.path);
+  if (ua.scheme != ub.scheme || ua.path != ub.path || (ua.host != ub.host && !sameManagedToken)) {
     return false;
   }
   final qa = Map<String, String>.from(ua.queryParameters)
@@ -136,9 +144,26 @@ void _ensureVisibleMode() {
 /// [subscribeUrl] 传 XboardAuth.login/refreshSubscribe 返回的 mihomo URL(已含 ?flag=meta),
 /// 或原始 subscribe_url(本函数会自动补 flag=meta)。
 Future<void> importXboardSubscription(String subscribeUrl) async {
-  final url = subscribeUrl.contains('flag=')
-      ? subscribeUrl
-      : XboardApi.toMihomoUrl(subscribeUrl);
+  final c = globalState.container;
+  final configured = c.read(xboardAuthProvider).subscribeUrls;
+  final candidates = orderedSubscriptionCandidates(subscribeUrl, configured)
+      .map((value) => value.contains('flag=') ? value : XboardApi.toMihomoUrl(value))
+      .toList();
+  Object? lastError;
+  for (final candidate in candidates) {
+    try {
+      await _importXboardSubscriptionUrl(candidate);
+      await c.read(xboardAuthProvider.notifier).markSubscriptionAvailable(candidate);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError != null) throw lastError;
+  throw XboardApiException('没有可用的订阅地址');
+}
+
+Future<void> _importXboardSubscriptionUrl(String url) async {
 
   final c = globalState.container;
 

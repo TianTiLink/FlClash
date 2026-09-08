@@ -6,6 +6,21 @@ Profile profile({required String label, required String url}) =>
     Profile.normal(label: label, url: url);
 
 void main() {
+  test('subscription candidates preserve server order and remove duplicates', () {
+    expect(
+      orderedSubscriptionCandidates('https://first.example/s/token', const [
+        'https://first.example/s/token',
+        'https://second.example/s/token',
+        'https://186.244.223.118:45618/s/token',
+      ]),
+      const [
+        'https://first.example/s/token',
+        'https://second.example/s/token',
+        'https://186.244.223.118:45618/s/token',
+      ],
+    );
+  });
+
   test('matches the exact saved TianTi subscription ignoring client flags', () {
     final item = profile(
       label: '任意名称',

@@ -35,6 +35,7 @@ class XboardLoginResult {
 
 class XboardSubscribe {
   final String subscribeUrl;
+  final List<String> subscribeUrls;
   final int upload; // 已用上行(字节)
   final int download; // 已用下行(字节)
   final int transferEnable; // 套餐总流量(字节)
@@ -43,12 +44,13 @@ class XboardSubscribe {
 
   XboardSubscribe({
     required this.subscribeUrl,
+    List<String>? subscribeUrls,
     this.upload = 0,
     this.download = 0,
     this.transferEnable = 0,
     this.expiredAt,
     this.planName,
-  });
+  }) : subscribeUrls = List.unmodifiable(<String>{subscribeUrl, ...?subscribeUrls}.where((value) => value.trim().isNotEmpty));
 
   bool isExpiredAt(DateTime now) {
     final expiry = expiredAt;
@@ -352,8 +354,10 @@ class XboardApi {
       throw XboardNoSubscriptionException();
     }
     final plan = data['plan'];
+    final urls = (data['subscribe_urls'] as List?)?.map((value) => value.toString()).where((value) => value.isNotEmpty).toList();
     return XboardSubscribe(
       subscribeUrl: url,
+      subscribeUrls: urls,
       upload: _int(data['u']),
       download: _int(data['d']),
       transferEnable: _int(data['transfer_enable']),
