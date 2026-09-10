@@ -376,6 +376,11 @@ class _PlansPageState extends ConsumerState<PlansPage> {
         : (transferValue > 1024 * 1024
               ? transferValue / (1024 * 1024 * 1024)
               : transferValue.toDouble());
+    final deviceLimit = _toInt(plan['device_limit']);
+    final trafficText = transferGb > 0
+        ? '每月 ${transferGb.toStringAsFixed(transferGb == transferGb.roundToDouble() ? 0 : 2)} GB'
+        : '每月流量不限';
+    final deviceText = deviceLimit > 0 ? '支持 $deviceLimit 台设备' : '支持不限设备';
     final desc = _stripHtml(plan['content']?.toString() ?? '');
 
     // 可购周期(价格非空的)
@@ -416,14 +421,15 @@ class _PlansPageState extends ConsumerState<PlansPage> {
                   ),
                 ),
               ),
-              if (transferGb > 0)
-                Text(
-                  '${transferGb.toStringAsFixed(0)} GB',
-                  style: const TextStyle(
-                    color: _kAmber,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              _planFeature(Icons.data_usage_rounded, trafficText),
+              _planFeature(Icons.devices_rounded, deviceText),
             ],
           ),
           if (desc.isNotEmpty) ...[
@@ -450,6 +456,32 @@ class _PlansPageState extends ConsumerState<PlansPage> {
                   _periodButton(plan, a.$1, a.$2, a.$3),
               ],
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _planFeature(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: _kAmber),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
