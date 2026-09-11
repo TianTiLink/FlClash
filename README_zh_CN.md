@@ -6,21 +6,23 @@
 
 [**English**](README.md)
 
-[![License](https://img.shields.io/github/license/TianTiLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/Telegram-@DBglobal1-2AABEE?style=flat-square&logo=telegram)](https://t.me/DBglobal1) [![Website](https://img.shields.io/badge/官网-tianticom.xyz-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://tianticom.xyz)
+[![License](https://img.shields.io/github/license/TianTiLink/FlClash?style=flat-square)](LICENSE) [![Telegram](https://img.shields.io/badge/TG群-@TianTivpn8-2AABEE?style=flat-square&logo=telegram)](https://t.me/TianTivpn8) [![Website](https://img.shields.io/badge/官网-tianticom.xyz-2FC7D8?style=flat-square&logo=googlechrome&logoColor=white)](https://tianticom.xyz)
 
-**高速 VPN · 梯子 · 代理加速器 · 一键科学上网,低延迟稳定不掉线、安全加密、无广告。**
+**高速 VPN · Clash 代理客户端 · 跨平台网络加速 · 一键订阅连接。**
+
+TianTiLink 面向 Windows、Android 和 macOS，提供登录即同步节点、智能分流、全局代理与 TUN 模式。苹果手机和 iPad 可使用 **Clash Plus、sing-box MT、Hiddify** 一键导入订阅。
 
 </div>
 
 ## 📥 下载
 
 - 🌐 **官网直下(推荐)**:**https://tianticom.xyz** — Android / Windows / macOS 一键下载
-- 📱 **iOS**:前往 [tianticom.xyz/dl/app.html](https://tianticom.xyz/dl/app.html) **一键导入订阅**(免费客户端,加到主屏即用)
+- 📱 **iPhone / iPad**:打开 [iOS 一键订阅教程](https://tianticom.xyz/dl/ios-appstore-guide.html)，支持 **Clash Plus、sing-box MT、Hiddify**
 - 📦 GitHub Releases:**https://github.com/TianTiLink/FlClash/releases**
 
 ## 🤝 推广赚钱
 
-把 TianTiLink 分享给好友,他们注册购买后,你按**后台代理提成比例**拿提成——自己用得爽、顺便还能赚。想做代理 / 拿更高比例,联系 Telegram [@DBglobal1](https://t.me/DBglobal1)。
+把 TianTiLink 分享给好友，他们注册购买后可按后台代理比例获得推广收益。使用交流、节点帮助和活动信息请加入 TG 群 [@TianTivpn8](https://t.me/TianTivpn8)。
 
 ## 💻 预览
 
@@ -38,9 +40,15 @@
 
 ## ✨ 特性
 
-- ✈️ 多平台:Android / iOS / Windows / macOS(iOS 一键导入订阅)
-- 🚀 基于 ClashMeta 内核,低延迟、稳定不掉线、安全加密、无广告
-- 💻 自适应多屏,多彩主题,Material You 设计
+- ✈️ Windows / Android / macOS 客户端，一键登录、同步节点与智能连接
+- 🍎 iPhone / iPad 支持 Clash Plus、sing-box MT、Hiddify 一键订阅
+- 🚀 基于 Mihomo / ClashMeta 内核，支持智能分流、全局代理与 TUN 模式
+- 🔄 多订阅入口自动容错，支持节点刷新、延迟检测与低连接数优先排序
+- 🔒 订阅安全保护、加密传输、简洁无广告界面
+
+## 🔎 搜索关键词
+
+VPN 客户端、Clash 客户端、Mihomo、ClashMeta、sing-box、Hiddify、iOS VPN、Clash Plus、Windows VPN、Android VPN、macOS VPN、科学上网、梯子、节点订阅、一键订阅、网络加速器。
 
 ## ⭐ Star
 

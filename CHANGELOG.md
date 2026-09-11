@@ -1050,3 +1050,9 @@
 - update mobile_scanner
 
 - Initial commit
+# 0.8.126
+
+- 修复 Windows 刷新节点、切换智能/全局模式与 TUN 配置同时应用时重复弹出授权提示的问题。
+- TUN 首次授权流程改为单次共享任务：同意并安装成功后不再重复提醒；取消后仅在再次需要 TUN 时提醒。
+- 优化 GitHub 项目介绍与搜索关键词，补充 iPhone/iPad 的 Clash Plus、sing-box MT、Hiddify 一键订阅说明。
+- Telegram 联系方式更新为 TG 群 `@TianTivpn8`。

@@ -25,20 +25,60 @@ part 'generated/action.g.dart';
 /// 开 TUN 前弹一次说明框(系统随后会弹一次 UAC 授权;那个 cmd 黑窗已隐藏)。
 /// 返回 true=继续或无需确认,false=用户取消(调用方据此不开 TUN)。服务装好后
 /// 设为开机自启,以后开关 TUN 不再触发提权,也就不会再弹此确认。
-Future<bool> _confirmTunElevationIfNeeded() async {
-  if (!system.isWindows) return true;
-  if (await system.checkIsAdmin()) return true;
-  final confirmed = await globalState.showMessage(
-    title: 'TUN 模式',
-    message: const TextSpan(
-      text:
-          '开启 TUN 模式需要安装一个网络服务,系统会弹出一次管理员授权窗口。'
-          '授权后即可接管全局流量,之后再开关 TUN 不会重复提示。是否继续?',
-    ),
-    confirmText: '继续',
-    cancelText: '取消',
-  );
-  return confirmed == true;
+enum _TunAuthorizationResult { ready, cancelled, failed, restartRequired }
+
+Future<_TunAuthorizationResult>? _tunAuthorizationInFlight;
+Future<void>? _tunCoreRestartInFlight;
+
+Future<void> _restartCoreOnce(Future<void> Function() restart) {
+  final active = _tunCoreRestartInFlight;
+  if (active != null) return active;
+  final request = restart();
+  _tunCoreRestartInFlight = request;
+  request.whenComplete(() {
+    if (identical(_tunCoreRestartInFlight, request)) {
+      _tunCoreRestartInFlight = null;
+    }
+  });
+  return request;
+}
+
+/// Deduplicates the complete prompt + UAC + helper installation transaction.
+/// Refreshing a profile and changing a mode can both apply configuration, so
+/// checking only the dialog allowed two callers to race before the helper was
+/// visible. All callers now await the same transaction.
+Future<_TunAuthorizationResult> _authorizeTunOnceIfNeeded() {
+  final active = _tunAuthorizationInFlight;
+  if (active != null) return active;
+  final request = () async {
+    if (!system.isWindows || await system.checkIsAdmin()) {
+      return _TunAuthorizationResult.ready;
+    }
+    final confirmed = await globalState.showMessage(
+      title: 'TUN 模式',
+      message: const TextSpan(
+        text:
+            '首次开启 TUN 模式需要安装网络服务，Windows 将弹出一次管理员授权。'
+            '同意并安装成功后，刷新节点或切换智能、全局和 TUN 模式都不会重复提示。是否继续？',
+      ),
+      confirmText: '继续',
+      cancelText: '取消',
+    );
+    if (confirmed != true) return _TunAuthorizationResult.cancelled;
+    final code = await system.authorizeCore();
+    return switch (code) {
+      AuthorizeCode.success => _TunAuthorizationResult.restartRequired,
+      AuthorizeCode.none => _TunAuthorizationResult.ready,
+      AuthorizeCode.error => _TunAuthorizationResult.failed,
+    };
+  }();
+  _tunAuthorizationInFlight = request;
+  request.whenComplete(() {
+    if (identical(_tunAuthorizationInFlight, request)) {
+      _tunAuthorizationInFlight = null;
+    }
+  });
+  return request;
 }
 
 @Riverpod(keepAlive: true)
@@ -419,7 +459,8 @@ class SetupAction extends _$SetupAction {
   Future<Result<bool>> _requestAdmin(bool enableTun) async {
     final realTunEnable = ref.read(realTunEnableProvider);
     if (enableTun != realTunEnable && realTunEnable == false) {
-      if (!(await _confirmTunElevationIfNeeded())) {
+      final authorization = await _authorizeTunOnceIfNeeded();
+      if (authorization == _TunAuthorizationResult.cancelled) {
         // 用户取消:把 TUN 开关也退回关闭,保持"开关显示"与"实际状态"一致
         // (否则开关停在"开"但 TUN 实际没开;也避免后续刷新/应用再弹一次确认)。
         ref
@@ -428,15 +469,18 @@ class SetupAction extends _$SetupAction {
         ref.read(realTunEnableProvider.notifier).value = false;
         return Result.success(false);
       }
-      final code = await system.authorizeCore();
-      switch (code) {
-        case AuthorizeCode.success:
-          await ref.read(coreActionProvider.notifier).restartCore();
+      switch (authorization) {
+        case _TunAuthorizationResult.restartRequired:
+          await _restartCoreOnce(
+            () => ref.read(coreActionProvider.notifier).restartCore(),
+          );
           return Result.error('');
-        case AuthorizeCode.none:
+        case _TunAuthorizationResult.ready:
           break;
-        case AuthorizeCode.error:
+        case _TunAuthorizationResult.failed:
           enableTun = false;
+          break;
+        case _TunAuthorizationResult.cancelled:
           break;
       }
     }
@@ -593,7 +637,8 @@ class CoreAction extends _$CoreAction {
   Future<Result<bool>> requestAdmin(bool enableTun) async {
     final realTunEnable = ref.read(realTunEnableProvider);
     if (enableTun != realTunEnable && realTunEnable == false) {
-      if (!(await _confirmTunElevationIfNeeded())) {
+      final authorization = await _authorizeTunOnceIfNeeded();
+      if (authorization == _TunAuthorizationResult.cancelled) {
         // 用户取消:把 TUN 开关也退回关闭,保持"开关显示"与"实际状态"一致
         // (否则开关停在"开"但 TUN 实际没开;也避免后续刷新/应用再弹一次确认)。
         ref
@@ -602,15 +647,16 @@ class CoreAction extends _$CoreAction {
         ref.read(realTunEnableProvider.notifier).value = false;
         return Result.success(false);
       }
-      final code = await system.authorizeCore();
-      switch (code) {
-        case AuthorizeCode.success:
-          await restartCore();
+      switch (authorization) {
+        case _TunAuthorizationResult.restartRequired:
+          await _restartCoreOnce(restartCore);
           return Result.error('');
-        case AuthorizeCode.none:
+        case _TunAuthorizationResult.ready:
           break;
-        case AuthorizeCode.error:
+        case _TunAuthorizationResult.failed:
           enableTun = false;
+          break;
+        case _TunAuthorizationResult.cancelled:
           break;
       }
     }
