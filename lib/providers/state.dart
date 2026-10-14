@@ -35,13 +35,15 @@ GroupsState currentGroupsState(Ref ref) {
       Mode.direct => [],
       Mode.global =>
         groups
-            .where((item) => item.hidden == false)
+            .where((item) => item.hidden != true)
             .where((element) => element.name != GroupName.GLOBAL.name)
+            .where((element) => element.type == GroupType.Selector)
             .toList(),
       Mode.rule =>
         groups
-            .where((item) => item.hidden == false)
+            .where((item) => item.hidden != true)
             .where((element) => element.name != GroupName.GLOBAL.name)
+            .where((element) => element.type == GroupType.Selector)
             .toList(),
     },
   );

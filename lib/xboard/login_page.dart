@@ -56,7 +56,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           .login(
             panelUrl: ttActiveBase,
             email: _emailCtrl.text.trim(),
-            password: _passCtrl.text,
+            password: _passCtrl.text.trim(),
           );
       // mihomoUrl 为 null 代表账号密码正确、但还没有可用套餐/订阅——
       // 仍然放行进主界面(门控会自动切换),让用户在账户页看到「去充值」提示,

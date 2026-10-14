@@ -1,3 +1,8 @@
+## v0.8.127
+
+- Disable upstream FlClash GitHub release update check and non-forced startup update popups.
+- Display daily equivalent rate breakdown on plan buttons.
+
 ## v0.8.123
 
 - Automatically select the first concrete subscription node when connecting for the first time without a saved node choice.

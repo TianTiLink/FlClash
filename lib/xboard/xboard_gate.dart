@@ -71,7 +71,7 @@ class _XboardGateState extends ConsumerState<XboardGate> {
     if (r.online) {
       await ref.read(xboardAuthProvider.notifier).adoptBase(r.activeBase);
     }
-    if (mounted && r.hasUpdate) {
+    if (mounted && r.hasUpdate && r.updateForce) {
       await maybeShowVersionUpdate(context, ref, r);
     }
   }

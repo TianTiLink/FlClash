@@ -51,28 +51,13 @@ class _AboutViewState extends ConsumerState<AboutView> {
     if (mounted) setState(() => _telegramGroupUrl = url);
   }
 
-  Future<void> _checkUpdate(BuildContext context) async {
-    final data = await globalState.safeRun<Map<String, dynamic>?>(
-      request.checkForUpdate,
-      title: context.appLocalizations.checkUpdate,
-    );
-    globalState.container
-        .read(commonActionProvider.notifier)
-        .checkUpdateResultHandle(data: data, isUser: true);
-  }
-
   List<Widget> _buildMoreSection(BuildContext context) {
+    if (_telegramGroupUrl == null) return [];
     final appLocalizations = context.appLocalizations;
     return generateSection(
       separated: false,
       title: appLocalizations.more,
       items: [
-        ListItem(
-          title: Text(appLocalizations.checkUpdate),
-          onTap: () {
-            _checkUpdate(context);
-          },
-        ),
         if (_telegramGroupUrl != null)
           ListItem(
             title: const Text('Telegram 官方群'),

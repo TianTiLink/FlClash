@@ -314,7 +314,7 @@ class GlobalState {
     };
     container.read(systemActionProvider.notifier).updateTray();
     container.read(profilesActionProvider.notifier).autoUpdateProfiles();
-    container.read(commonActionProvider.notifier).autoCheckUpdate();
+    // container.read(commonActionProvider.notifier).autoCheckUpdate(); // TianTiLink: 禁用上游 FlClash GitHub 自动检查更新弹窗
     autoLaunch?.updateStatus(container.read(appSettingProvider).autoLaunch);
     if (!container.read(appSettingProvider).silentLaunch) {
       window?.show();

@@ -381,7 +381,9 @@ class _PlansPageState extends ConsumerState<PlansPage> {
         ? '每月 ${transferGb.toStringAsFixed(transferGb == transferGb.roundToDouble() ? 0 : 2)} GB'
         : '每月流量不限';
     final deviceText = deviceLimit > 0 ? '支持 $deviceLimit 台设备' : '支持不限设备';
-    final desc = _stripHtml(plan['content']?.toString() ?? '');
+    final desc = _stripHtml(
+      (plan['content'] ?? plan['description'])?.toString() ?? '',
+    );
 
     // 可购周期(价格非空的)
     final available = <(String, String, int)>[];
@@ -487,12 +489,26 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     );
   }
 
+  static const Map<String, int> _periodDays = {
+    'month_price': 30,
+    'quarter_price': 90,
+    'half_year_price': 180,
+    'year_price': 365,
+    'two_year_price': 730,
+    'three_year_price': 1095,
+  };
+
   Widget _periodButton(
     Map<String, dynamic> plan,
     String key,
     String label,
     int cents,
   ) {
+    final days = _periodDays[key];
+    final dailyText = (days != null && days > 0 && cents > 0)
+        ? '折合 ¥${((cents / 100) / days).toStringAsFixed(2)}/天'
+        : null;
+
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => _buy(plan, key, cents),
@@ -519,6 +535,17 @@ class _PlansPageState extends ConsumerState<PlansPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (dailyText != null) ...[
+              const SizedBox(height: 3),
+              Text(
+                dailyText,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ],
         ),
       ),

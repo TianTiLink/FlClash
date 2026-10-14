@@ -23,7 +23,7 @@ bool _versionShownOnce = false;
 Future<void> maybeShowVersionUpdate(
     BuildContext context, WidgetRef ref, TtEndpointResult r) async {
   if (_versionShownOnce) return;
-  if (!r.hasUpdate) return;
+  if (!r.hasUpdate || !r.updateForce) return;
   _versionShownOnce = true;
   if (!context.mounted) return;
 
