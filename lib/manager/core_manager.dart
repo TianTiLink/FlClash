@@ -9,6 +9,7 @@ import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/state.dart';
+import '../xboard/xboard_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,7 +70,25 @@ class _CoreContainerState extends ConsumerState<CoreManager>
     proxiesAction.setDelay(delay);
     debouncer.call(FunctionTag.updateDelay, () async {
       proxiesAction.updateGroupsDebounce();
+      _checkHealingOnDelayResults();
     }, duration: const Duration(milliseconds: 5000));
+  }
+
+  void _checkHealingOnDelayResults() {
+    try {
+      final delayMap = ref.read(delayDataSourceProvider);
+      if (delayMap.isEmpty) return;
+      for (final groupDelays in delayMap.values) {
+        if (groupDelays.length >= 3) {
+          final allFailed = groupDelays.values.every((val) => val == null || val <= 0);
+          if (allFailed) {
+            commonPrint.log('[TianTi] All nodes failed in delay test; triggering healing auto-refresh');
+            autoRefreshTianTiSubscription(force: true, reason: 'healing_nodes_timeout');
+            break;
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -110,6 +129,7 @@ class _CoreContainerState extends ConsumerState<CoreManager>
     }
     await coreController.shutdown(false);
     super.onCrash(message);
+    autoRefreshTianTiSubscription(force: true, reason: 'healing_core_crash');
   }
 
   @override

@@ -6,6 +6,7 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/window_manager.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import '../xboard/xboard_sync.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,6 +91,7 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
         if (system.isAndroid) {
           ref.read(coreActionProvider.notifier).tryStartCore();
         }
+        autoRefreshTianTiSubscription(reason: 'resume');
       });
     }
   }

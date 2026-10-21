@@ -429,12 +429,14 @@ class _AccountPageState extends ConsumerState<AccountPage> {
       if (url == null) throw '未登录或获取节点失败';
       // importXboardSubscription 现在会在重下/校验失败时抛异常(不再吞),
       // 能走到下面的成功提示 = 真正重下最新节点并重新应用成功了。
-      await importXboardSubscription(url);
+      final result = await importXboardSubscription(url, forceApply: true);
       await _reload();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('节点已刷新')));
+        ).showSnackBar(SnackBar(
+          content: Text(result.changed ? '节点已刷新' : '节点已是最新配置'),
+        ));
       }
     } on XboardNoSubscriptionException {
       final removed = await clearTianTiSubscriptionProfiles(

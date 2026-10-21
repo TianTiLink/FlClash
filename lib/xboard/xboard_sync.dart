@@ -10,6 +10,12 @@
 //   例如 my_vpn,则下面 `package:fl_clash/...` 要同步改成 `package:my_vpn/...`。
 //   下列具体路径请对照你 clone 的 FlClash 版本核对(不同版本可能微调)。
 
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show listEquals;
+import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/core/core.dart';
 import 'package:fl_clash/state.dart'; // globalState
 import 'package:fl_clash/models/profile.dart'; // Profile
 import 'package:fl_clash/providers/action.dart'; // profilesActionProvider, setupActionProvider
@@ -17,9 +23,45 @@ import 'package:fl_clash/providers/database.dart'; // profilesProvider
 import 'package:fl_clash/providers/config.dart'; // currentProfileIdProvider, patchClashConfigProvider
 import 'package:fl_clash/providers/app.dart'; // groupsProvider, delayDataSourceProvider
 import 'package:fl_clash/enum/enum.dart'; // Mode
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
+
+const Duration kTianTiRoutineRefreshInterval = Duration(hours: 6);
+const Duration kTianTiHealingCooldown = Duration(minutes: 5);
+const String _kLastAutoRefreshTime = 'tianti_last_auto_refresh_ms';
+const String _kLastHealingRefreshTime = 'tianti_last_healing_refresh_ms';
+
+Future<bool>? _autoRefreshInFlight;
+
+class SubscriptionImportResult {
+  final bool changed;
+  final Profile profile;
+
+  const SubscriptionImportResult({
+    required this.changed,
+    required this.profile,
+  });
+}
+
+bool shouldTianTiAutoRefresh({
+  required DateTime? lastRefreshTime,
+  required bool force,
+  DateTime? now,
+}) {
+  final current = now ?? DateTime.now();
+  if (lastRefreshTime == null) return true;
+  final elapsed = current.difference(lastRefreshTime);
+  if (force) {
+    return elapsed >= kTianTiHealingCooldown;
+  }
+  return elapsed >= kTianTiRoutineRefreshInterval;
+}
+
+bool hasSubscriptionContentChanged(List<int> oldBytes, List<int> newBytes) {
+  return !listEquals(oldBytes, newBytes);
+}
 
 List<String> orderedSubscriptionCandidates(String primary, Iterable<String> configured) =>
     <String>{primary, ...configured}.where((value) => value.trim().isNotEmpty).toList();
@@ -140,10 +182,107 @@ void _ensureVisibleMode() {
   }
 }
 
+/// 智能静默/故障自愈自动刷新天梯订阅。
+///
+/// [force]: 为 true 时用于故障自愈（如全部节点超时、核心异常退出），
+///          仍受 5 分钟冷却保护，避免瞬时循环风暴。
+///          为 false 时用于冷启动与周期检查，仅在距上次刷新满 6 小时后触发。
+/// [reason]: 记录触发来源（startup / resume / periodic / healing_*）。
+/// 返回: true 表示节点内容有变动且已生效，false 表示无变动、跳过或静默失败。
+Future<bool> autoRefreshTianTiSubscription({
+  bool force = false,
+  String reason = 'routine',
+}) async {
+  final active = _autoRefreshInFlight;
+  if (active != null) return active;
+  final task = _performAutoRefresh(force: force, reason: reason);
+  _autoRefreshInFlight = task;
+  try {
+    return await task;
+  } finally {
+    if (identical(_autoRefreshInFlight, task)) {
+      _autoRefreshInFlight = null;
+    }
+  }
+}
+
+Future<bool> _performAutoRefresh({
+  required bool force,
+  required String reason,
+}) async {
+  final c = globalState.container;
+  final auth = c.read(xboardAuthProvider);
+  if (!auth.loggedIn || auth.authData == null) {
+    return false;
+  }
+
+  final sp = await SharedPreferences.getInstance();
+  final now = DateTime.now();
+  final lastRoutineMs = sp.getInt(_kLastAutoRefreshTime);
+  final lastHealingMs = sp.getInt(_kLastHealingRefreshTime);
+  final lastCheckTime = force
+      ? (lastHealingMs != null ? DateTime.fromMillisecondsSinceEpoch(lastHealingMs) : null)
+      : (lastRoutineMs != null ? DateTime.fromMillisecondsSinceEpoch(lastRoutineMs) : null);
+
+  if (!shouldTianTiAutoRefresh(
+    lastRefreshTime: lastCheckTime,
+    force: force,
+    now: now,
+  )) {
+    return false;
+  }
+
+  String? freshMihomoUrl;
+  try {
+    freshMihomoUrl = await c.read(xboardAuthProvider.notifier).refreshSubscribe();
+  } on XboardNoSubscriptionException {
+    await clearTianTiSubscriptionProfiles(subscribeUrl: auth.subscribeUrl);
+    return false;
+  } catch (error) {
+    commonPrint.log(
+      '[TianTi] Auto-refresh ($reason) failed to retrieve subscription url: $error',
+      logLevel: LogLevel.warning,
+    );
+    return false;
+  }
+
+  if (freshMihomoUrl == null || freshMihomoUrl.isEmpty) {
+    return false;
+  }
+
+  try {
+    final result = await importXboardSubscription(
+      freshMihomoUrl,
+      forceApply: force,
+    );
+    final nowMs = now.millisecondsSinceEpoch;
+    await sp.setInt(_kLastAutoRefreshTime, nowMs);
+    if (force) {
+      await sp.setInt(_kLastHealingRefreshTime, nowMs);
+    }
+    commonPrint.log(
+      '[TianTi] Auto-refresh ($reason) completed successfully (changed: ${result.changed})',
+      logLevel: LogLevel.info,
+    );
+    return result.changed;
+  } catch (error) {
+    commonPrint.log(
+      '[TianTi] Auto-refresh ($reason) sync error: $error',
+      logLevel: LogLevel.warning,
+    );
+    return false;
+  }
+}
+
 /// 导入(或复用)Xboard 订阅并切到它。
 /// [subscribeUrl] 传 XboardAuth.login/refreshSubscribe 返回的 mihomo URL(已含 ?flag=meta),
 /// 或原始 subscribe_url(本函数会自动补 flag=meta)。
-Future<void> importXboardSubscription(String subscribeUrl) async {
+/// [forceApply]: 为 true 时即便订阅内容一致也强制重载内核（用于用户手动点击“刷新节点”）；
+/// 为 false 时比对新旧 YAML，无变动则仅更新元数据与过期时间，不重载内核，保障活跃长连接不中断。
+Future<SubscriptionImportResult> importXboardSubscription(
+  String subscribeUrl, {
+  bool forceApply = false,
+}) async {
   final c = globalState.container;
   final configured = c.read(xboardAuthProvider).subscribeUrls;
   final candidates = orderedSubscriptionCandidates(subscribeUrl, configured)
@@ -152,9 +291,9 @@ Future<void> importXboardSubscription(String subscribeUrl) async {
   Object? lastError;
   for (final candidate in candidates) {
     try {
-      await _importXboardSubscriptionUrl(candidate);
+      final result = await _importXboardSubscriptionUrl(candidate, forceApply: forceApply);
       await c.read(xboardAuthProvider.notifier).markSubscriptionAvailable(candidate);
-      return;
+      return result;
     } catch (error) {
       lastError = error;
     }
@@ -163,12 +302,13 @@ Future<void> importXboardSubscription(String subscribeUrl) async {
   throw XboardApiException('没有可用的订阅地址');
 }
 
-Future<void> _importXboardSubscriptionUrl(String url) async {
-
+Future<SubscriptionImportResult> _importXboardSubscriptionUrl(
+  String url, {
+  bool forceApply = false,
+}) async {
   final c = globalState.container;
 
-  // 去重:FlClash 的 Profile.normal 每次用 snowflake 生成新 id,直接反复 addProfileFormURL
-  // 会累积重复订阅。所以先按"同一份订阅"的宽松定义找已存在的,而不是裸字符串相等。
+  // 1. 去重: 找到属于同一份订阅的已有 profile
   Profile? existing;
   for (final p in c.read(profilesProvider)) {
     if (_sameSubscription(p.url, url)) {
@@ -177,35 +317,82 @@ Future<void> _importXboardSubscriptionUrl(String url) async {
     }
   }
 
-  if (existing != null) {
-    // 已存在:强制从「最新订阅 URL(+ 每次不同的 no-cache 参数)」重下、校验通过后覆盖
-    // <id>.yaml,再切当前 + 立即应用。三个关键点(都踩过坑):
-    //   1) 用刚 refreshSubscribe() 拿到的最新 url 覆盖 existing.url(面板轮换 token 时旧 url 会失效),
-    //      再加 `_=时间戳` 绕开 CDN/反代对订阅的缓存,确保拿到面板最新节点。
-    //   2) 【不再 try/catch 吞异常】。updateProfile→Profile.update() 真正走网络重下,saveFile 里先
-    //      validateConfig 再覆盖 <id>.yaml,失败会 throw 且旧 yaml 还没被覆盖。以前 catch(_){} 把异常
-    //      吞掉、继续用旧 yaml 应用还提示"已刷新" = 用户看到的"刷新了还是旧节点/旧缓存"。现在让它抛给
-    //      上层,account_page 的 catch 会如实提示"刷新失败",不再假装成功。
-    //   3) 用 await applyProfile(force:true) 立即重解析进 mihomo 并刷新节点分组;不走
-    //      applyProfileDebounce(拖 600ms 且可能被同 tag 取消),节点列表当场更新。
-    final fresh = existing.copyWith(url: _withNoCache(url));
-    await c.read(profilesActionProvider.notifier).updateProfile(fresh);
-    c.read(currentProfileIdProvider.notifier).value = fresh.id;
-    await c.read(setupActionProvider.notifier).applyProfile(force: true);
-    _ensureVisibleMode();
-    return;
+  final fetchUrl = _withNoCache(url);
+  final response = await request.getFileResponseForUrl(fetchUrl);
+  final bytes = response.data ?? Uint8List.fromList([]);
+  if (bytes.isEmpty) {
+    throw XboardApiException('订阅内容为空');
   }
 
-  // 不存在:走 FlClash 官方入口(内部会下载订阅、写配置、落库;若当前无激活项则自动激活)。
-  await c.read(profilesActionProvider.notifier).addProfileFormURL(url);
+  // 2. 写入临时文件并通过 Mihomo 内核校验合法性（防止拉到报错 HTML 破坏配置）
+  final tempPath = await appPath.tempFilePath;
+  final tempFile = File(tempPath);
+  await tempFile.safeWriteAsBytes(bytes);
+  final validationError = await coreController.validateConfig(tempPath);
+  if (validationError.isNotEmpty) {
+    await tempFile.safeDelete();
+    throw validationError;
+  }
 
-  // 若之前已有别的激活订阅,addProfileFormURL 不会自动切过来,这里强制切到新导入的。
-  for (final p in c.read(profilesProvider)) {
-    if (_sameSubscription(p.url, url)) {
-      c.read(currentProfileIdProvider.notifier).value = p.id;
-      c.read(setupActionProvider.notifier).applyProfileDebounce(force: true);
-      break;
+  final disposition = response.headers.value('content-disposition');
+  final userinfo = response.headers.value('subscription-userinfo');
+  final subInfo = SubscriptionInfo.formHString(userinfo);
+
+  if (existing != null) {
+    final mFile = await existing.file;
+    bool contentChanged = true;
+    if (await mFile.exists()) {
+      final oldBytes = await mFile.readAsBytes();
+      contentChanged = hasSubscriptionContentChanged(oldBytes, bytes);
+    }
+
+    if (contentChanged || forceApply) {
+      await tempFile.copy(mFile.path);
+      await tempFile.safeDelete();
+
+      final updated = existing.copyWith(
+        url: fetchUrl,
+        label: existing.label.takeFirstValid([
+          utils.getFileNameForDisposition(disposition),
+          existing.id.toString(),
+        ]),
+        subscriptionInfo: subInfo,
+        lastUpdateDate: DateTime.now(),
+      );
+      c.read(profilesProvider.notifier).put(updated);
+      c.read(currentProfileIdProvider.notifier).value = updated.id;
+      await c.read(setupActionProvider.notifier).applyProfile(force: true);
+      _ensureVisibleMode();
+      commonPrint.log('[TianTi] Subscription applied (changed: $contentChanged, force: $forceApply)');
+      return SubscriptionImportResult(changed: true, profile: updated);
+    } else {
+      await tempFile.safeDelete();
+      final updated = existing.copyWith(
+        url: fetchUrl,
+        subscriptionInfo: subInfo,
+        lastUpdateDate: DateTime.now(),
+      );
+      c.read(profilesProvider.notifier).put(updated);
+      commonPrint.log('[TianTi] Subscription content unchanged; active connection preserved.');
+      return SubscriptionImportResult(changed: false, profile: updated);
     }
   }
+
+  // 3. 不存在已有 Profile：首次导入
+  final newProfile = Profile.normal(
+    url: fetchUrl,
+    label: utils.getFileNameForDisposition(disposition),
+  ).copyWith(
+    subscriptionInfo: subInfo,
+    lastUpdateDate: DateTime.now(),
+  );
+  final mFile = await newProfile.file;
+  await tempFile.copy(mFile.path);
+  await tempFile.safeDelete();
+
+  c.read(profilesActionProvider.notifier).putProfile(newProfile);
+  c.read(currentProfileIdProvider.notifier).value = newProfile.id;
+  await c.read(setupActionProvider.notifier).applyProfile(force: true);
   _ensureVisibleMode();
+  return SubscriptionImportResult(changed: true, profile: newProfile);
 }

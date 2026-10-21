@@ -20,6 +20,7 @@ import 'enum/enum.dart';
 import 'l10n/l10n.dart';
 import 'models/models.dart';
 import 'providers/providers.dart';
+import 'xboard/xboard_sync.dart';
 
 class GlobalState {
   static GlobalState? _instance;
@@ -329,6 +330,9 @@ class GlobalState {
     await container.read(setupActionProvider.notifier).initStatus();
     container.read(initProvider.notifier).value = true;
     permissions.check();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      autoRefreshTianTiSubscription(reason: 'startup');
+    });
   }
 
   Future<void> _handleFailedPreference() async {
