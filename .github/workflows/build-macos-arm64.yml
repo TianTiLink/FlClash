@@ -1,0 +1,84 @@
+name: build-macos-arm64
+
+on:
+  push:
+    branches:
+      - 'codex/web-client-login-repair-0.8.119'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-26
+    steps:
+      - name: Checkout(含子模块)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.4
+          cache: true
+
+      - name: Flutter 依赖
+        run: |
+          flutter --version
+          flutter pub get
+
+      - name: 编内核 + 生成 env.json(官方脚本;打包失败可忽略)
+        continue-on-error: true
+        run: |
+          set +e
+          dart setup.dart macos --env stable -v 2>&1 | tee setup-macos.log
+          echo "setup.dart 退出码:${PIPESTATUS[0]}"
+
+      - name: 编译完整 macOS 应用(flutter build macos --release)
+        run: |
+          set -o pipefail
+          if [ -f env.json ]; then
+            echo "用 env.json 编译"
+            flutter build macos --release --dart-define-from-file=env.json 2>&1 | tee flutter-build.log
+          else
+            echo "未见 env.json,直接编译"
+            flutter build macos --release 2>&1 | tee flutter-build.log
+          fi
+
+      - name: 诊断 · 打包 .app 为 zip
+        run: |
+          rel="build/macos/Build/Products/Release"
+          echo "===== $rel ====="; ls -la "$rel" 2>/dev/null || echo "(Release 不存在)"
+          app=$(ls -d "$rel"/*.app 2>/dev/null | head -n1)
+          if [ -n "$app" ]; then
+            echo "找到 app:$app"
+            ditto -c -k --sequesterRsrc --keepParent "$app" "TianTiLink-macos-arm64.zip"
+            ls -la "TianTiLink-macos-arm64.zip"
+          else
+            echo "::error::未找到 .app"
+            exit 1
+          fi
+
+      - name: Publish macOS arm64 release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+          release_tag="v${version}"
+          mkdir -p release
+          target='TianTiLink-macos.zip'
+          cp "TianTiLink-macos-arm64.zip" "release/$target"
+          sha256sum "release/$target" > "release/SHA256SUMS-macos-arm64.txt"
+          gh release view "$release_tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$release_tag" -R "$GITHUB_REPOSITORY" --title "TianT.co ${version}" --notes '客户端自动构建发布。' || true
+          gh release upload "$release_tag" -R "$GITHUB_REPOSITORY" release/* --clobber
