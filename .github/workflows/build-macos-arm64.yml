@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-macos-arm64:
-    runs-on: macos-26
+    runs-on: macos-latest
     steps:
       - name: Checkout(含子模块)
         uses: actions/checkout@v4
