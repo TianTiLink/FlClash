@@ -85,7 +85,7 @@ class ApplicationState extends ConsumerState<Application> {
   }
 
   void _autoUpdateProfilesTask() {
-    _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 20), () async {
+    _autoUpdateProfilesTaskTimer = Timer(const Duration(minutes: 10), () async {
       await ref.read(profilesActionProvider.notifier).autoUpdateProfiles();
       await autoRefreshTianTiSubscription(reason: 'periodic');
       _autoUpdateProfilesTask();

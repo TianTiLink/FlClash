@@ -1,4 +1,4 @@
-// 节点页底部常驻栏:「智能 / 全局」模式切换 +「服务模式(TUN)」开关 +「连接 / 断开」按钮。
+// 节点页底部常驻栏:「刷新订阅 / 延迟检测」操作栏 +「智能 / 全局」模式切换 +「服务模式(TUN)」开关 +「连接 / 断开」按钮。
 //
 // 智能(规则):国内直连、国外走节点(推荐);全局:所有流量都走当前选中节点。
 // 服务模式(虚拟网卡/TUN):接管所有应用的流量,无视应用自身是否支持代理。
@@ -8,8 +8,6 @@
 //   patchClashConfigProvider.mode / setupActionProvider.changeMode(Mode)
 //   Android: vpnSettingProvider.enable(真实 VpnService)
 //   Desktop: patchClashConfigProvider.tun.enable(Mihomo TUN)
-//
-// 注入方式见文件末尾(改 lib/views/proxies/proxies.dart 一处 body;若已注入过就无需再动)。
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart'; // Mode { rule, global, direct }
@@ -18,6 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const Color _kIndigo = Color(0xFF2B2F77);
+const Color _kRefreshBlue = Color(0xFF295EA8);
+const Color _kDelayTeal = Color(0xFF157A7E);
 const Color _kGreen = Color(0xFF2E7D53);
 const Color _kRed = Color(0xFFB23A48);
 
@@ -31,8 +31,19 @@ const String _kGlobalTip =
 
 class ProxiesConnectBar extends ConsumerWidget {
   final bool enabled;
+  final VoidCallback? onRefreshSubscription;
+  final VoidCallback? onTestDelay;
+  final bool refreshingSubscription;
+  final bool testingDelay;
 
-  const ProxiesConnectBar({super.key, this.enabled = true});
+  const ProxiesConnectBar({
+    super.key,
+    this.enabled = true,
+    this.onRefreshSubscription,
+    this.onTestDelay,
+    this.refreshingSubscription = false,
+    this.testingDelay = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,9 +52,7 @@ class ProxiesConnectBar extends ConsumerWidget {
     final mode = ref.watch(patchClashConfigProvider.select((s) => s.mode));
     final tunEnable = system.isAndroid
         ? ref.watch(vpnSettingProvider.select((s) => s.enable))
-        : ref.watch(
-            patchClashConfigProvider.select((s) => s.tun.enable),
-          );
+        : ref.watch(patchClashConfigProvider.select((s) => s.tun.enable));
 
     return SafeArea(
       top: false,
@@ -78,6 +87,44 @@ class ProxiesConnectBar extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
+            // 刷新订阅 / 延迟检测 横板双按钮(与下方 智能 / 全局 同款圆角横板,独立配色)
+            if (onRefreshSubscription != null || onTestDelay != null) ...[
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.4,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    _actionBtn(
+                      context: context,
+                      label: refreshingSubscription ? '刷新中…' : '刷新订阅',
+                      tip: '立即检查并同步最新订阅节点',
+                      icon: Icons.sync_rounded,
+                      color: _kRefreshBlue,
+                      loading: refreshingSubscription,
+                      onTap: refreshingSubscription
+                          ? null
+                          : onRefreshSubscription,
+                    ),
+                    const SizedBox(width: 6),
+                    _actionBtn(
+                      context: context,
+                      label: testingDelay ? '检测中…' : '延迟检测',
+                      tip: '本地网络依次检测节点延迟（低于 300ms 自动跳过）',
+                      icon: Icons.network_ping_rounded,
+                      color: _kDelayTeal,
+                      loading: testingDelay,
+                      onTap: (!enabled || testingDelay) ? null : onTestDelay,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             // 智能 / 全局 分段切换(鼠标悬停显示模式说明)
             Container(
               padding: const EdgeInsets.all(4),
@@ -225,6 +272,71 @@ class ProxiesConnectBar extends ConsumerWidget {
                 : null,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _actionBtn({
+    required BuildContext context,
+    required String label,
+    required String tip,
+    required IconData icon,
+    required Color color,
+    required bool loading,
+    required VoidCallback? onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDisabled = !loading && onTap == null;
+    final bgColor = isDisabled
+        ? theme.colorScheme.surfaceContainerHighest
+        : (loading ? color.withValues(alpha: 0.82) : color);
+    final fgColor = isDisabled ? theme.hintColor : Colors.white;
+
+    return Expanded(
+      child: Tooltip(
+        message: tip,
+        waitDuration: const Duration(milliseconds: 300),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(9),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (loading)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    Icon(icon, size: 16, color: fgColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fgColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

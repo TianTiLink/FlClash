@@ -37,6 +37,7 @@ const _kPanelUrl = 'tianti_api_base';
 const _kEmail = 'tianti_email';
 const _kAuth = 'tianti_auth_token';
 const _kSub = 'tianti_subscribe_url';
+const _kSubUrls = 'tianti_subscribe_urls';
 const _notProvided = Object();
 
 class XboardLoginOutcome {
@@ -98,18 +99,24 @@ class XboardAuth extends Notifier<XboardAuthState> {
   @override
   XboardAuthState build() => const XboardAuthState();
 
-  /// 启动时调用一次:从磁盘恢复会话。
+  /// 启动时调用一次:从磁盘恢复会话(含全部主备订阅地址列表)。
   Future<void> restore() async {
     final sp = await SharedPreferences.getInstance();
     final auth = await _secureStorage.read(key: _kAuth);
+    final savedSub = sp.getString(_kSub);
+    final savedSubUrls = sp.getStringList(_kSubUrls) ?? const <String>[];
+    final restoredUrls = <String>{
+      if (savedSub != null && savedSub.trim().isNotEmpty) savedSub.trim(),
+      ...savedSubUrls.map((e) => e.trim()).where((e) => e.isNotEmpty),
+    }.toList();
     state = XboardAuthState(
       restored: true,
       loggedIn: auth != null,
       panelUrl: sp.getString(_kPanelUrl) ?? ttActiveBase,
       email: sp.getString(_kEmail) ?? '',
       authData: auth,
-      subscribeUrl: sp.getString(_kSub),
-      subscribeUrls: [if (sp.getString(_kSub) case final value?) value],
+      subscribeUrl: savedSub,
+      subscribeUrls: restoredUrls,
     );
   }
 
@@ -128,6 +135,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     await sp.setString(_kEmail, email);
     await _secureStorage.write(key: _kAuth, value: res.authData);
     await sp.remove(_kSub);
+    await sp.remove(_kSubUrls);
 
     state = state.copyWith(
       loggedIn: true,
@@ -147,9 +155,11 @@ class XboardAuth extends Notifier<XboardAuthState> {
       subscribeUrls = sub.subscribeUrls;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
+      await sp.setStringList(_kSubUrls, subscribeUrls);
     } on XboardNoSubscriptionException {
       // 账号未购买套餐 / 暂无订阅:不算登录失败,让用户先进 App 再去充值。
       await sp.remove(_kSub);
+      await sp.remove(_kSubUrls);
     } catch (error) {
       final detail = error is XboardApiException
           ? error.message
@@ -196,6 +206,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     await sp.setString(_kEmail, email);
     await _secureStorage.write(key: _kAuth, value: res.authData);
     await sp.remove(_kSub);
+    await sp.remove(_kSubUrls);
 
     state = state.copyWith(
       loggedIn: true,
@@ -215,8 +226,10 @@ class XboardAuth extends Notifier<XboardAuthState> {
       subscribeUrls = sub.subscribeUrls;
       mihomoUrl = XboardApi.toMihomoUrl(subscribeUrl);
       await sp.setString(_kSub, subscribeUrl);
+      await sp.setStringList(_kSubUrls, subscribeUrls);
     } on XboardNoSubscriptionException {
       await sp.remove(_kSub);
+      await sp.remove(_kSubUrls);
     } catch (error) {
       final detail = error is XboardApiException
           ? error.message
@@ -243,17 +256,22 @@ class XboardAuth extends Notifier<XboardAuthState> {
     if (auth == null) return null;
     XboardSubscribe sub;
     try {
-      sub = await XboardApi(state.panelUrl).getSubscribe(auth);
+      sub = await xboardApiFactory(state.panelUrl).getSubscribe(auth);
     } on XboardNoSubscriptionException {
       final sp = await SharedPreferences.getInstance();
       await sp.remove(_kSub);
+      await sp.remove(_kSubUrls);
       state = state.copyWith(subscribeUrl: null, subscribeUrls: const []);
       rethrow;
     }
     final subscribeUrl = sub.subscribeUrl;
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kSub, subscribeUrl);
-    state = state.copyWith(subscribeUrl: subscribeUrl, subscribeUrls: sub.subscribeUrls);
+    await sp.setStringList(_kSubUrls, sub.subscribeUrls);
+    state = state.copyWith(
+      subscribeUrl: subscribeUrl,
+      subscribeUrls: sub.subscribeUrls,
+    );
     return XboardApi.toMihomoUrl(subscribeUrl);
   }
 
@@ -262,6 +280,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
   Future<void> clearSubscription() async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove(_kSub);
+    await sp.remove(_kSubUrls);
     state = state.copyWith(subscribeUrl: null, subscribeUrls: const []);
   }
 
@@ -271,10 +290,16 @@ class XboardAuth extends Notifier<XboardAuthState> {
     final query = Map<String, String>.from(uri.queryParameters)
       ..remove('flag')
       ..remove('_');
-    final raw = uri.replace(queryParameters: query.isEmpty ? null : query).toString();
-    final candidates = <String>[raw, ...state.subscribeUrls.where((value) => value != raw)];
+    final raw = uri
+        .replace(queryParameters: query.isEmpty ? null : query)
+        .toString();
+    final candidates = <String>[
+      raw,
+      ...state.subscribeUrls.where((value) => value != raw),
+    ];
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kSub, raw);
+    await sp.setStringList(_kSubUrls, candidates);
     state = state.copyWith(subscribeUrl: raw, subscribeUrls: candidates);
   }
 
@@ -292,14 +317,21 @@ class XboardAuth extends Notifier<XboardAuthState> {
     if (subscribeUrl != null) {
       await sp.setString(_kSub, subscribeUrl);
     }
-    state = state.copyWith(panelUrl: b, subscribeUrl: subscribeUrl, subscribeUrls: state.subscribeUrls);
+    if (state.subscribeUrls.isNotEmpty) {
+      await sp.setStringList(_kSubUrls, state.subscribeUrls);
+    }
+    state = state.copyWith(
+      panelUrl: b,
+      subscribeUrl: subscribeUrl,
+      subscribeUrls: state.subscribeUrls,
+    );
   }
 
   Future<void> logout() async {
     final auth = state.authData;
     if (auth != null && auth.isNotEmpty) {
       try {
-        await XboardApi(state.panelUrl).logout(auth);
+        await xboardApiFactory(state.panelUrl).logout(auth);
       } catch (_) {
         // 本地退出不能被短暂网络故障阻塞；服务端会话仍有固定有效期。
       }
@@ -307,6 +339,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     final sp = await SharedPreferences.getInstance();
     await _secureStorage.delete(key: _kAuth);
     await sp.remove(_kSub);
+    await sp.remove(_kSubUrls);
     state = XboardAuthState(
       restored: true,
       loggedIn: false,

@@ -13,9 +13,11 @@ import 'xboard_auth.dart' show ttActiveBase;
 const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';
 const String _kOfficialDomainsCache = 'tt_official_domains';
-const String _kEmergencyApiBase = 'https://186.244.223.118';
-const String _kBootstrapUrl =
-    '$_kEmergencyApiBase/api/v1/unified-admin/public/bootstrap';
+const String kPrimaryEmergencyApiBase = 'https://186.244.220.105';
+const List<String> kEmergencyApiBases = <String>[
+  kPrimaryEmergencyApiBase,
+  'https://186.244.223.118',
+];
 const String _kBootstrapBrand = 'tianti';
 const String _kBootstrapPublicKey =
     'KSNvx4XAw+mDcAeD6xHuwng0CEdTFc/EqO05tibyYkI=';
@@ -309,23 +311,30 @@ Future<Map<String, dynamic>> _probe(String base, Duration timeout) async {
 }
 
 Future<List<String>> _fetchBootstrapDomains(Duration timeout) async {
-  try {
-    final response = await http
-        .get(Uri.parse(_kBootstrapUrl), headers: {'Accept': 'application/json'})
-        .timeout(timeout);
-    if (response.statusCode != 200 || response.bodyBytes.length > 16384) {
-      return const <String>[];
-    }
-    final json = jsonDecode(utf8.decode(response.bodyBytes));
-    if (json is! Map) return const <String>[];
-    return verifyBootstrapDocument(
-      Map<String, dynamic>.from(json),
-      expectedBrand: _kBootstrapBrand,
-      publicKeyBase64: _kBootstrapPublicKey,
-    );
-  } catch (_) {
-    return const <String>[];
+  for (final emergencyBase in kEmergencyApiBases) {
+    try {
+      final response = await http
+          .get(
+            Uri.parse(
+              '$emergencyBase/api/v1/unified-admin/public/bootstrap',
+            ),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(timeout);
+      if (response.statusCode != 200 || response.bodyBytes.length > 16384) {
+        continue;
+      }
+      final json = jsonDecode(utf8.decode(response.bodyBytes));
+      if (json is! Map) continue;
+      final verified = await verifyBootstrapDocument(
+        Map<String, dynamic>.from(json),
+        expectedBrand: _kBootstrapBrand,
+        publicKeyBase64: _kBootstrapPublicKey,
+      );
+      if (verified.isNotEmpty) return verified;
+    } catch (_) {}
   }
+  return const <String>[];
 }
 
 Future<void> _cacheApiDomains(List<String> domains) async {
@@ -385,12 +394,15 @@ Future<TtEndpointResult> resolveEndpoint({
     } catch (_) {}
   }
 
-  // Last resort: the fixed IP has a trusted IP-address TLS certificate. It is
-  // attempted only after cached, built-in and freshly discovered domains fail.
-  try {
-    final config = await _probe(_kEmergencyApiBase, perTry);
-    return _activate(_kEmergencyApiBase, config, currentVersion);
-  } catch (_) {}
+  // Last resort: fixed IPs with trusted IP-address TLS certificates (primary
+  // 186.244.220.105, secondary 186.244.223.118). Attempted only after cached,
+  // built-in and freshly discovered domains fail.
+  for (final emergencyBase in kEmergencyApiBases) {
+    try {
+      final config = await _probe(emergencyBase, perTry);
+      return _activate(emergencyBase, config, currentVersion);
+    } catch (_) {}
+  }
 
   return TtEndpointResult(
     ttActiveBase,

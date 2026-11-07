@@ -59,11 +59,14 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     _keyMap[currentGroupName]?.currentState?.scrollToSelected();
   }
 
-  Future<int> delayTestCurrentGroup() async {
+  Future<DelayTestSummary> delayTestCurrentGroupSummary() async {
     final currentGroupName = getCurrentGroupName();
     final currentState = _keyMap[currentGroupName]?.currentState;
     if (currentState != null && currentState.currentProxies.isNotEmpty) {
-      return delayTest(currentState.currentProxies, currentState.testUrl);
+      return delayTestWithSummary(
+        currentState.currentProxies,
+        currentState.testUrl,
+      );
     }
 
     // 刷新订阅后 Tab 仍在重建、或旧 profile 尚未记录 currentGroupName 时，
@@ -71,13 +74,18 @@ class ProxiesTabViewState extends ConsumerState<ProxiesTabView>
     // 避免错误提示“当前分组没有可检测的节点”。
     final groups = getCurrentGroups();
     if (groups.isEmpty) {
-      return 0;
+      return const DelayTestSummary(total: 0, tested: 0, skipped: 0);
     }
     final fallback = groups.firstWhere(
       (group) => group.name == currentGroupName,
       orElse: () => groups.first,
     );
-    return delayTest(fallback.all, fallback.testUrl);
+    return delayTestWithSummary(fallback.all, fallback.testUrl);
+  }
+
+  Future<int> delayTestCurrentGroup() async {
+    final summary = await delayTestCurrentGroupSummary();
+    return summary.total;
   }
 
   Widget _buildMoreButton() {

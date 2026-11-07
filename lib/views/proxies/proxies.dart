@@ -3,15 +3,16 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/common.dart';
 import 'package:fl_clash/models/state.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/views/proxies/common.dart';
 import 'package:fl_clash/views/proxies/list.dart';
 import 'package:fl_clash/views/proxies/providers.dart';
 import 'package:fl_clash/widgets/widgets.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_clash/xboard/proxies_connect_bar.dart';
 import 'package:fl_clash/xboard/xboard_api.dart';
 import 'package:fl_clash/xboard/xboard_auth.dart';
 import 'package:fl_clash/xboard/xboard_sync.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'setting.dart';
 import 'tab.dart';
@@ -31,7 +32,7 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
   bool _refreshingSub = false;
   bool _testingDelay = false;
 
-  // 刷新订阅:从面板重拉最新节点并重新应用(复用账户页同款逻辑)。
+  // 刷新订阅:从面板重拉最新节点并按需应用(内容未变时不打断当前活跃连接)。
   Future<void> _refreshSubscription() async {
     if (_refreshingSub) return;
     setState(() => _refreshingSub = true);
@@ -42,28 +43,58 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
           .read(xboardAuthProvider.notifier)
           .refreshSubscribe();
       if (url == null) throw '未登录或获取节点失败';
-      await importXboardSubscription(url);
-      messenger.showSnackBar(const SnackBar(content: Text('节点已刷新')));
+      final result = await importXboardSubscription(url);
+      await recordManualSubscriptionRefreshTime();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              result.changed ? '节点已刷新' : '刷新完成，节点已是最新配置',
+            ),
+          ),
+        );
     } on XboardNoSubscriptionException {
       final removed = await clearTianTiSubscriptionProfiles(
         subscribeUrl: previousSubscription,
       );
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            removed > 0
-                ? '当前账号没有有效套餐，已清除旧节点。请购买套餐后再刷新。'
-                : '当前账号没有有效套餐，请购买套餐后再刷新节点。',
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              removed > 0
+                  ? '当前账号没有有效套餐，已清除旧节点。请购买套餐后再刷新。'
+                  : '当前账号没有有效套餐，请购买套餐后再刷新节点。',
+            ),
           ),
-        ),
-      );
+        );
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('网络连接失败，当前节点已保留。请稍后重试：$e')),
-      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('网络连接失败，当前节点已保留。请稍后重试：$e')),
+        );
     } finally {
       if (mounted) setState(() => _refreshingSub = false);
     }
+  }
+
+  Future<DelayTestSummary> _runDelayTestOnActiveGroup() async {
+    final tabState = _proxiesTabKey.currentState;
+    if (tabState != null) {
+      return tabState.delayTestCurrentGroupSummary();
+    }
+    final groups = getCurrentGroups();
+    if (groups.isEmpty) {
+      return const DelayTestSummary(total: 0, tested: 0, skipped: 0);
+    }
+    final currentGroupName = getCurrentGroupName();
+    final target = groups.firstWhere(
+      (group) => group.name == currentGroupName,
+      orElse: () => groups.first,
+    );
+    return delayTestWithSummary(target.all, target.testUrl);
   }
 
   Future<void> _testCurrentGroupDelay() async {
@@ -71,15 +102,25 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
     setState(() => _testingDelay = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final count =
-          await _proxiesTabKey.currentState?.delayTestCurrentGroup() ?? 0;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(count > 0 ? '延迟检测完成，共 $count 个节点' : '当前分组没有可检测的节点'),
-        ),
-      );
+      final summary = await _runDelayTestOnActiveGroup();
+      final String feedback;
+      if (summary.total == 0) {
+        feedback = '当前分组没有可检测的节点';
+      } else if (summary.tested == 0 && summary.skipped > 0) {
+        feedback = '全部 ${summary.skipped} 个节点延迟均低于 300ms，无需重复检测';
+      } else if (summary.skipped > 0) {
+        feedback =
+            '延迟检测完成：检测 ${summary.tested} 个，跳过 ${summary.skipped} 个低延迟节点';
+      } else {
+        feedback = '延迟检测完成，共 ${summary.tested} 个节点';
+      }
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(feedback)));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('延迟检测失败：$e')));
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('延迟检测失败：$e')));
     } finally {
       if (mounted) setState(() => _testingDelay = false);
     }
@@ -250,7 +291,13 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
                     ProxiesType.list => const ProxiesListView(),
                   },
           ),
-          ProxiesConnectBar(enabled: !noPlan),
+          ProxiesConnectBar(
+            enabled: !noPlan,
+            onRefreshSubscription: _refreshSubscription,
+            refreshingSubscription: _refreshingSub,
+            onTestDelay: !noPlan ? _testCurrentGroupDelay : null,
+            testingDelay: _testingDelay,
+          ),
         ],
       ),
     );
@@ -307,7 +354,7 @@ class _NoPlanNodePlaceholder extends StatelessWidget {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    '此卡片仅用于提示，不能连接，也不会执行延迟检测。购买套餐后点击右上角刷新节点。',
+                    '此卡片仅用于提示，不能连接，也不会执行延迟检测。购买套餐后点击刷新订阅获取节点。',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.hintColor,
                       height: 1.45,

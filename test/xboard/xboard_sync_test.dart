@@ -11,12 +11,27 @@ void main() {
       orderedSubscriptionCandidates('https://first.example/s/token', const [
         'https://first.example/s/token',
         'https://second.example/s/token',
-        'https://186.244.223.118:45618/s/token',
+        'https://186.244.220.105:45618/s/token',
       ]),
       const [
         'https://first.example/s/token',
         'https://second.example/s/token',
-        'https://186.244.223.118:45618/s/token',
+        'https://186.244.220.105:45618/s/token',
+      ],
+    );
+  });
+
+  test('expands 43-char managed token URLs with IP-SSL fallbacks', () {
+    const token = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+    expect(token.length, 43);
+    expect(
+      expandTianTiSubscriptionFallbacks(const [
+        'https://vm634xcklj68vas12d4.xyz/s/$token',
+      ]),
+      const [
+        'https://vm634xcklj68vas12d4.xyz/s/$token',
+        'https://186.244.220.105:45618/s/$token',
+        'https://186.244.223.118:45618/s/$token',
       ],
     );
   });
@@ -80,37 +95,55 @@ void main() {
     );
   });
 
-  test('shouldTianTiAutoRefresh enforces 6-hour routine interval', () {
-    final now = DateTime(2026, 10, 22, 12, 0);
-
-    // 5 hours ago -> false
-    final fiveHoursAgo = now.subtract(const Duration(hours: 5));
+  test('shouldTianTiAutoRefresh always triggers on cold startup', () {
+    final now = DateTime(2026, 11, 8, 12, 0);
+    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
     expect(
       shouldTianTiAutoRefresh(
-        lastRefreshTime: fiveHoursAgo,
+        lastRefreshTime: oneMinuteAgo,
         force: false,
+        reason: 'startup',
+        now: now,
+      ),
+      isTrue,
+    );
+  });
+
+  test('shouldTianTiAutoRefresh enforces 1-hour routine interval while open', () {
+    final now = DateTime(2026, 11, 8, 12, 0);
+    expect(kTianTiRoutineRefreshInterval, const Duration(hours: 1));
+
+    // 59 minutes ago -> false
+    final fiftyNineMinutesAgo = now.subtract(const Duration(minutes: 59));
+    expect(
+      shouldTianTiAutoRefresh(
+        lastRefreshTime: fiftyNineMinutesAgo,
+        force: false,
+        reason: 'periodic',
         now: now,
       ),
       isFalse,
     );
 
-    // 6 hours ago -> true
-    final sixHoursAgo = now.subtract(const Duration(hours: 6));
+    // 1 hour ago -> true
+    final oneHourAgo = now.subtract(const Duration(hours: 1));
     expect(
       shouldTianTiAutoRefresh(
-        lastRefreshTime: sixHoursAgo,
+        lastRefreshTime: oneHourAgo,
         force: false,
+        reason: 'periodic',
         now: now,
       ),
       isTrue,
     );
 
-    // 12 hours ago -> true
-    final twelveHoursAgo = now.subtract(const Duration(hours: 12));
+    // 2 hours ago -> true
+    final twoHoursAgo = now.subtract(const Duration(hours: 2));
     expect(
       shouldTianTiAutoRefresh(
-        lastRefreshTime: twelveHoursAgo,
+        lastRefreshTime: twoHoursAgo,
         force: false,
+        reason: 'resume',
         now: now,
       ),
       isTrue,
@@ -118,7 +151,7 @@ void main() {
   });
 
   test('shouldTianTiAutoRefresh enforces 5-minute healing cooldown', () {
-    final now = DateTime(2026, 10, 22, 12, 0);
+    final now = DateTime(2026, 11, 8, 12, 0);
 
     // 2 minutes ago -> false (cooldown)
     final twoMinutesAgo = now.subtract(const Duration(minutes: 2));

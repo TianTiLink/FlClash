@@ -10,30 +10,40 @@
 //   例如 my_vpn,则下面 `package:fl_clash/...` 要同步改成 `package:my_vpn/...`。
 //   下列具体路径请对照你 clone 的 FlClash 版本核对(不同版本可能微调)。
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/core.dart';
-import 'package:fl_clash/state.dart'; // globalState
+import 'package:fl_clash/enum/enum.dart'; // Mode
 import 'package:fl_clash/models/profile.dart'; // Profile
 import 'package:fl_clash/providers/action.dart'; // profilesActionProvider, setupActionProvider
-import 'package:fl_clash/providers/database.dart'; // profilesProvider
-import 'package:fl_clash/providers/config.dart'; // currentProfileIdProvider, patchClashConfigProvider
 import 'package:fl_clash/providers/app.dart'; // groupsProvider, delayDataSourceProvider
-import 'package:fl_clash/enum/enum.dart'; // Mode
+import 'package:fl_clash/providers/config.dart'; // currentProfileIdProvider, patchClashConfigProvider
+import 'package:fl_clash/providers/database.dart'; // profilesProvider
+import 'package:fl_clash/state.dart'; // globalState
+import 'package:flutter/foundation.dart' show listEquals, visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'xboard_api.dart';
 import 'xboard_auth.dart';
 
-const Duration kTianTiRoutineRefreshInterval = Duration(hours: 6);
+const Duration kTianTiRoutineRefreshInterval = Duration(hours: 1);
 const Duration kTianTiHealingCooldown = Duration(minutes: 5);
+const List<String> kTianTiSubscriptionFallbackHosts = <String>[
+  '186.244.220.105:45618',
+  '186.244.223.118:45618',
+];
 const String _kLastAutoRefreshTime = 'tianti_last_auto_refresh_ms';
 const String _kLastHealingRefreshTime = 'tianti_last_healing_refresh_ms';
 
+final RegExp _managedTokenPathPattern = RegExp(r'^/s/[A-Za-z0-9_-]{43}$');
+
 Future<bool>? _autoRefreshInFlight;
+bool _coreStartupReady = false;
+bool _gateStartupReady = false;
+bool _startupRefreshTriggered = false;
 
 class SubscriptionImportResult {
   final bool changed;
@@ -45,11 +55,53 @@ class SubscriptionImportResult {
   });
 }
 
+/// 标记内核与本地状态初始化完成；与 [markTianTiGateReady] 汇合后触发冷启动订阅检测。
+void markTianTiCoreReady() {
+  _coreStartupReady = true;
+  _tryTriggerStartupRefresh();
+}
+
+/// 标记登录态恢复与通信端点探测完成；与 [markTianTiCoreReady] 汇合后触发冷启动订阅检测。
+void markTianTiGateReady() {
+  _gateStartupReady = true;
+  _tryTriggerStartupRefresh();
+}
+
+void _tryTriggerStartupRefresh() {
+  if (!_coreStartupReady || !_gateStartupReady || _startupRefreshTriggered) {
+    return;
+  }
+  _startupRefreshTriggered = true;
+  unawaited(autoRefreshTianTiSubscription(reason: 'startup'));
+}
+
+@visibleForTesting
+void resetTianTiStartupRefreshStateForTest() {
+  _coreStartupReady = false;
+  _gateStartupReady = false;
+  _startupRefreshTriggered = false;
+}
+
+/// 手动刷新订阅成功后更新时间戳，使后续后台 1 小时周期检测从本次刷新算起。
+Future<void> recordManualSubscriptionRefreshTime([DateTime? now]) async {
+  try {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setInt(
+      _kLastAutoRefreshTime,
+      (now ?? DateTime.now()).millisecondsSinceEpoch,
+    );
+  } catch (_) {}
+}
+
 bool shouldTianTiAutoRefresh({
   required DateTime? lastRefreshTime,
   required bool force,
+  String reason = 'routine',
   DateTime? now,
 }) {
+  if (!force && reason == 'startup') {
+    return true;
+  }
   final current = now ?? DateTime.now();
   if (lastRefreshTime == null) return true;
   final elapsed = current.difference(lastRefreshTime);
@@ -63,8 +115,57 @@ bool hasSubscriptionContentChanged(List<int> oldBytes, List<int> newBytes) {
   return !listEquals(oldBytes, newBytes);
 }
 
-List<String> orderedSubscriptionCandidates(String primary, Iterable<String> configured) =>
-    <String>{primary, ...configured}.where((value) => value.trim().isNotEmpty).toList();
+/// 若候选列表中包含天梯 `/s/<43位token>` 订阅链接，自动追加 IP-SSL 主备端口兜底。
+List<String> expandTianTiSubscriptionFallbacks(Iterable<String> urls) {
+  final ordered = <String>[];
+  for (final raw in urls) {
+    final trimmed = raw.trim();
+    if (trimmed.isNotEmpty && !ordered.contains(trimmed)) {
+      ordered.add(trimmed);
+    }
+  }
+
+  Uri? managedTemplate;
+  for (final candidate in ordered) {
+    final parsed = Uri.tryParse(candidate);
+    if (parsed != null &&
+        parsed.scheme == 'https' &&
+        _managedTokenPathPattern.hasMatch(parsed.path)) {
+      managedTemplate = parsed;
+      break;
+    }
+  }
+
+  if (managedTemplate != null) {
+    for (final hostPort in kTianTiSubscriptionFallbackHosts) {
+      final parts = hostPort.split(':');
+      final host = parts.first;
+      final port = parts.length > 1 ? int.tryParse(parts[1]) : null;
+      final fallback = managedTemplate
+          .replace(host: host, port: port)
+          .toString();
+      final alreadyHasHost = ordered.any((existing) {
+        final uri = Uri.tryParse(existing);
+        return uri != null &&
+            uri.host == host &&
+            (port == null || uri.port == port) &&
+            uri.path == managedTemplate!.path;
+      });
+      if (!alreadyHasHost) {
+        ordered.add(fallback);
+      }
+    }
+  }
+
+  return ordered;
+}
+
+List<String> orderedSubscriptionCandidates(
+  String primary,
+  Iterable<String> configured,
+) {
+  return expandTianTiSubscriptionFallbacks(<String>[primary, ...configured]);
+}
 
 /// 两个订阅 URL 是否指向"同一份订阅"——忽略我们自己加的 flag 参数、以及查询参数的
 /// 先后顺序。只按裸字符串 `==` 比较太脆弱:面板如果哪天订阅链接的参数顺序变了、或
@@ -79,11 +180,14 @@ bool _sameSubscription(String a, String b) {
   } catch (_) {
     return a == b; // 解析失败就退化为原始比较,不崩
   }
-  final sameManagedToken = ua.scheme == 'https' &&
+  final sameManagedToken =
+      ua.scheme == 'https' &&
       ub.scheme == 'https' &&
       ua.path == ub.path &&
-      RegExp(r'^/s/[A-Za-z0-9_-]{43}$').hasMatch(ua.path);
-  if (ua.scheme != ub.scheme || ua.path != ub.path || (ua.host != ub.host && !sameManagedToken)) {
+      _managedTokenPathPattern.hasMatch(ua.path);
+  if (ua.scheme != ub.scheme ||
+      ua.path != ub.path ||
+      (ua.host != ub.host && !sameManagedToken)) {
     return false;
   }
   final qa = Map<String, String>.from(ua.queryParameters)
@@ -171,10 +275,6 @@ String _withNoCache(String url) {
 }
 
 /// 刷新/导入订阅成功后:若当前处于「直连」模式,自动切回「智能」模式。
-/// 根因:currentGroupsState 在直连模式下恒返回空列表,所以哪怕新节点已加载进内核,
-/// 用户仍会看到「刷新成功但左侧没有节点」——续费重新购买后最典型(过期期间手动切了
-/// 直连,续费刷新后节点仍不显示)。这里等价于自动按下空态里的「切回智能模式」按钮,
-/// 切回后刚加载好的节点立即显示。用户已选择此行为(刷新即自动切智能)。
 void _ensureVisibleMode() {
   final c = globalState.container;
   if (c.read(patchClashConfigProvider).mode == Mode.direct) {
@@ -186,7 +286,7 @@ void _ensureVisibleMode() {
 ///
 /// [force]: 为 true 时用于故障自愈（如全部节点超时、核心异常退出），
 ///          仍受 5 分钟冷却保护，避免瞬时循环风暴。
-///          为 false 时用于冷启动与周期检查，仅在距上次刷新满 6 小时后触发。
+///          为 false 时：冷启动 (`reason == 'startup'`) 每次必查；运行期间每满 1 小时触发。
 /// [reason]: 记录触发来源（startup / resume / periodic / healing_*）。
 /// 返回: true 表示节点内容有变动且已生效，false 表示无变动、跳过或静默失败。
 Future<bool> autoRefreshTianTiSubscription({
@@ -211,6 +311,9 @@ Future<bool> _performAutoRefresh({
   required String reason,
 }) async {
   final c = globalState.container;
+  if (!c.read(xboardAuthProvider).restored) {
+    await c.read(xboardAuthProvider.notifier).restore();
+  }
   final auth = c.read(xboardAuthProvider);
   if (!auth.loggedIn || auth.authData == null) {
     return false;
@@ -221,12 +324,17 @@ Future<bool> _performAutoRefresh({
   final lastRoutineMs = sp.getInt(_kLastAutoRefreshTime);
   final lastHealingMs = sp.getInt(_kLastHealingRefreshTime);
   final lastCheckTime = force
-      ? (lastHealingMs != null ? DateTime.fromMillisecondsSinceEpoch(lastHealingMs) : null)
-      : (lastRoutineMs != null ? DateTime.fromMillisecondsSinceEpoch(lastRoutineMs) : null);
+      ? (lastHealingMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(lastHealingMs)
+            : null)
+      : (lastRoutineMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(lastRoutineMs)
+            : null);
 
   if (!shouldTianTiAutoRefresh(
     lastRefreshTime: lastCheckTime,
     force: force,
+    reason: reason,
     now: now,
   )) {
     return false;
@@ -234,7 +342,9 @@ Future<bool> _performAutoRefresh({
 
   String? freshMihomoUrl;
   try {
-    freshMihomoUrl = await c.read(xboardAuthProvider.notifier).refreshSubscribe();
+    freshMihomoUrl = await c
+        .read(xboardAuthProvider.notifier)
+        .refreshSubscribe();
   } on XboardNoSubscriptionException {
     await clearTianTiSubscriptionProfiles(subscribeUrl: auth.subscribeUrl);
     return false;
@@ -243,7 +353,13 @@ Future<bool> _performAutoRefresh({
       '[TianTi] Auto-refresh ($reason) failed to retrieve subscription url: $error',
       logLevel: LogLevel.warning,
     );
-    return false;
+    // 若获取新订阅链接接口暂时失败，但本地已有缓存订阅地址，冷启动/自愈仍尝试用本地候选拉取最新节点
+    final fallbackSub = c.read(xboardAuthProvider).subscribeUrl;
+    if (fallbackSub != null && fallbackSub.trim().isNotEmpty) {
+      freshMihomoUrl = XboardApi.toMihomoUrl(fallbackSub);
+    } else {
+      return false;
+    }
   }
 
   if (freshMihomoUrl == null || freshMihomoUrl.isEmpty) {
@@ -277,7 +393,7 @@ Future<bool> _performAutoRefresh({
 /// 导入(或复用)Xboard 订阅并切到它。
 /// [subscribeUrl] 传 XboardAuth.login/refreshSubscribe 返回的 mihomo URL(已含 ?flag=meta),
 /// 或原始 subscribe_url(本函数会自动补 flag=meta)。
-/// [forceApply]: 为 true 时即便订阅内容一致也强制重载内核（用于用户手动点击“刷新节点”）；
+/// [forceApply]: 为 true 时即便订阅内容一致也强制重载内核；
 /// 为 false 时比对新旧 YAML，无变动则仅更新元数据与过期时间，不重载内核，保障活跃长连接不中断。
 Future<SubscriptionImportResult> importXboardSubscription(
   String subscribeUrl, {
@@ -286,13 +402,21 @@ Future<SubscriptionImportResult> importXboardSubscription(
   final c = globalState.container;
   final configured = c.read(xboardAuthProvider).subscribeUrls;
   final candidates = orderedSubscriptionCandidates(subscribeUrl, configured)
-      .map((value) => value.contains('flag=') ? value : XboardApi.toMihomoUrl(value))
+      .map(
+        (value) =>
+            value.contains('flag=') ? value : XboardApi.toMihomoUrl(value),
+      )
       .toList();
   Object? lastError;
   for (final candidate in candidates) {
     try {
-      final result = await _importXboardSubscriptionUrl(candidate, forceApply: forceApply);
-      await c.read(xboardAuthProvider.notifier).markSubscriptionAvailable(candidate);
+      final result = await _importXboardSubscriptionUrl(
+        candidate,
+        forceApply: forceApply,
+      );
+      await c
+          .read(xboardAuthProvider.notifier)
+          .markSubscriptionAvailable(candidate);
       return result;
     } catch (error) {
       lastError = error;
@@ -363,7 +487,9 @@ Future<SubscriptionImportResult> _importXboardSubscriptionUrl(
       c.read(currentProfileIdProvider.notifier).value = updated.id;
       await c.read(setupActionProvider.notifier).applyProfile(force: true);
       _ensureVisibleMode();
-      commonPrint.log('[TianTi] Subscription applied (changed: $contentChanged, force: $forceApply)');
+      commonPrint.log(
+        '[TianTi] Subscription applied (changed: $contentChanged, force: $forceApply)',
+      );
       return SubscriptionImportResult(changed: true, profile: updated);
     } else {
       await tempFile.safeDelete();
@@ -373,7 +499,9 @@ Future<SubscriptionImportResult> _importXboardSubscriptionUrl(
         lastUpdateDate: DateTime.now(),
       );
       c.read(profilesProvider.notifier).put(updated);
-      commonPrint.log('[TianTi] Subscription content unchanged; active connection preserved.');
+      commonPrint.log(
+        '[TianTi] Subscription content unchanged; active connection preserved.',
+      );
       return SubscriptionImportResult(changed: false, profile: updated);
     }
   }
@@ -382,10 +510,7 @@ Future<SubscriptionImportResult> _importXboardSubscriptionUrl(
   final newProfile = Profile.normal(
     url: fetchUrl,
     label: utils.getFileNameForDisposition(disposition),
-  ).copyWith(
-    subscriptionInfo: subInfo,
-    lastUpdateDate: DateTime.now(),
-  );
+  ).copyWith(subscriptionInfo: subInfo, lastUpdateDate: DateTime.now());
   final mFile = await newProfile.file;
   await tempFile.copy(mFile.path);
   await tempFile.safeDelete();

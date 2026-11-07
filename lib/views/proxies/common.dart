@@ -6,6 +6,27 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+const int kDelayTestBatchSize = 4;
+const int kDelaySkipThresholdMs = 300;
+
+class DelayTestSummary {
+  final int total;
+  final int tested;
+  final int skipped;
+
+  const DelayTestSummary({
+    required this.total,
+    required this.tested,
+    required this.skipped,
+  });
+}
+
+bool shouldSkipProxyDelayTest(int? existingDelay) {
+  return existingDelay != null &&
+      existingDelay > 0 &&
+      existingDelay < kDelaySkipThresholdMs;
+}
+
 double get listHeaderHeight {
   final measure = globalState.measure;
   return 20 + measure.titleMediumHeight + 4 + measure.bodyMediumHeight + 2;
@@ -84,17 +105,64 @@ Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) async {
   }
 }
 
-Future<int> delayTest(List<Proxy> proxies, [String? testUrl]) async {
-  const batchSize = 20;
-  for (var start = 0; start < proxies.length; start += batchSize) {
-    final end = start + batchSize < proxies.length
-        ? start + batchSize
-        : proxies.length;
-    final batch = proxies.sublist(start, end);
+Future<DelayTestSummary> delayTestWithSummary(
+  List<Proxy> proxies, [
+  String? testUrl,
+]) async {
+  final ref = globalState.container;
+  final groups = getGroups();
+  final selectedMap = ref.read(
+    currentProfileProvider.select((state) => state?.selectedMap ?? {}),
+  );
+  final defaultResolvedTestUrl = ref.read(realTestUrlProvider(testUrl));
+  final delayMap = ref.read(delayDataSourceProvider);
+
+  final proxiesToTest = <Proxy>[];
+  var skipped = 0;
+
+  for (final proxy in proxies) {
+    final state = computeRealSelectedProxyState(
+      proxy.name,
+      groups: groups,
+      selectedMap: selectedMap,
+    );
+    if (state.proxyName.isEmpty) {
+      continue;
+    }
+    final currentTestUrl = state.testUrl.takeFirstValid([
+      defaultResolvedTestUrl,
+    ]);
+    final existingDelay = delayMap[currentTestUrl]?[state.proxyName];
+    if (shouldSkipProxyDelayTest(existingDelay)) {
+      skipped++;
+      continue;
+    }
+    proxiesToTest.add(proxy);
+  }
+
+  for (
+    var start = 0;
+    start < proxiesToTest.length;
+    start += kDelayTestBatchSize
+  ) {
+    final end = start + kDelayTestBatchSize < proxiesToTest.length
+        ? start + kDelayTestBatchSize
+        : proxiesToTest.length;
+    final batch = proxiesToTest.sublist(start, end);
     await Future.wait(batch.map((proxy) => proxyDelayTest(proxy, testUrl)));
   }
-  globalState.container.read(sortNumProvider.notifier).add();
-  return proxies.length;
+
+  ref.read(sortNumProvider.notifier).add();
+  return DelayTestSummary(
+    total: proxies.length,
+    tested: proxiesToTest.length,
+    skipped: skipped,
+  );
+}
+
+Future<int> delayTest(List<Proxy> proxies, [String? testUrl]) async {
+  final summary = await delayTestWithSummary(proxies, testUrl);
+  return summary.total;
 }
 
 double getScrollToSelectedOffset({

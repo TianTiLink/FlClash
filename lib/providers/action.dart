@@ -18,6 +18,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../xboard/default_proxy_selection.dart';
 import '../xboard/live_proxy_switch.dart';
+import '../xboard/xboard_auth.dart';
+import '../xboard/xboard_sync.dart';
 
 part 'generated/action.g.dart';
 
@@ -700,6 +702,7 @@ class SystemAction extends _$SystemAction {
     if (!system.isDesktop) {
       if (ref.read(backBlockProvider)) return;
     }
+    ref.read(delayDataSourceProvider.notifier).value = {};
     if (ref.read(appSettingProvider).minimizeOnExit || !exit) {
       if (system.isDesktop) {
         await preferences.saveConfig(ref.read(configProvider));
@@ -982,7 +985,14 @@ class ProfilesAction extends _$ProfilesAction {
   }
 
   Future<void> autoUpdateProfiles() async {
+    final managedSubUrl = ref.read(xboardAuthProvider).subscribeUrl;
     for (final profile in ref.read(profilesProvider)) {
+      if (isTianTiManagedSubscription(
+        profile,
+        subscribeUrl: managedSubUrl,
+      )) {
+        continue;
+      }
       if (!profile.autoUpdate) continue;
       final isNotNeedUpdate = profile.lastUpdateDate
           ?.add(profile.autoUpdateDuration)
@@ -1055,9 +1065,19 @@ class ProfilesAction extends _$ProfilesAction {
       globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
     }
     ref.read(currentPageLabelProvider.notifier).value = PageLabel.proxies;
+    final candidates = expandTianTiSubscriptionFallbacks(<String>[url]);
     final profile = await globalState.loadingRun(
       tag: LoadingTag.profiles,
       () async {
+        Object? lastError;
+        for (final candidate in candidates) {
+          try {
+            return await Profile.normal(url: candidate).update();
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (lastError != null) throw lastError;
         return Profile.normal(url: url).update();
       },
       title: currentAppLocalizations.addProfile,

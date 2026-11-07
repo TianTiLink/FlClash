@@ -11,11 +11,12 @@ import 'package:fl_clash/state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_popup.dart';
+import 'login_page.dart';
+import 'notice_announcement.dart';
 import 'xboard_auth.dart';
 import 'xboard_endpoint.dart';
-import 'login_page.dart';
-import 'app_popup.dart';
-import 'notice_announcement.dart';
+import 'xboard_sync.dart';
 
 class XboardGate extends ConsumerStatefulWidget {
   final Widget child;
@@ -51,6 +52,7 @@ class _XboardGateState extends ConsumerState<XboardGate> {
       await _resolveEndpointOnce();
     } finally {
       if (mounted) setState(() => _startupReady = true);
+      markTianTiGateReady();
     }
   }
 

@@ -325,13 +325,14 @@ class GlobalState {
     await _handleFailedPreference();
     // await _handlerDisclaimer(); // TianTiLink: 关闭启动免责声明弹窗
     await _showCrashlyticsTip();
+    container.read(delayDataSourceProvider.notifier).value = {};
     await container.read(coreActionProvider.notifier).connectCore();
     await container.read(coreActionProvider.notifier).initCore();
     await container.read(setupActionProvider.notifier).initStatus();
     container.read(initProvider.notifier).value = true;
     permissions.check();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      autoRefreshTianTiSubscription(reason: 'startup');
+      markTianTiCoreReady();
     });
   }
 

@@ -19,6 +19,7 @@ import 'xboard_api.dart';
 import 'xboard_auth.dart';
 import 'xboard_sync.dart';
 import 'web_page.dart'; // openExternal
+import 'guest_chat_page.dart';
 
 const Color _kIndigo = Color(0xFF2B2F77);
 const Color _kIndigoDeep = Color(0xFF20244F);
@@ -53,6 +54,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _plans = const [];
+  final Set<int> _expandedPlanIds = {};
 
   @override
   void initState() {
@@ -367,8 +369,167 @@ class _PlansPageState extends ConsumerState<PlansPage> {
     );
   }
 
+  Future<void> _consultCustomLine() async {
+    final a = _auth();
+    String? tgUrl;
+    if (a != null) {
+      try {
+        tgUrl = await XboardApi(a.url).getTelegramGroupUrl();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.stars_rounded, color: _kAmber),
+            SizedBox(width: 8),
+            Text('定制专线咨询'),
+          ],
+        ),
+        content: const Text(
+          '定制专线提供独享千兆专线直连、专属独立IP、SLA 99.9%保障。\n\n'
+          '起售价 ¥588 / 月，需由专属网络工程师根据您的业务需求（地区/协议/带宽）一对一定制与交付。\n\n'
+          '请通过在线客服或 Telegram 官方群联系我们咨询办理。',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('我知道了'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: _kAmber,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GuestChatPage()),
+              );
+            },
+            icon: const Icon(Icons.support_agent_rounded, size: 16),
+            label: const Text('在线客服'),
+          ),
+          if (tgUrl != null && tgUrl.isNotEmpty)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF229ED9),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                openExternal(tgUrl!);
+              },
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('前往 TG 客服'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _customPlanCard(Map<String, dynamic> plan) {
+    final name = plan['name']?.toString() ?? '企业 / 个人 定制专线';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF262015), Color(0xFF14120C)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kAmber.withOpacity(0.55), width: 1.5),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.stars_rounded,
+                color: _kAmber,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    color: _kAmber,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _kAmber.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'ENTERPRISE VIP',
+                  style: TextStyle(
+                    color: _kAmber,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              _planFeature(Icons.bolt_rounded, '独享千兆专线直连'),
+              _planFeature(Icons.language_rounded, '专属独立IP · 99.9% SLA'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '适合大流量工作室、跨境电商、游戏加速、企业出海定制。多地区/多协议/独享出口可选，专属工程师一对一定制。',
+            style: TextStyle(color: Colors.white70, fontSize: 12.5),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _kAmber,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _consultCustomLine,
+              icon: const Icon(Icons.support_agent_rounded, size: 18),
+              label: const Text(
+                '💼 ¥588 起 · 咨询客服开通',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _planCard(Map<String, dynamic> plan) {
+    final planId = _toInt(plan['id']);
     final name = plan['name']?.toString() ?? '套餐';
+    if (planId == 11 || name.contains('定制专线')) {
+      return _customPlanCard(plan);
+    }
+
     final transferValue = _toInt(plan['transfer_enable']);
     final transferBytes = _toInt(plan['transfer_enable_bytes']);
     final transferGb = transferBytes > 0
@@ -377,10 +538,17 @@ class _PlansPageState extends ConsumerState<PlansPage> {
               ? transferValue / (1024 * 1024 * 1024)
               : transferValue.toDouble());
     final deviceLimit = _toInt(plan['device_limit']);
-    final trafficText = transferGb > 0
-        ? '每月 ${transferGb.toStringAsFixed(transferGb == transferGb.roundToDouble() ? 0 : 2)} GB'
-        : '每月流量不限';
+    final speedLimit = _toInt(plan['speed_limit']);
+    final isOnetime = plan['onetime_price'] != null && plan['month_price'] == null;
+    final trafficText = isOnetime
+        ? (transferGb > 0
+              ? '${transferGb.toStringAsFixed(transferGb == transferGb.roundToDouble() ? 0 : 2)} GB (永久不过期)'
+              : '流量不限')
+        : (transferGb > 0
+              ? '每月 ${transferGb.toStringAsFixed(transferGb == transferGb.roundToDouble() ? 0 : 2)} GB'
+              : '每月流量不限');
     final deviceText = deviceLimit > 0 ? '支持 $deviceLimit 台设备' : '支持不限设备';
+    final speedText = speedLimit > 0 ? '$speedLimit M 速率' : '极速不限速';
     final desc = _stripHtml(
       (plan['content'] ?? plan['description'])?.toString() ?? '',
     );
@@ -432,6 +600,7 @@ class _PlansPageState extends ConsumerState<PlansPage> {
             children: [
               _planFeature(Icons.data_usage_rounded, trafficText),
               _planFeature(Icons.devices_rounded, deviceText),
+              _planFeature(Icons.speed_rounded, speedText),
             ],
           ),
           if (desc.isNotEmpty) ...[
@@ -449,7 +618,107 @@ class _PlansPageState extends ConsumerState<PlansPage> {
               '该套餐暂未开放购买',
               style: TextStyle(color: Colors.white54, fontSize: 12),
             )
-          else
+          else if (isOnetime && available.length == 1)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kAmber,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => _buy(plan, available[0].$1, available[0].$3),
+                icon: const Icon(Icons.flash_on_rounded, size: 18),
+                label: Text(
+                  '一次性买断 · ¥${(available[0].$3 / 100).toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            )
+          else if (available.length > 1) ...[
+            if (!_expandedPlanIds.contains(planId))
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => _expandedPlanIds.add(planId)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.18)),
+                  ),
+                  child: Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '起步价',
+                            style: TextStyle(color: Colors.white54, fontSize: 11),
+                          ),
+                          Text(
+                            '¥${(available[0].$3 / 100).toStringAsFixed(2)} / ${available[0].$2}',
+                            style: const TextStyle(
+                              color: _kAmber,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _kAmber,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '选择周期',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.black),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final a in available)
+                    _periodButton(plan, a.$1, a.$2, a.$3),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _expandedPlanIds.remove(planId)),
+                  icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 16, color: Colors.white60),
+                  label: const Text(
+                    '收起周期',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ] else
             Wrap(
               spacing: 10,
               runSpacing: 10,
