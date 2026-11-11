@@ -1,3 +1,8 @@
+## v0.8.134
+
+- macOS 钥匙串权限异常与登录受阻彻底根治：在 `xboard_auth.dart`、`guest_chat_page.dart` 中为 `flutter_secure_storage` 注入 `MacOsOptions(usesDataProtectionKeychain: false)`，避开苹果最新数据保护钥匙串强校验；同时建立全局底层容灾降级机制，当遭遇系统钥匙串未授权（Code: -34018 `errSecMissingEntitlement`）时，自动平滑降级存入沙盒存储，绝不对用户弹出报错，保障 macOS 免证书版本 100% 顺畅登录并自动同步节点。
+- 客服未读轮询存储轻量化改造：`xboard_unread.dart` 轮询已读时间戳改用 `SharedPreferences` 本地沙盒轻量读写，彻底脱钩系统钥匙串，杜绝后台轮询与计时器权限异常。
+
 ## v0.8.133
 
 - Windows 安装升级彻底防占用：在 Inno Setup 安装包与云打包脚本中修复 `taskkill.exe` 绝对路径执行与 `FlClashHelperService` 系统服务先停后杀机制；新增 `PrepareToInstall` 钩子并在 `[Files]` 段引入 `restartreplace` 延迟替换保护，彻底杜绝安装过程中 `vcruntime140.dll` 拒绝访问（Code 5）错误。

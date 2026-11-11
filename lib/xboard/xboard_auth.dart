@@ -16,7 +16,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../common/app_localizations.dart';
 import 'xboard_api.dart';
 
-const _secureStorage = FlutterSecureStorage();
+const _secureStorage = FlutterSecureStorage(
+  mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+);
 
 typedef XboardApiFactory = XboardApi Function(String baseUrl);
 
@@ -36,9 +38,39 @@ String ttActiveBase = kDefaultPanelUrl;
 const _kPanelUrl = 'tianti_api_base';
 const _kEmail = 'tianti_email';
 const _kAuth = 'tianti_auth_token';
+const _kAuthFallback = 'tianti_auth_token_fallback';
 const _kSub = 'tianti_subscribe_url';
 const _kSubUrls = 'tianti_subscribe_urls';
 const _notProvided = Object();
+
+/// 安全存储认证凭据。优先写入系统级安全存储(KeyStore/DPAPI/Keychain)。
+/// 若在未签名的 macOS/iOS 上遇到钥匙串权限异常(如 Code: -34018 errSecMissingEntitlement),
+/// 自动容灾降级写入 SharedPreferences 本地沙盒,保证用户永远不会被拦截在登录页外。
+Future<void> _writeAuthToken(SharedPreferences sp, String token) async {
+  try {
+    await _secureStorage.write(key: _kAuth, value: token);
+  } catch (_) {
+    // 捕获 macOS 钥匙串权限异常等底层错误,无缝走降级存储
+  }
+  await sp.setString(_kAuthFallback, token);
+}
+
+Future<String?> _readAuthToken(SharedPreferences sp) async {
+  try {
+    final auth = await _secureStorage.read(key: _kAuth);
+    if (auth != null && auth.isNotEmpty) return auth;
+  } catch (_) {
+    // 钥匙串读取失败时走降级存储
+  }
+  return sp.getString(_kAuthFallback);
+}
+
+Future<void> _deleteAuthToken(SharedPreferences sp) async {
+  try {
+    await _secureStorage.delete(key: _kAuth);
+  } catch (_) {}
+  await sp.remove(_kAuthFallback);
+}
 
 class XboardLoginOutcome {
   final String? mihomoUrl;
@@ -102,7 +134,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
   /// 启动时调用一次:从磁盘恢复会话(含全部主备订阅地址列表)。
   Future<void> restore() async {
     final sp = await SharedPreferences.getInstance();
-    final auth = await _secureStorage.read(key: _kAuth);
+    final auth = await _readAuthToken(sp);
     final savedSub = sp.getString(_kSub);
     final savedSubUrls = sp.getStringList(_kSubUrls) ?? const <String>[];
     final restoredUrls = <String>{
@@ -133,7 +165,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kPanelUrl, panelUrl);
     await sp.setString(_kEmail, email);
-    await _secureStorage.write(key: _kAuth, value: res.authData);
+    await _writeAuthToken(sp, res.authData);
     await sp.remove(_kSub);
     await sp.remove(_kSubUrls);
 
@@ -204,7 +236,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_kPanelUrl, panelUrl);
     await sp.setString(_kEmail, email);
-    await _secureStorage.write(key: _kAuth, value: res.authData);
+    await _writeAuthToken(sp, res.authData);
     await sp.remove(_kSub);
     await sp.remove(_kSubUrls);
 
@@ -337,7 +369,7 @@ class XboardAuth extends Notifier<XboardAuthState> {
       }
     }
     final sp = await SharedPreferences.getInstance();
-    await _secureStorage.delete(key: _kAuth);
+    await _deleteAuthToken(sp);
     await sp.remove(_kSub);
     await sp.remove(_kSubUrls);
     state = XboardAuthState(

@@ -2,7 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_clash/providers/app.dart'; // currentPageLabelProvider
 import 'package:fl_clash/enum/enum.dart'; // PageLabel
 
@@ -13,7 +13,6 @@ final xboardUnreadProvider =
     NotifierProvider<XboardUnread, int>(XboardUnread.new);
 
 class XboardUnread extends Notifier<int> {
-  static const _storage = FlutterSecureStorage();
   static const _kSeen = 'xboard_ticket_seen';
   Timer? _timer;
   int _lastSeen = 0;
@@ -30,8 +29,10 @@ class XboardUnread extends Notifier<int> {
   }
 
   Future<void> _init() async {
-    final v = await _storage.read(key: _kSeen);
-    _lastSeen = int.tryParse(v ?? '') ?? 0;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      _lastSeen = sp.getInt(_kSeen) ?? 0;
+    } catch (_) {}
     await _poll();
   }
 
@@ -56,9 +57,12 @@ class XboardUnread extends Notifier<int> {
     } catch (_) {}
   }
 
-  void markSeen() {
+  void markSeen() async {
     _lastSeen = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    _storage.write(key: _kSeen, value: '$_lastSeen');
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setInt(_kSeen, _lastSeen);
+    } catch (_) {}
     if (state != 0) state = 0;
   }
 }

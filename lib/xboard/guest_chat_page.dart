@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'xboard_auth.dart'; // ttActiveBase(failover 后的生效通信地址)
 import 'xboard_upload.dart';
@@ -21,10 +22,44 @@ class GuestChatPage extends ConsumerStatefulWidget {
 }
 
 class _GuestChatPageState extends ConsumerState<GuestChatPage> {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+  );
   static const _kConversationId = 'tianti_support_conversation_id';
   static const _kSupportToken = 'tianti_support_token';
   static const _kSupportIdentity = 'tianti_support_identity';
+
+  Future<String?> _readChatStorage(String key) async {
+    try {
+      final val = await _storage.read(key: key);
+      if (val != null && val.isNotEmpty) return val;
+    } catch (_) {}
+    try {
+      final sp = await SharedPreferences.getInstance();
+      return sp.getString(key);
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _writeChatStorage(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {}
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(key, value);
+    } catch (_) {}
+  }
+
+  Future<void> _deleteChatStorage(String key) async {
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {}
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove(key);
+    } catch (_) {}
+  }
 
   String? _conversationId;
   String? _supportToken;
@@ -49,16 +84,16 @@ class _GuestChatPageState extends ConsumerState<GuestChatPage> {
     final currentIdentity = auth.loggedIn && auth.email.trim().isNotEmpty
         ? 'user:${auth.email.trim().toLowerCase()}'
         : 'guest';
-    final storedIdentity = await _storage.read(key: _kSupportIdentity);
-    _conversationId = await _storage.read(key: _kConversationId);
-    _supportToken = await _storage.read(key: _kSupportToken);
+    final storedIdentity = await _readChatStorage(_kSupportIdentity);
+    _conversationId = await _readChatStorage(_kConversationId);
+    _supportToken = await _readChatStorage(_kSupportToken);
     if (storedIdentity != currentIdentity) {
       await _clearSession();
     }
     if ((_conversationId ?? '').isEmpty || (_supportToken ?? '').isEmpty) {
       await _createSession();
     }
-    await _storage.write(key: _kSupportIdentity, value: currentIdentity);
+    await _writeChatStorage(_kSupportIdentity, currentIdentity);
     await _load(initial: true);
     _poll = Timer.periodic(const Duration(seconds: 3), (_) => _load());
   }
@@ -87,15 +122,15 @@ class _GuestChatPageState extends ConsumerState<GuestChatPage> {
     }
     _conversationId = id;
     _supportToken = token;
-    await _storage.write(key: _kConversationId, value: id);
-    await _storage.write(key: _kSupportToken, value: token);
+    await _writeChatStorage(_kConversationId, id);
+    await _writeChatStorage(_kSupportToken, token);
   }
 
   Future<void> _clearSession() async {
     _conversationId = null;
     _supportToken = null;
-    await _storage.delete(key: _kConversationId);
-    await _storage.delete(key: _kSupportToken);
+    await _deleteChatStorage(_kConversationId);
+    await _deleteChatStorage(_kSupportToken);
   }
 
   @override

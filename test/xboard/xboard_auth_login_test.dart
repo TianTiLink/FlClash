@@ -180,4 +180,40 @@ void main() {
     );
     expect(container.read(xboardAuthProvider).loggedIn, isFalse);
   });
+
+  test(
+    'login and session restore survive secure storage failure via SharedPreferences fallback (macOS -34018)',
+    () async {
+      xboardApiFactory = (_) => _FakeApi();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final outcome = await container
+          .read(xboardAuthProvider.notifier)
+          .login(
+            panelUrl: 'https://api.example.invalid',
+            email: 'macos_user@example.invalid',
+            password: 'ValidPassword!2026',
+          );
+
+      final state = container.read(xboardAuthProvider);
+      expect(state.loggedIn, isTrue);
+      expect(state.authData, 'auth-token');
+      expect(outcome.mihomoUrl, contains('flag=meta'));
+
+      final sp = await SharedPreferences.getInstance();
+      expect(sp.getString('tianti_auth_token_fallback'), 'auth-token');
+
+      // Now simulate a cold restart where secure storage is empty or fails
+      FlutterSecureStorage.setMockInitialValues({});
+      final newContainer = ProviderContainer();
+      addTearDown(newContainer.dispose);
+
+      await newContainer.read(xboardAuthProvider.notifier).restore();
+      final restoredState = newContainer.read(xboardAuthProvider);
+      expect(restoredState.loggedIn, isTrue);
+      expect(restoredState.authData, 'auth-token');
+      expect(restoredState.email, 'macos_user@example.invalid');
+    },
+  );
 }
