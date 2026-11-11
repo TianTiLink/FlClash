@@ -60,8 +60,8 @@ Future<_TunAuthorizationResult> _authorizeTunOnceIfNeeded() {
       title: 'TUN 模式',
       message: const TextSpan(
         text:
-            '首次开启 TUN 模式需要安装网络服务，Windows 将弹出一次管理员授权。'
-            '同意并安装成功后，刷新节点或切换智能、全局和 TUN 模式都不会重复提示。是否继续？',
+            '开启 TUN 模式需要系统管理员权限。'
+            '点击“继续”将申请管理员授权。授权成功后，刷新节点或切换智能、全局模式都不会重复提示。是否继续？',
       ),
       confirmText: '继续',
       cancelText: '取消',
@@ -451,6 +451,10 @@ class SetupAction extends _$SetupAction {
           break;
         case _TunAuthorizationResult.failed:
           enableTun = false;
+          ref
+              .read(patchClashConfigProvider.notifier)
+              .update((state) => state.copyWith.tun(enable: false));
+          ref.read(realTunEnableProvider.notifier).value = false;
           break;
         case _TunAuthorizationResult.cancelled:
           break;
@@ -627,6 +631,10 @@ class CoreAction extends _$CoreAction {
           break;
         case _TunAuthorizationResult.failed:
           enableTun = false;
+          ref
+              .read(patchClashConfigProvider.notifier)
+              .update((state) => state.copyWith.tun(enable: false));
+          ref.read(realTunEnableProvider.notifier).value = false;
           break;
         case _TunAuthorizationResult.cancelled:
           break;

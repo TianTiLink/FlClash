@@ -1,3 +1,9 @@
+## v0.8.131
+
+- Windows 安装程序防占用：在云打包 Inno Setup 脚本中集成 `CloseApplications=force`、`RestartApplications=no` 与 `InitializeSetup` 进程强杀逻辑，安装前全自动彻底清理后台运行中的 `TianTiLink.exe`、`TianTiLinkCore.exe`、`FlClash.exe` 等进程，杜绝 `vcruntime140.dll` 拒绝访问（Code 5）安装错误。
+- Windows TUN 模式权限精准识别：弃用无效的后台服务 Ping 循环，改用 Windows 系统原生 `IsUserAnAdmin` API 检测管理员提权状态；已授权时静默直接生效（零弹窗打扰），未授权取消或失败时自动关闭 TUN 状态，彻底解决每次刷新节点、切换智能/全局模式时死循环弹窗的问题。
+- Windows 清单权限升级：在 `runner.exe.manifest` 中注入 `requireAdministrator` 运行级别，保障 Windows 端虚拟网卡与网络路由规则获得系统完整授权。
+
 ## v0.8.130
 
 - 独立专属包名：Android 端切换为独立专属包名 `com.tiantilink.app`，彻底杜绝与其他通用/原版 Clash 客户端的开发者证书与包名冲突。

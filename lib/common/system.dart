@@ -44,6 +44,9 @@ class System {
   Future<bool> checkIsAdmin() async {
     final corePath = appPath.corePath.replaceAll(' ', '\\\\ ');
     if (system.isWindows) {
+      if (windows?.isUserAnAdmin() == true) {
+        return true;
+      }
       final result = await windows?.checkService();
       return result == WindowsHelperServiceStatus.running;
     } else if (system.isMacOS) {
@@ -78,6 +81,13 @@ class System {
     }
 
     if (system.isWindows) {
+      if (windows?.isUserAnAdmin() == true) {
+        return AuthorizeCode.none;
+      }
+      final restarted = windows?.restartAsAdmin();
+      if (restarted == true) {
+        exit(0);
+      }
       final result = await windows?.registerService();
       if (result == true) {
         return AuthorizeCode.success;
@@ -154,7 +164,21 @@ class Windows {
     return _instance!;
   }
 
-  bool runas(String command, String arguments) {
+  bool isUserAnAdmin() {
+    try {
+      final isUserAnAdminFn = _shell32
+          .lookupFunction<Int32 Function(), int Function()>('IsUserAnAdmin');
+      return isUserAnAdminFn() != 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool restartAsAdmin() {
+    return runas(Platform.resolvedExecutable, '', showCmd: 1);
+  }
+
+  bool runas(String command, String arguments, {int showCmd = 0}) {
     final commandPtr = command.toNativeUtf16();
     final argumentsPtr = arguments.toNativeUtf16();
     final operationPtr = 'runas'.toNativeUtf16();
@@ -185,9 +209,8 @@ class Windows {
       commandPtr,
       argumentsPtr,
       nullptr,
-      // SW_HIDE:隐藏提权后弹出的 cmd 黑窗(sc/schtasks 命令照常在后台执行)。
-      // 系统 UAC 授权框走安全桌面、是独立弹窗,不受此参数影响,仍会正常出现。
-      0,
+      // showCmd: 默认为 0 (SW_HIDE) 隐藏提权后的 cmd 窗口; 重启 GUI 应用时传入 1 (SW_SHOWNORMAL)。
+      showCmd,
     );
 
     calloc.free(commandPtr);
