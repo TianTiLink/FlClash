@@ -141,7 +141,11 @@ class Request {
       if (response.statusCode != HttpStatus.ok) {
         return false;
       }
-      return (response.data as String) == globalState.coreSHA256;
+      final data = (response.data as String).trim();
+      if (globalState.coreSHA256.isEmpty) {
+        return data.isNotEmpty;
+      }
+      return data.toLowerCase() == globalState.coreSHA256.trim().toLowerCase();
     } catch (_) {
       return false;
     }

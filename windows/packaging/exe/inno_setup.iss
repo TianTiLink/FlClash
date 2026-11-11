@@ -27,18 +27,28 @@ var
   i: Integer;
   ResultCode: Integer;
 begin
-  Processes := ['TianTiLink.exe', 'TianTiLinkCore.exe', 'FlClash.exe', 'FlClashCore.exe', 'FlClashHelperService.exe', 'clash-meta.exe', 'mihomo.exe'];
+  Exec(ExpandConstant('{sys}\net.exe'), 'stop FlClashHelperService', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\sc.exe'), 'stop FlClashHelperService', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  Processes := ['TianTiLink.exe', 'TianTiLinkCore.exe', 'FlClash.exe', 'FlClashCore.exe', 'FlClashHelperService.exe', 'clash-meta.exe', 'mihomo.exe', 'EnableLoopback.exe'];
 
   for i := 0 to GetArrayLength(Processes)-1 do
   begin
-    Exec('taskkill', '/f /im ' + Processes[i], '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM ' + Processes[i], '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
+  Sleep(1200);
 end;
 
 function InitializeSetup(): Boolean;
 begin
   KillProcesses;
   Result := True;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  KillProcesses;
+  Result := '';
 end;
 
 [Languages]
@@ -75,7 +85,7 @@ Name: "chineseSimplified"; MessagesFile: {% if locale.file %}{{ locale.file }}{%
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: {% if CREATE_DESKTOP_ICON != true %}unchecked{% else %}checkedonce{% endif %}
 [Files]
-Source: "{{SOURCE_DIR}}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{{SOURCE_DIR}}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

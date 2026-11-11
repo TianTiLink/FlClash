@@ -1,3 +1,8 @@
+## v0.8.133
+
+- Windows 安装升级彻底防占用：在 Inno Setup 安装包与云打包脚本中修复 `taskkill.exe` 绝对路径执行与 `FlClashHelperService` 系统服务先停后杀机制；新增 `PrepareToInstall` 钩子并在 `[Files]` 段引入 `restartreplace` 延迟替换保护，彻底杜绝安装过程中 `vcruntime140.dll` 拒绝访问（Code 5）错误。
+- Windows TUN 授权双重检测与零闪退保护：优化后台辅助服务 Ping 协议解析支持忽略大小写与安全兜底；主程序在服务已运行时保持静默生效不重复弹窗，未授权时点击继续仅通过 Windows UAC 注册服务并平滑热重载内核，彻底杜绝主程序退出闪退。
+
 ## v0.8.132
 
 - Windows 修复授权后闪退：移除多余的 GUI 提权重启与自杀 exit 逻辑，避免单实例锁竞争导致应用闪退；优化 Windows 服务注册命令为 create/config/start 幂等链，彻底根治 TUN 授权后退出问题。
