@@ -82,4 +82,11 @@ Source: "{{SOURCE_DIR}}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Name: "{autoprograms}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"
 Name: "{autodesktop}\\{{DISPLAY_NAME}}"; Filename: "{app}\\{{EXECUTABLE_NAME}}"; Tasks: desktopicon
 [Run]
+Filename: "{sys}\sc.exe"; Parameters: "create FlClashHelperService binPath= ""{app}\FlClashHelperService.exe"" start= auto"; Flags: runhidden
+Filename: "{sys}\sc.exe"; Parameters: "config FlClashHelperService binPath= ""{app}\FlClashHelperService.exe"" start= auto"; Flags: runhidden
+Filename: "{sys}\sc.exe"; Parameters: "start FlClashHelperService"; Flags: runhidden
 Filename: "{app}\\{{EXECUTABLE_NAME}}"; Description: "{cm:LaunchProgram,{{DISPLAY_NAME}}}"; Flags: {% if PRIVILEGES_REQUIRED == 'admin' %}runascurrentuser{% endif %} nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{sys}\sc.exe"; Parameters: "stop FlClashHelperService"; Flags: runhidden
+Filename: "{sys}\sc.exe"; Parameters: "delete FlClashHelperService"; Flags: runhidden

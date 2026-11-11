@@ -1,3 +1,8 @@
+## v0.8.132
+
+- Windows 修复授权后闪退：移除多余的 GUI 提权重启与自杀 exit 逻辑，避免单实例锁竞争导致应用闪退；优化 Windows 服务注册命令为 create/config/start 幂等链，彻底根治 TUN 授权后退出问题。
+- 安装向导自动注册服务：在 Inno Setup 安装包内集成静默注册并启动 `FlClashHelperService` 服务逻辑，安装完成即拥有完整网络特权，日常使用零弹窗打扰。
+
 ## v0.8.131
 
 - Windows 安装程序防占用：在云打包 Inno Setup 脚本中集成 `CloseApplications=force`、`RestartApplications=no` 与 `InitializeSetup` 进程强杀逻辑，安装前全自动彻底清理后台运行中的 `TianTiLink.exe`、`TianTiLinkCore.exe`、`FlClash.exe` 等进程，杜绝 `vcruntime140.dll` 拒绝访问（Code 5）安装错误。

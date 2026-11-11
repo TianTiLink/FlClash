@@ -247,7 +247,14 @@ jobs:
             "Name: `"{autodesktop}\$app`"; Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; IconFilename: `"{app}\$exe`"",
             '',
             '[Run]',
-            "Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; Description: `"Run $app`"; Flags: nowait postinstall skipifsilent"
+            "Filename: `"{sys}\sc.exe`"; Parameters: `"create FlClashHelperService binPath= `"`"{app}\FlClashHelperService.exe`"`" start= auto`"; Flags: runhidden",
+            "Filename: `"{sys}\sc.exe`"; Parameters: `"config FlClashHelperService binPath= `"`"{app}\FlClashHelperService.exe`"`" start= auto`"; Flags: runhidden",
+            "Filename: `"{sys}\sc.exe`"; Parameters: `"start FlClashHelperService`"; Flags: runhidden",
+            "Filename: `"{app}\$exe`"; WorkingDir: `"{app}`"; Description: `"Run $app`"; Flags: nowait postinstall skipifsilent",
+            '',
+            '[UninstallRun]',
+            "Filename: `"{sys}\sc.exe`"; Parameters: `"stop FlClashHelperService`"; Flags: runhidden",
+            "Filename: `"{sys}\sc.exe`"; Parameters: `"delete FlClashHelperService`"; Flags: runhidden"
           )
           Set-Content -Path installer.iss -Value $iss -Encoding UTF8
           Write-Host "ISCC: $iscc   应用名: $app   exe: $exe"

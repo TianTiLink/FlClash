@@ -84,10 +84,6 @@ class System {
       if (windows?.isUserAnAdmin() == true) {
         return AuthorizeCode.none;
       }
-      final restarted = windows?.restartAsAdmin();
-      if (restarted == true) {
-        exit();
-      }
       final result = await windows?.registerService();
       if (result == true) {
         return AuthorizeCode.success;
@@ -172,10 +168,6 @@ class Windows {
     } catch (_) {
       return false;
     }
-  }
-
-  bool restartAsAdmin() {
-    return runas(Platform.resolvedExecutable, '', showCmd: 1);
   }
 
   bool runas(String command, String arguments, {int showCmd = 0}) {
@@ -269,23 +261,18 @@ class Windows {
 
     final command = [
       '/c',
-      if (status == WindowsHelperServiceStatus.presence) ...[
-        'taskkill',
-        '/F',
-        '/IM',
-        '$appHelperService.exe'
-            ' & '
-            'sc',
-        'delete',
-        appHelperService,
-        '&',
-      ],
       'sc',
       'create',
       appHelperService,
       'binPath= "${appPath.helperPath}"',
       'start= auto',
-      '&&',
+      '&',
+      'sc',
+      'config',
+      appHelperService,
+      'binPath= "${appPath.helperPath}"',
+      'start= auto',
+      '&',
       'sc',
       'start',
       appHelperService,
@@ -296,7 +283,7 @@ class Windows {
     await Future.delayed(const Duration(milliseconds: 300));
     final retryStatus = await retry(
       task: checkService,
-      maxAttempts: 5,
+      maxAttempts: 6,
       retryIf: (status) => status != WindowsHelperServiceStatus.running,
       delay: const Duration(seconds: 1),
     );
