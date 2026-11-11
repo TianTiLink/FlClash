@@ -52,13 +52,10 @@ jobs:
           flutter --version
           flutter pub get
 
-      # 第 1 段:官方脚本编 Go 内核 + 写 env.json。最后打 .dmg 可能崩,用 continue-on-error 放行。
-      - name: 编内核 + 生成 env.json(官方脚本;打包失败可忽略)
-        continue-on-error: true
+      # 第 1 段: 写 env.json(直接生成,避免 setup.dart 在 Intel 无头虚拟机中因 appdmg 挂起)
+      - name: 生成 env.json
         run: |
-          set +e
-          dart setup.dart macos --env stable -v 2>&1 | tee setup-macos.log
-          echo "setup.dart 退出码:${PIPESTATUS[0]}"
+          echo '{"APP_ENV": "stable"}' > env.json
 
       # 第 2 段:显式编译完整 macOS 应用。真编不过就当场红(pipefail 传递退出码),报错进 flutter-build.log。
       - name: 编译完整 macOS 应用(flutter build macos --release)
