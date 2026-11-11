@@ -71,6 +71,8 @@ jobs:
           else
             echo "::warning::既无 SERVICE_JSON secret、仓库里也没有 android/app/google-services.json;若未移除 Firebase 插件,下一步会构建失败(见 BUILD-ANDROID.md)。"
           fi
+          sed -i 's/"package_name": "com.follow.clash"/"package_name": "com.tiantilink.app"/g' android/app/google-services.json || true
+          sed -i 's/"package_name": "com.follow.clash.dev"/"package_name": "com.tiantilink.app.dev"/g' android/app/google-services.json || true
           # keystore 可选:提供了就正式签名;没提供则 release 会回退到 debug 签名并给包名加 .dev 后缀,
           # 产出的 APK 仍可正常【侧载安装】(只是不能上架 Play、且包名是 com.follow.clash.dev)。
           if [ -n "$KEYSTORE" ]; then

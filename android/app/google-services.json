@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:661561862241:android:76854f664590e621672220",
         "android_client_info": {
-          "package_name": "com.follow.clash"
+          "package_name": "com.tiantilink.app"
         }
       },
       "oauth_client": [],
@@ -28,7 +28,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:661561862241:android:fb7c053b1473a744672220",
         "android_client_info": {
-          "package_name": "com.follow.clash.dev"
+          "package_name": "com.tiantilink.app.dev"
         }
       },
       "oauth_client": [],

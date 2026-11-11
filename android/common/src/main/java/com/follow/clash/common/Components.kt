@@ -3,14 +3,14 @@ package com.follow.clash.common
 import android.content.ComponentName
 
 object Components {
-    const val PACKAGE_NAME = "com.follow.clash"
+    const val PACKAGE_NAME = "com.tiantilink.app"
 
     val MAIN_ACTIVITY =
-        ComponentName(GlobalState.packageName, "${PACKAGE_NAME}.MainActivity")
+        ComponentName(GlobalState.packageName, "com.follow.clash.MainActivity")
 
     val TEMP_ACTIVITY =
-        ComponentName(GlobalState.packageName, "${PACKAGE_NAME}.TempActivity")
+        ComponentName(GlobalState.packageName, "com.follow.clash.TempActivity")
 
     val BROADCAST_RECEIVER =
-        ComponentName(GlobalState.packageName, "${PACKAGE_NAME}.BroadcastReceiver")
+        ComponentName(GlobalState.packageName, "com.follow.clash.BroadcastReceiver")
 }

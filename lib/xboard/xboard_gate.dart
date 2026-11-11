@@ -27,10 +27,10 @@ class XboardGate extends ConsumerStatefulWidget {
 }
 
 class _XboardGateState extends ConsumerState<XboardGate> {
-  bool _popupTried = false;
-  bool _noticeStarted = false;
   bool _endpointTried = false;
   bool _startupReady = false;
+  bool _dialogsDispatched = false;
+  TtEndpointResult? _endpointResult;
 
   @override
   void initState() {
@@ -57,44 +57,47 @@ class _XboardGateState extends ConsumerState<XboardGate> {
   }
 
   // 启动只跑一次:逐个探测通信地址,探通后让会话切到该地址(防封 failover),
-  // 再比对后台版本号,仅后台版本更高时弹「建议更新」(非强制)。全程失败静默,等同现状。
+  // 并比对后台最新版本号信息。
   Future<void> _resolveEndpointOnce() async {
     if (_endpointTried) return;
     _endpointTried = true;
-    TtEndpointResult r;
     try {
-      r = await resolveEndpoint(
+      _endpointResult = await resolveEndpoint(
         currentVersion: globalState.packageInfo.version,
       );
     } catch (_) {
       return;
     }
     if (!mounted) return;
-    if (r.online) {
+    final r = _endpointResult;
+    if (r != null && r.online) {
       await ref.read(xboardAuthProvider.notifier).adoptBase(r.activeBase);
     }
-    if (mounted && r.hasUpdate && r.updateForce) {
-      await maybeShowVersionUpdate(context, ref, r);
-    }
   }
 
-  // 通知 + 公告:只在登录后冷启动首帧各查一次(两者内部都有「本次进程只弹一次」去重)。
-  // 不接 didChangeAppLifecycleState、不做定时轮询 —— 最小化切回前台不重弹,关闭重启才会再弹。
-  void _startNoticeWatch() {
-    if (_noticeStarted) return;
-    _noticeStarted = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        maybeShowLatestAnnouncement(context, ref); // TianTi Core 公告,每进程一次
+  // 弹窗严格按顺序排队：先展示版本升级（必须更新或建议更新），用户关闭或无更新后再弹后台通知公告，杜绝弹窗重叠冲突。
+  void _dispatchStartupDialogs() {
+    if (_dialogsDispatched) return;
+    _dialogsDispatched = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      // 1. 第一步：先检查并展示版本更新（必须更新或建议更新均第一时间弹出）
+      final r = _endpointResult;
+      if (r != null && r.hasUpdate) {
+        await maybeShowVersionUpdate(context, ref, r);
       }
-    });
-  }
 
-  void _maybePopup() {
-    if (_popupTried) return;
-    _popupTried = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) maybeShowResellerPopup(context, ref);
+      if (!mounted) return;
+
+      // 2. 第二步：版本更新弹窗处理完成后（用户点击「稍后再说」或无需更新），再按顺序展示后台公告与通知
+      final auth = ref.read(xboardAuthProvider);
+      if (auth.loggedIn) {
+        await maybeShowLatestAnnouncement(context, ref);
+        if (mounted) {
+          await maybeShowResellerPopup(context, ref);
+        }
+      }
     });
   }
 
@@ -107,13 +110,16 @@ class _XboardGateState extends ConsumerState<XboardGate> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!auth.loggedIn) {
+      // 登录页时，如果是强制更新，也第一时间弹出阻断提示
+      final r = _endpointResult;
+      if (r != null && r.hasUpdate && r.updateForce) {
+        _dispatchStartupDialogs();
+      }
       return const LoginPage();
     }
 
-    // 已登录:首帧后弹一次启动公告(app_popup 内部已去重)。
-    _maybePopup();
-    _startNoticeWatch();
-    // 代理中心已收进底部「我的」tab,这里直接显示 FlClash 主界面即可。
+    // 已登录:按顺序检查并弹窗（版本更新优先，通知排后，杜绝冲突）
+    _dispatchStartupDialogs();
     return widget.child;
   }
 }

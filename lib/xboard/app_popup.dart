@@ -23,7 +23,7 @@ bool _versionShownOnce = false;
 Future<void> maybeShowVersionUpdate(
     BuildContext context, WidgetRef ref, TtEndpointResult r) async {
   if (_versionShownOnce) return;
-  if (!r.hasUpdate || !r.updateForce) return;
+  if (!r.hasUpdate) return;
   _versionShownOnce = true;
   if (!context.mounted) return;
 
@@ -31,8 +31,8 @@ Future<void> maybeShowVersionUpdate(
   final url = (r.downloadUrl ?? '').trim();
   final note = r.updateNote.isNotEmpty
       ? r.updateNote
-      : '发现新版本,建议更新到最新版以获得更稳定的连接。';
-  // 只有「开了强制更新」且「确实配了下载地址」才阻断,避免配置疏漏把用户卡死。
+      : '发现新版本，建议更新到最新版以获得更稳定的连接与体验。';
+  // 只有「后台开启了强制更新」且「确实配置了下载地址」才强制阻断，避免配置疏漏卡死用户。
   final bool force = r.updateForce && url.isNotEmpty;
 
   await showDialog<void>(
@@ -41,7 +41,7 @@ Future<void> maybeShowVersionUpdate(
     builder: (ctx) => PopScope(
       canPop: !force,
       child: AlertDialog(
-        title: Text('发现新版本${latest.isEmpty ? '' : ' v$latest'}'),
+        title: Text('发现新版本${latest.isEmpty ? '' : ' v$latest'}${force ? ' (必须更新)' : ''}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
