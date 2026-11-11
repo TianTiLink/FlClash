@@ -86,7 +86,7 @@ class System {
       }
       final restarted = windows?.restartAsAdmin();
       if (restarted == true) {
-        exit(0);
+        exit();
       }
       final result = await windows?.registerService();
       if (result == true) {
