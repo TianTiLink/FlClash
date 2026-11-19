@@ -7,19 +7,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('delay test batching and <300ms skip policy', () {
-    test('uses batch size of 4 and 300ms threshold', () {
-      expect(kDelayTestBatchSize, 4);
+  group('delay test batching and full-node policy', () {
+    test('uses batch size of 6 and tests all nodes', () {
+      expect(kDelayTestBatchSize, 6);
       expect(kDelaySkipThresholdMs, 300);
     });
 
-    test('skips only measured positive delays strictly below 300ms', () {
+    test('never skips any node during delay test', () {
       expect(shouldSkipProxyDelayTest(null), isFalse);
       expect(shouldSkipProxyDelayTest(0), isFalse);
       expect(shouldSkipProxyDelayTest(-1), isFalse);
-      expect(shouldSkipProxyDelayTest(1), isTrue);
-      expect(shouldSkipProxyDelayTest(180), isTrue);
-      expect(shouldSkipProxyDelayTest(299), isTrue);
+      expect(shouldSkipProxyDelayTest(1), isFalse);
+      expect(shouldSkipProxyDelayTest(180), isFalse);
+      expect(shouldSkipProxyDelayTest(299), isFalse);
       expect(shouldSkipProxyDelayTest(300), isFalse);
       expect(shouldSkipProxyDelayTest(650), isFalse);
     });
