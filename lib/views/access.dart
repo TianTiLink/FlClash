@@ -8,7 +8,6 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AccessView extends ConsumerStatefulWidget {
@@ -132,12 +131,6 @@ class _AccessViewState extends ConsumerState<AccessView> {
     });
   }
 
-  void _handleToggle() {
-    ref.read(accessControlStateProvider.notifier).update((state) {
-      return state.copyWith(enable: !state.enable);
-    });
-  }
-
   void _handleSearch() {
     _scaffoldKey.currentState?.handleToSearch();
   }
@@ -224,31 +217,16 @@ class _AccessViewState extends ConsumerState<AccessView> {
     );
   }
 
-  Future<void> _exportToClipboard() async {
-    await globalState.safeRun(() {
-      final currentList = ref.read(
-        accessControlStateProvider.select((state) => state.currentList),
-      );
-      Clipboard.setData(ClipboardData(text: currentList.join('\n')));
-    });
-  }
-
-  Future<void> _importFormClipboard() async {
-    await globalState.safeRun(() async {
-      final data = await Clipboard.getData('text/plain');
-      final text = data?.text;
-      if (text == null) return;
-      final list = text.split('\n');
-      ref
-          .read(accessControlStateProvider.notifier)
-          .update((state) => state.copyWithNewList(list.toSet().toList()));
-    });
-  }
-
   List<Widget> _buildActions(BuildContext context, {required bool enable}) {
     final appLocalizations = context.appLocalizations;
     return [
       _buildConfirm(),
+      if (enable)
+        IconButton(
+          tooltip: '搜索应用',
+          onPressed: _handleSearch,
+          icon: const Icon(Icons.search),
+        ),
       CommonPopupBox(
         targetBuilder: (open) {
           return IconButton(
@@ -261,42 +239,23 @@ class _AccessViewState extends ConsumerState<AccessView> {
         popup: CommonPopupMenu(
           items: [
             PopupMenuItemData(
-              icon: Icons.swap_horiz,
-              label: enable
-                  ? appLocalizations.turnOff
-                  : appLocalizations.turnOn,
-              onPressed: _handleToggle,
-            ),
-            PopupMenuItemData(
-              icon: Icons.search,
-              label: appLocalizations.search,
-              onPressed: _handleSearch,
-            ),
-            PopupMenuItemData(
               icon: Icons.tune,
-              label: appLocalizations.settings,
+              label: '过滤设置',
               onPressed: _handleToSetting,
             ),
             PopupMenuItemData(
-              icon: Icons.emergency_outlined,
-              label: appLocalizations.action,
-              subItems: [
-                PopupMenuItemData(
-                  icon: Icons.auto_awesome,
-                  label: appLocalizations.intelligentSelected,
-                  onPressed: _intelligentSelected,
-                ),
-                PopupMenuItemData(
-                  icon: Icons.content_copy,
-                  label: appLocalizations.clipboardExport,
-                  onPressed: _exportToClipboard,
-                ),
-                PopupMenuItemData(
-                  icon: Icons.paste,
-                  label: appLocalizations.clipboardImport,
-                  onPressed: _importFormClipboard,
-                ),
-              ],
+              icon: Icons.auto_awesome,
+              label: appLocalizations.intelligentSelected,
+              onPressed: _intelligentSelected,
+            ),
+            PopupMenuItemData(
+              icon: Icons.clear_all,
+              label: '清空已选',
+              onPressed: () {
+                ref.read(accessControlStateProvider.notifier).update(
+                      (state) => state.copyWithNewList([]),
+                    );
+              },
             ),
           ],
         ),
@@ -340,36 +299,70 @@ class _AccessViewState extends ConsumerState<AccessView> {
     );
   }
 
-  Widget _buildBannerBar(AccessControlMode mode, int count) {
-    final appLocalizations = context.appLocalizations;
-    final describe = mode == AccessControlMode.acceptSelected
-        ? appLocalizations.accessControlAllowDesc
-        : appLocalizations.accessControlNotAllowDesc;
-    final textStyle = context.textTheme.labelLarge?.copyWith(
-      color: context.colorScheme.onPrimary,
-    );
-    return MaterialBanner(
-      content: Text(describe),
-      actions: [
-        Card.filled(
-          color: context.colorScheme.primary,
-          elevation: 0,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(appLocalizations.selected, style: textStyle),
-                const SizedBox(width: 4),
-                Flexible(child: Text('$count', style: textStyle)),
-              ],
-            ),
+  Widget _buildModeHeader(AccessControlProps accessControl, int count) {
+    final colorScheme = context.colorScheme;
+    final currentChoice = !accessControl.enable
+        ? 'off'
+        : (accessControl.mode == AccessControlMode.acceptSelected
+              ? 'whitelist'
+              : 'blacklist');
+    final String desc;
+    if (!accessControl.enable) {
+      desc = '已关闭：所有应用均按智能分流规则（国内直连、海外走代理）运行';
+    } else if (accessControl.mode == AccessControlMode.acceptSelected) {
+      desc = '白名单模式：仅下方勾选的 $count 个应用走代理，其余应用全部直连';
+    } else {
+      desc = '黑名单模式：下方勾选的 $count 个应用强制直连，其余应用按智能分流走';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Card(
+        elevation: 0,
+        color: colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: 'off', label: Text('关闭')),
+                  ButtonSegment(value: 'whitelist', label: Text('白名单')),
+                  ButtonSegment(value: 'blacklist', label: Text('黑名单')),
+                ],
+                selected: {currentChoice},
+                onSelectionChanged: (selection) {
+                  final next = selection.first;
+                  ref.read(accessControlStateProvider.notifier).update((state) {
+                    if (next == 'off') {
+                      return state.copyWith(enable: false);
+                    }
+                    return state.copyWith(
+                      enable: true,
+                      mode: next == 'whitelist'
+                          ? AccessControlMode.acceptSelected
+                          : AccessControlMode.rejectSelected,
+                    );
+                  });
+                },
+              ),
+              const SizedBox(height: 10),
+              Text(
+                desc,
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -405,7 +398,6 @@ class _AccessViewState extends ConsumerState<AccessView> {
               package.packageName.contains(query),
         )
         .toList();
-    final mode = accessControl.mode;
     final currentList = accessControl.currentList;
     final viewPackageNameList = viewPackages.map((e) => e.packageName).toList();
     final valueList = currentList.intersection(viewPackageNameList);
@@ -413,28 +405,38 @@ class _AccessViewState extends ConsumerState<AccessView> {
       key: _scaffoldKey,
       isLoading: isLoading,
       searchState: AppBarSearchState(onSearch: _onSearch, autoAddSearch: false),
-      title: context.appLocalizations.appAccessControl,
+      title: '分应用代理',
       actions: _buildActions(context, enable: accessControl.enable),
-      body: DisabledMask(
-        status: !accessControl.enable,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildBannerBar(mode, valueList.length),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _buildContent(
-                packages: viewPackages,
-                valueList: valueList,
-              ),
-            ),
-          ],
-        ),
+      body: Column(
+        children: [
+          _buildModeHeader(accessControl, valueList.length),
+          Expanded(
+            child: accessControl.enable
+                ? _buildContent(
+                    packages: viewPackages,
+                    valueList: valueList,
+                  )
+                : Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        '当前未开启分应用代理，所有应用均按智能分流规则运行。\n选择上方「白名单」或「黑名单」即可自定义应用分流。',
+                        textAlign: TextAlign.center,
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
-      floatingActionButton: _buildSelectedAllButton(
-        isSelectedAll: valueList.length == viewPackageNameList.length,
-        allValueList: viewPackageNameList,
-      ),
+      floatingActionButton: accessControl.enable
+          ? _buildSelectedAllButton(
+              isSelectedAll: valueList.length == viewPackageNameList.length,
+              allValueList: viewPackageNameList,
+            )
+          : null,
     );
   }
 }

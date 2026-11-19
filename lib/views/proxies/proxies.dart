@@ -106,11 +106,6 @@ class _ProxiesViewState extends ConsumerState<ProxiesView> {
       final String feedback;
       if (summary.total == 0) {
         feedback = '当前分组没有可检测的节点';
-      } else if (summary.tested == 0 && summary.skipped > 0) {
-        feedback = '全部 ${summary.skipped} 个节点延迟均低于 300ms，无需重复检测';
-      } else if (summary.skipped > 0) {
-        feedback =
-            '延迟检测完成：检测 ${summary.tested} 个，跳过 ${summary.skipped} 个低延迟节点';
       } else {
         feedback = '延迟检测完成，共 ${summary.tested} 个节点';
       }

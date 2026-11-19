@@ -6,7 +6,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const int kDelayTestBatchSize = 4;
+const int kDelayTestBatchSize = 6;
 const int kDelaySkipThresholdMs = 300;
 
 class DelayTestSummary {
@@ -22,9 +22,7 @@ class DelayTestSummary {
 }
 
 bool shouldSkipProxyDelayTest(int? existingDelay) {
-  return existingDelay != null &&
-      existingDelay > 0 &&
-      existingDelay < kDelaySkipThresholdMs;
+  return false;
 }
 
 double get listHeaderHeight {
