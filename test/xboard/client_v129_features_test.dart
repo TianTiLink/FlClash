@@ -26,10 +26,10 @@ void main() {
   });
 
   group('emergency IP endpoint configuration', () {
-    test('uses 186.244.220.105 as primary emergency API base', () {
-      expect(kPrimaryEmergencyApiBase, 'https://186.244.220.105');
-      expect(kEmergencyApiBases.first, 'https://186.244.220.105');
-      expect(kEmergencyApiBases, contains('https://186.244.223.118'));
+    test('uses 107.148.152.214 as primary emergency API base', () {
+      expect(kPrimaryEmergencyApiBase, 'https://107.148.152.214');
+      expect(kEmergencyApiBases.first, 'https://107.148.152.214');
+      expect(kEmergencyApiBases, contains('https://104.233.158.99'));
     });
   });
 

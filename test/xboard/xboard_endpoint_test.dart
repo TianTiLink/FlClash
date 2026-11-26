@@ -157,7 +157,7 @@ void main() {
     expect(
       XboardApi.rebaseSubscribeUrl(
         'https://blocked.example/s/token123?flag=meta',
-        'https://186.244.223.118',
+        'https://104.233.158.99',
       ),
       'https://blocked.example/s/token123?flag=meta',
     );

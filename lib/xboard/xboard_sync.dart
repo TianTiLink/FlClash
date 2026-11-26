@@ -32,8 +32,8 @@ import 'xboard_auth.dart';
 const Duration kTianTiRoutineRefreshInterval = Duration(hours: 1);
 const Duration kTianTiHealingCooldown = Duration(minutes: 5);
 const List<String> kTianTiSubscriptionFallbackHosts = <String>[
-  '186.244.220.105:45618',
-  '186.244.223.118:45618',
+  '107.148.152.214:45618',
+  '104.233.158.99:45618',
 ];
 const String _kLastAutoRefreshTime = 'tianti_last_auto_refresh_ms';
 const String _kLastHealingRefreshTime = 'tianti_last_healing_refresh_ms';

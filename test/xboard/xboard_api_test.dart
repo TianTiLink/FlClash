@@ -31,13 +31,13 @@ void main() {
         subscribeUrls: const [
           'https://first.example/s/token',
           'https://second.example/s/token',
-          'https://186.244.223.118:45618/s/token',
+          'https://104.233.158.99:45618/s/token',
         ],
       );
       expect(subscription.subscribeUrls, const [
         'https://first.example/s/token',
         'https://second.example/s/token',
-        'https://186.244.223.118:45618/s/token',
+        'https://104.233.158.99:45618/s/token',
       ]);
     });
   });

@@ -13,10 +13,10 @@ import 'xboard_auth.dart' show ttActiveBase;
 const String _kApiDomainsCache = 'tt_api_domains';
 const String _kActiveBaseCache = 'tt_active_base';
 const String _kOfficialDomainsCache = 'tt_official_domains';
-const String kPrimaryEmergencyApiBase = 'https://186.244.220.105';
+const String kPrimaryEmergencyApiBase = 'https://107.148.152.214';
 const List<String> kEmergencyApiBases = <String>[
   kPrimaryEmergencyApiBase,
-  'https://186.244.223.118',
+  'https://104.233.158.99',
 ];
 const String _kBootstrapBrand = 'tianti';
 const String _kBootstrapPublicKey =
@@ -395,7 +395,7 @@ Future<TtEndpointResult> resolveEndpoint({
   }
 
   // Last resort: fixed IPs with trusted IP-address TLS certificates (primary
-  // 186.244.220.105, secondary 186.244.223.118). Attempted only after cached,
+  // 107.148.152.214, secondary 104.233.158.99). Attempted only after cached,
   // built-in and freshly discovered domains fail.
   for (final emergencyBase in kEmergencyApiBases) {
     try {

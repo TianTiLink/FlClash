@@ -11,12 +11,12 @@ void main() {
       orderedSubscriptionCandidates('https://first.example/s/token', const [
         'https://first.example/s/token',
         'https://second.example/s/token',
-        'https://186.244.220.105:45618/s/token',
+        'https://107.148.152.214:45618/s/token',
       ]),
       const [
         'https://first.example/s/token',
         'https://second.example/s/token',
-        'https://186.244.220.105:45618/s/token',
+        'https://107.148.152.214:45618/s/token',
       ],
     );
   });
@@ -30,8 +30,8 @@ void main() {
       ]),
       const [
         'https://vm634xcklj68vas12d4.xyz/s/$token',
-        'https://186.244.220.105:45618/s/$token',
-        'https://186.244.223.118:45618/s/$token',
+        'https://107.148.152.214:45618/s/$token',
+        'https://104.233.158.99:45618/s/$token',
       ],
     );
   });
